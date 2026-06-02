@@ -1,0 +1,10 @@
+{
+  "name": "OVERPLAST MEDICAL COMPRESSION MEASUREMENT SYSTEM",
+  "description": "Production-grade medical platform for compression garment measurements, patient management, and order tracking with AI validation.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

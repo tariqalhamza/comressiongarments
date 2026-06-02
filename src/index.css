@@ -1,0 +1,211 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@media print {
+  body {
+    visibility: hidden;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Target only the report container */
+  #printable-report,
+  #printable-report * {
+    visibility: visible !important;
+  }
+
+  #printable-report {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 210mm !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+    opacity: 1 !important;
+    z-index: 2147483647 !important;
+    background-color: white !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 0;
+  }
+}
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-medical-50: #f0f7ff;
+  --color-medical-100: #e0effe;
+  --color-medical-600: #2563eb;
+  --color-medical-700: #1d4ed8;
+  --color-medical-900: #1e3a8a;
+  
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 font-sans antialiased;
+  }
+
+  @media print {
+    body {
+      background: white !important;
+      padding: 0 !important;
+    }
+    
+    .print\:hidden {
+      display: none !important;
+    }
+
+    .print\:block {
+      display: block !important;
+    }
+
+    #root {
+      width: 100% !important;
+    }
+
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    
+    .break-before-page {
+      break-before: page;
+    }
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-xl border border-white/20 shadow-xl shadow-slate-200/50;
+  }
+  
+  .medical-card {
+    @apply bg-white rounded-3xl border border-slate-100 shadow-sm transition-all duration-300 hover:shadow-md hover:border-blue-100;
+  }
+  
+  .btn-primary {
+    @apply px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-200 
+           hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98] transition-all;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-500 font-semibold 
+           hover:bg-slate-100 hover:text-slate-900 transition-all cursor-pointer;
+  }
+  
+  .nav-item-active {
+    @apply bg-blue-600 text-white shadow-lg shadow-blue-100 hover:bg-blue-600 hover:text-white;
+  }
+
+  .medical-input {
+    @apply w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-blue-100 focus:ring-4 focus:ring-blue-50/50 transition-all duration-300 placeholder:text-slate-200;
+  }
+
+  /* PDF Generation Fix: Force HEX/RGB colors for everything inside pdf-safe-zone to avoid oklch errors in html2canvas */
+  .pdf-safe-zone {
+    color-scheme: light;
+    color: #0f172a !important;
+    background-color: #ffffff !important;
+    
+    /* Variable overrides for Tailwind 4 */
+    --color-slate-50: #f8fafc !important;
+    --color-slate-100: #f1f5f9 !important;
+    --color-slate-200: #e2e8f0 !important;
+    --color-slate-300: #cbd5e1 !important;
+    --color-slate-400: #94a3b8 !important;
+    --color-slate-500: #64748b !important;
+    --color-slate-600: #475569 !important;
+    --color-slate-700: #334115 !important;
+    --color-slate-800: #1e293b !important;
+    --color-slate-900: #0f172a !important;
+    --color-blue-50: #eff6ff !important;
+    --color-blue-100: #dbeafe !important;
+    --color-blue-200: #bfdbfe !important;
+    --color-blue-300: #93c5fd !important;
+    --color-blue-400: #60a5fa !important;
+    --color-blue-500: #3b82f6 !important;
+    --color-blue-600: #2563eb !important;
+    --color-emerald-50: #ecfdf5 !important;
+    --color-emerald-100: #d1fae5 !important;
+    --color-emerald-600: #059669 !important;
+    --color-purple-50: #faf5ff !important;
+    --color-purple-100: #f3e8ff !important;
+    --color-purple-300: #d8b4fe !important;
+    --color-purple-600: #9333ea !important;
+  }
+
+  .pdf-safe-zone * {
+    --tw-text-opacity: 1 !important;
+    --tw-bg-opacity: 1 !important;
+    --tw-border-opacity: 1 !important;
+    --tw-shadow: 0 0 #0000 !important;
+    --tw-ring-color: transparent !important;
+  }
+
+  /* Force Hex for all common utilities */
+  .pdf-safe-zone [class*="text-slate-900"] { color: #0f172a !important; }
+  .pdf-safe-zone [class*="text-slate-800"] { color: #1e293b !important; }
+  .pdf-safe-zone [class*="text-slate-700"] { color: #334155 !important; }
+  .pdf-safe-zone [class*="text-slate-600"] { color: #475569 !important; }
+  .pdf-safe-zone [class*="text-slate-500"] { color: #64748b !important; }
+  .pdf-safe-zone [class*="text-slate-400"] { color: #94a3b8 !important; }
+  .pdf-safe-zone [class*="text-slate-300"] { color: #cbd5e1 !important; }
+  
+  .pdf-safe-zone [class*="text-blue-600"] { color: #2563eb !important; }
+  .pdf-safe-zone [class*="text-blue-500"] { color: #3b82f6 !important; }
+  .pdf-safe-zone [class*="text-blue-400"] { color: #60a5fa !important; }
+  .pdf-safe-zone [class*="text-blue-300"] { color: #93c5fd !important; }
+  
+  .pdf-safe-zone [class*="text-emerald-600"] { color: #059669 !important; }
+  .pdf-safe-zone [class*="text-emerald-500"] { color: #10b981 !important; }
+  
+  .pdf-safe-zone [class*="bg-white"] { background-color: #ffffff !important; }
+  .pdf-safe-zone [class*="bg-slate-50"] { background-color: #f8fafc !important; }
+  .pdf-safe-zone [class*="bg-slate-100"] { background-color: #f1f5f9 !important; }
+  .pdf-safe-zone [class*="bg-slate-900"] { background-color: #0f172a !important; }
+  .pdf-safe-zone [class*="bg-blue-600"] { background-color: #2563eb !important; }
+  .pdf-safe-zone [class*="bg-blue-50"] { background-color: #eff6ff !important; }
+  .pdf-safe-zone [class*="bg-emerald-50"] { background-color: #ecfdf5 !important; }
+  .pdf-safe-zone [class*="bg-purple-50"] { background-color: #faf5ff !important; }
+
+  .pdf-safe-zone [class*="border-slate-900"] { border-color: #0f172a !important; }
+  .pdf-safe-zone [class*="border-slate-200"] { border-color: #e2e8f0 !important; }
+  .pdf-safe-zone [class*="border-slate-100"] { border-color: #f1f5f9 !important; }
+  .pdf-safe-zone [class*="border-blue-600"] { border-color: #2563eb !important; }
+  
+  .pdf-safe-zone .border-b-4 { border-bottom-width: 4px !important; border-bottom-style: solid !important; }
+  .pdf-safe-zone .border-b-2 { border-bottom-width: 2px !important; border-bottom-style: solid !important; }
+  .pdf-safe-zone .border-b { border-bottom-width: 1px !important; border-bottom-style: solid !important; }
+  .pdf-safe-zone .border-t-2 { border-top-width: 2px !important; border-top-style: solid !important; }
+  .pdf-safe-zone .border-t { border-top-width: 1px !important; border-top-style: solid !important; }
+  .pdf-safe-zone .border-l-4 { border-left-width: 4px !important; border-left-style: solid !important; }
+  .pdf-safe-zone .border-2 { border-width: 2px !important; border-style: solid !important; }
+  .pdf-safe-zone .border { border-width: 1px !important; border-style: solid !important; }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-200 rounded-full hover:bg-slate-300;
+}
