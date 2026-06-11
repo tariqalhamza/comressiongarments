@@ -59,14 +59,6 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patient, onBack, onStar
           </div>
           <span className="font-medium">Back to Registry</span>
         </button>
-        
-        <button 
-          onClick={() => onStartAssessment(patient)}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Activity className="w-4 h-4" />
-          New Clinical Assessment
-        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -197,15 +189,7 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patient, onBack, onStar
                   </div>
                 )}
 
-                <div className="mt-6 flex items-center justify-end">
-                  <button 
-                    onClick={() => setIsReportOpen(true)}
-                    className="text-blue-600 text-sm font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform"
-                  >
-                    View Full Report
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
+
               </div>
             </div>
           </div>

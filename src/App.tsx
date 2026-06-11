@@ -10,14 +10,16 @@ import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import RegisteredAssessments from './pages/RegisteredAssessments';
+import Registration from './pages/Registration';
 import { useAuthStore } from './services/authStore';
 import { Patient } from './types';
 import { dbService } from './services/supabase';
 
 const App: React.FC = () => {
-  const [activeSection, setActiveSection] = useState('assessment');
+  const [activeSection, setActiveSection] = useState('registration');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [viewingPatientProfile, setViewingPatientProfile] = useState<Patient | null>(null);
+  const [assessmentFilter, setAssessmentFilter] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const { user, profile, loading } = useAuthStore();
   const isSuperEmail = ['mehmood@gmail.com', 'detox16277@gmail.com'].includes(user?.email?.toLowerCase().trim() || '');
@@ -38,6 +40,9 @@ const App: React.FC = () => {
 
   const handleNavigate = (section: string) => {
     setActiveSection(section);
+    if (section !== 'registered-assessments') {
+      setAssessmentFilter('');
+    }
     if (window.innerWidth < 1024) {
       setIsSidebarOpen(false);
     }
@@ -90,15 +95,27 @@ const App: React.FC = () => {
     }
 
     switch (activeSection) {
+      case 'registration':
+        return (
+          <Registration 
+            onStartAssessment={handleStartAssessment} 
+            onPatientSelect={handlePatientSelect} 
+            onViewSavedAssessment={(patientName) => {
+              setAssessmentFilter(patientName);
+              setActiveSection('registered-assessments');
+            }}
+          />
+        );
       case 'dashboard':
         return <Dashboard />;
       case 'assessment':
         return <ClinicalAssessment patientData={selectedPatient} onComplete={() => {
           setSelectedPatient(null);
+          setAssessmentFilter('');
           setActiveSection('registered-assessments');
         }} />;
       case 'registered-assessments':
-        return <RegisteredAssessments />;
+        return <RegisteredAssessments initialSearchPatientName={assessmentFilter} />;
       case 'patients':
         return <PatientList onPatientSelect={handlePatientSelect} />;
       case 'orders':
@@ -123,6 +140,7 @@ const App: React.FC = () => {
   const getPageTitle = () => {
     if (activeSection === 'patient-profile') return 'Patient Clinical Profile';
     switch (activeSection) {
+      case 'registration': return 'Patient Registration';
       case 'dashboard': return 'Clinical Overview';
       case 'assessment': return 'Precision Diagnostics';
       case 'registered-assessments': return 'Registered Assessments';

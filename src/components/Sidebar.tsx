@@ -4,7 +4,8 @@ import {
   LogOut,
   PlusCircle,
   ChevronLeft,
-  ClipboardCheck
+  ClipboardCheck,
+  UserPlus
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuthStore } from '../services/authStore';
@@ -24,6 +25,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onNavigate, isOpen, on
   const isAdmin = profile?.role === 'admin' || isSuperEmail;
 
   const menuItems = [
+    { id: 'registration', label: 'Registration', icon: UserPlus },
     { id: 'assessment', label: 'Clinical Assessment', icon: PlusCircle },
     { id: 'registered-assessments', label: 'Registered Assessments', icon: ClipboardCheck },
     ...(isAdmin ? [{ id: 'settings', label: 'Settings & Accounts', icon: Settings }] : []),

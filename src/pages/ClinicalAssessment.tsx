@@ -35,7 +35,7 @@ import { compressImage } from '../lib/imageUtils';
 import { Patient } from '../types';
 
 // --- Types ---
-type StepId = 'patient-info' | 'garment-select' | 'garment-type' | 'measurement-drawing' | 'review';
+type StepId = 'garment-select' | 'garment-type' | 'measurement-drawing' | 'review';
 
 export const GARMENT_FIELDS: Record<string, { id: string; label: string; placeholder: string }[]> = {
   'Face Mask & Chin Binder': [
@@ -43,6 +43,25 @@ export const GARMENT_FIELDS: Record<string, { id: string; label: string; placeho
     { id: 'around_head', label: 'Around head', placeholder: 'e.g., 54 cm' },
     { id: 'around_chin', label: 'Around chin', placeholder: 'e.g., 32 cm' },
     { id: 'neck_length', label: 'Neck length', placeholder: 'e.g., 12 cm' }
+  ],
+  'Connecting Sleeves': [
+    { id: 'shoulder', label: 'Shoulder', placeholder: 'e.g., 42 cm' },
+    { id: 'arm_pit', label: 'Arm pit', placeholder: 'e.g., 28 cm' },
+    { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 24 cm' },
+    { id: 'wrist', label: 'Wrist', placeholder: 'e.g., 16 cm' },
+    { id: 'total_arm_length', label: 'Total arm length', placeholder: 'e.g., 60 cm' }
+  ],
+  'Arm sleeve Right Hand': [
+    { id: 'arm_pit', label: 'Arm pit', placeholder: 'e.g., 28 cm' },
+    { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 24 cm' },
+    { id: 'wrist', label: 'Wrist', placeholder: 'e.g., 16 cm' },
+    { id: 'total_arm_length', label: 'Total arm length', placeholder: 'e.g., 60 cm' }
+  ],
+  'Arm sleeve Left Hand': [
+    { id: 'arm_pit', label: 'Arm pit', placeholder: 'e.g., 28 cm' },
+    { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 24 cm' },
+    { id: 'wrist', label: 'Wrist', placeholder: 'e.g., 16 cm' },
+    { id: 'total_arm_length', label: 'Total arm length', placeholder: 'e.g., 60 cm' }
   ],
   'Connecting Sleeves/Arm Sleeve': [
     { id: 'shoulder', label: 'Shoulder', placeholder: 'e.g., 42 cm' },
@@ -69,34 +88,42 @@ export const GARMENT_FIELDS: Record<string, { id: string; label: string; placeho
   'All Gloves/Glove With Sleeve': [
     { id: 'palm', label: 'Palm', placeholder: 'e.g., 20 cm' },
     { id: 'wrist', label: 'Wrist', placeholder: 'e.g., 16 cm' },
-    { id: 'total_len_medal_to_wrist', label: 'Total length medal finger to wrist', placeholder: 'e.g., 18 cm' },
-    { id: 'medal_finger', label: 'Medal finger', placeholder: 'e.g., 8 cm' },
-    { id: 'left_finger', label: 'Left finger', placeholder: 'e.g., 7.5 cm' },
-    { id: 'right_finger', label: 'Right finger', placeholder: 'e.g., 7.5 cm' },
-    { id: 'small_finger', label: 'Small finger', placeholder: 'e.g., 6 cm' },
+    { id: 'total_len_medal_to_wrist', label: 'Total length middle finger to wrist', placeholder: 'e.g., 18 cm' },
     { id: 'thumb', label: 'Thumb', placeholder: 'e.g., 5.5 cm' },
-    { id: 'total_len_medal_to_scar', label: 'Total length medal finger to end of scar', placeholder: 'e.g., 35 cm' }
+    { id: 'thumb_width', label: 'Thumb width', placeholder: 'e.g., 2.2 cm' },
+    { id: 'index_finger', label: 'Index finger', placeholder: 'e.g., 7.5 cm' },
+    { id: 'index_finger_width', label: 'Index finger width', placeholder: 'e.g., 2.0 cm' },
+    { id: 'middle_finger', label: 'Middle finger', placeholder: 'e.g., 8 cm' },
+    { id: 'middle_finger_width', label: 'Middle finger width', placeholder: 'e.g., 2.1 cm' },
+    { id: 'ring_finger', label: 'Ring finger', placeholder: 'e.g., 7.5 cm' },
+    { id: 'ring_finger_width', label: 'Ring finger width', placeholder: 'e.g., 2.0 cm' },
+    { id: 'little_finger', label: 'Little finger', placeholder: 'e.g., 6 cm' },
+    { id: 'little_finger_width', label: 'Little finger width', placeholder: 'e.g., 1.8 cm' },
+    { id: 'total_len_medal_to_scar', label: 'Total length middle finger to end of scar', placeholder: 'e.g., 35 cm' }
   ],
   'Belly Binder': [
-    { id: 'diaphrarm', label: 'Diaphrarm', placeholder: 'e.g., 82 cm' },
-    { id: 'belly', label: 'Belly', placeholder: 'e.g., 88 cm' },
-    { id: 'waist', label: 'Waist', placeholder: 'e.g., 85 cm' },
-    { id: 'open_end_thigh', label: 'Open end thigh', placeholder: 'e.g., 54 cm' },
-    { id: 'close_end_thigh', label: 'Close end thigh', placeholder: 'e.g., 48 cm' },
-    { id: 'knee', label: 'Knee', placeholder: 'e.g., 38 cm' },
-    { id: 'len_diaphragm_to_waist', label: 'length diaphragm to waist', placeholder: 'e.g., 20 cm' },
-    { id: 'len_waist_to_close_end', label: 'Length waist to close end', placeholder: 'e.g., 35 cm' }
+    { id: 'diaphrarm', label: 'Diaphrom', placeholder: 'e.g., 51 cm' },
+    { id: 'belly', label: 'Belly', placeholder: 'e.g., 53 cm' },
+    { id: 'waist', label: 'West (Waist)', placeholder: 'e.g., 54 cm' },
+    { id: 'hips', label: 'Hips', placeholder: 'e.g., 58 cm' },
+    { id: 'open_end_thigh', label: 'Open End', placeholder: 'e.g., 35 cm' },
+    { id: 'close_end_thigh', label: 'Close End (Leg end)', placeholder: 'e.g., 25 cm' },
+    { id: 'len_diaphragm_to_waist', label: 'Length Diaphrom to West', placeholder: 'e.g., 18 cm' },
+    { id: 'len_waist_to_close_end', label: 'Short Length', placeholder: 'e.g., 44 cm' }
   ],
   'All Trouser': [
-    { id: 'diaphrarm', label: 'Diaphrarm', placeholder: 'e.g., 82 cm' },
-    { id: 'belly', label: 'Belly', placeholder: 'e.g., 88 cm' },
-    { id: 'waist', label: 'Waist', placeholder: 'e.g., 85 cm' },
-    { id: 'open_end_thigh', label: 'Open end thigh', placeholder: 'e.g., 54 cm' },
-    { id: 'close_end_thigh', label: 'Close end thigh', placeholder: 'e.g., 48 cm' },
-    { id: 'knee', label: 'Knee', placeholder: 'e.g., 38 cm' },
-    { id: 'ankle', label: 'Ankle', placeholder: 'e.g., 22 cm' },
-    { id: 'len_diaphragm_to_waist', label: 'length diaphragm to waist', placeholder: 'e.g., 20 cm' },
-    { id: 'len_waist_to_ankle', label: 'Length waist to ankle', placeholder: 'e.g., 95 cm' }
+    { id: 'belly', label: 'Belly', placeholder: 'e.g., 38.5 in / 98 cm' },
+    { id: 'waist', label: 'West (Waist)', placeholder: 'e.g., 38.5 in / 98 cm' },
+    { id: 'hips', label: 'Hips', placeholder: 'e.g., 41 in / 104 cm' },
+    { id: 'crotch_round', label: 'Round (Crotch)', placeholder: 'e.g., 28 in / 71 cm' },
+    { id: 'thigh_1', label: 'Thigh I', placeholder: 'e.g., 22 in / 56 cm' },
+    { id: 'thigh_2', label: 'Thigh II', placeholder: 'e.g., 21.5 in / 55 cm' },
+    { id: 'knee', label: 'Knee', placeholder: 'e.g., 16.5 in / 42 cm' },
+    { id: 'calf', label: 'Calf', placeholder: 'e.g., 15.5 in / 39 cm' },
+    { id: 'bottom_leg_end', label: 'Bottom', placeholder: 'e.g., 9.5 in / 24 cm' },
+    { id: 'crotch_depth', label: 'Crotch Depth', placeholder: 'e.g., 11.5 in / 29 cm' },
+    { id: 'inside_length', label: 'Inseam (Inside Length)', placeholder: 'e.g., 28 in / 71 cm' },
+    { id: 'total_length', label: 'Total Length', placeholder: 'e.g., 36 in / 91 cm' }
   ],
   'All Leg Sleeves': [
     { id: 'open_end', label: 'Open end', placeholder: 'e.g., 45 cm' },
@@ -434,7 +461,7 @@ interface ClinicalAssessmentProps {
 }
 
 const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, onComplete }) => {
-  const [activeStep, setActiveStep] = useState<StepId>('patient-info');
+  const [activeStep, setActiveStep] = useState<StepId>('garment-select');
   const [providedPhotos, setProvidedPhotos] = useState<'yes' | 'no'>('no');
   const [providedPhotosError, setProvidedPhotosError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -522,7 +549,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
     type: 'All Gloves/Glove With Sleeve',
     siliconePasting: 'Without Silicone',
     compression: 'Moderate',
-    subOptions: {}
+    subOptions: { 'Hand Selection': 'Right Hand Glove' }
   });
 
   // 3. Photos State
@@ -575,9 +602,39 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
     const strokeProps = { stroke: "#2563eb", strokeWidth: "2", fill: "none" };
 
     const formatVal = (label: string) => {
-      const val = garment.subOptions?.[label];
+      let val = garment.subOptions?.[label];
+      
+      // Fallback mappings for backwards compatibility
+      if (!val) {
+        if (label === 'Middle finger') val = garment.subOptions?.['Medal finger'];
+        else if (label === 'Index finger') val = garment.subOptions?.['Left finger'];
+        else if (label === 'Ring finger') val = garment.subOptions?.['Right finger'];
+        else if (label === 'Little finger') val = garment.subOptions?.['Small finger'];
+        else if (label === 'Total length middle finger to wrist') val = garment.subOptions?.['Total length medal finger to wrist'];
+        else if (label === 'Total length middle finger to end of scar') val = garment.subOptions?.['Total length medal finger to end of scar'];
+        // Belly Binder mappings
+        else if (label === 'Diaphrom' || label === 'Diaphrarm') val = garment.subOptions?.['Diaphrom'] || garment.subOptions?.['Diaphrarm'] || garment.subOptions?.['Belly'];
+        else if (label === 'West (Waist)' || label === 'Waist' || label === 'West') val = garment.subOptions?.['West (Waist)'] || garment.subOptions?.['Waist'] || garment.subOptions?.['West'] || garment.subOptions?.['waist'] || garment.subOptions?.['waist'];
+        else if (label === 'Open End' || label === 'Open end thigh') val = garment.subOptions?.['Open End'] || garment.subOptions?.['Open end thigh'];
+        else if (label === 'Close End (Leg end)' || label === 'Close end thigh') val = garment.subOptions?.['Close End (Leg end)'] || garment.subOptions?.['Close end thigh'];
+        else if (label === 'Length Diaphrom to West' || label === 'length diaphragm to waist') val = garment.subOptions?.['Length Diaphrom to West'] || garment.subOptions?.['length diaphragm to waist'];
+        else if (label === 'Short Length' || label === 'Length waist to close end') val = garment.subOptions?.['Short Length'] || garment.subOptions?.['Length waist to close end'];
+        // All Trouser backwards compatibility fallbacks
+        else if (label === 'Belly') val = garment.subOptions?.['Belly'] || garment.subOptions?.['Diaphrarm'] || garment.subOptions?.['Diaphrom'] || garment.subOptions?.['diaphrarm'];
+        else if (label === 'Hips') val = garment.subOptions?.['Hips'] || garment.subOptions?.['hips'];
+        else if (label === 'Round (Crotch)' || label === 'Round') val = garment.subOptions?.['Round (Crotch)'] || garment.subOptions?.['Round'] || garment.subOptions?.['Open end thigh'] || garment.subOptions?.['open_end_thigh'];
+        else if (label === 'Thigh I') val = garment.subOptions?.['Thigh I'] || garment.subOptions?.['Close end thigh'] || garment.subOptions?.['close_end_thigh'];
+        else if (label === 'Thigh II') val = garment.subOptions?.['Thigh II'];
+        else if (label === 'Knee') val = garment.subOptions?.['Knee'] || garment.subOptions?.['knee'];
+        else if (label === 'Calf') val = garment.subOptions?.['Calf'] || garment.subOptions?.['calf'];
+        else if (label === 'Bottom') val = garment.subOptions?.['Bottom'] || garment.subOptions?.['Ankle'] || garment.subOptions?.['ankle'];
+        else if (label === 'Crotch Depth') val = garment.subOptions?.['Crotch Depth'] || garment.subOptions?.['length diaphragm to waist'] || garment.subOptions?.['len_diaphragm_to_waist'];
+        else if (label === 'Inseam (Inside Length)' || label === 'Inseam') val = garment.subOptions?.['Inseam (Inside Length)'] || garment.subOptions?.['Inseam'] || garment.subOptions?.['inside_length'];
+        else if (label === 'Total Length') val = garment.subOptions?.['Total Length'] || garment.subOptions?.['Length waist to ankle'] || garment.subOptions?.['len_waist_to_ankle'] || garment.subOptions?.['total_length'];
+      }
+
       if (!val) return '—';
-      const clean = val.trim();
+      const clean = val.toString().trim();
       if (!clean) return '—';
       if (clean.toLowerCase().endsWith('cm')) return clean;
       return `${clean} cm`;
@@ -586,245 +643,550 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
     switch (garment.type) {
       case 'Face Mask & Chin Binder':
         return (
-          <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
-            {/* Outline face */}
-            <path d="M100,240 Q70,160 130,80 Q190,40 240,110 Q260,150 250,210 Q230,260 170,260 Q130,260 100,240 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
-            <path d="M110,230 Q140,240 170,230 Q190,200 190,170 Q160,161 140,170 Q110,180 110,230 Z" fill="#bfdbfe" fillOpacity="0.4" />
-            {/* Around Head Line (diagonal forehead) */}
-            <path d="M130,85 Q190,65 235,115" stroke="#2563eb" strokeWidth="2.5" strokeDasharray="4 4" fill="none" />
-            <circle cx="180" cy="72" r="5" fill="#2563eb" />
-            
-            {/* Around Chin Line */}
-            <path d="M245,150 Q160,245 125,215" stroke="#10b981" strokeWidth="2.5" strokeDasharray="4 4" fill="none" />
-            
-            {/* Around Neck Line */}
-            <path d="M125,255 Q165,275 220,245" stroke="#f59e0b" strokeWidth="2.5" strokeDasharray="4 4" fill="none" />
+          <svg viewBox="0 0 300 320" className="w-full h-full max-h-[320px]" style={{ minHeight: '260px' }}>
+            <defs>
+              <marker id="arrow-blue-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb" />
+              </marker>
+              <marker id="arrow-emerald-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981" />
+              </marker>
+              <marker id="arrow-amber-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#f59e0b" />
+              </marker>
+              <marker id="arrow-rose-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626" />
+              </marker>
+            </defs>
 
-            {/* Neck Length Line */}
-            <path d="M165,225 L165,275" stroke="#dc2626" strokeWidth="2.5" fill="none" />
+            {/* Outer Ellipse Head Outline - Blue styled */}
+            <ellipse cx="150" cy="155" rx="72" ry="92" fill="#f0f7ff" stroke="#3b82f6" strokeWidth="2.5" />
 
-            {/* Dimension value text placement */}
-            <g transform="translate(180, 50)" className="text-[10px] font-black text-blue-600">
-              <rect x="-55" y="-8" width="110" height="15" rx="4" fill="white" stroke="#2563eb" strokeWidth="1" />
+            {/* Inner Face Opening (dashed, showing eyes and facial features inside) */}
+            <ellipse cx="150" cy="160" rx="46" ry="62" fill="#ffffff" stroke="#93c5fd" strokeWidth="1.5" strokeDasharray="3 3" />
+
+            {/* Eyes and Nose indicators */}
+            <line x1="134" y1="145" x2="142" y2="145" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+            <line x1="158" y1="145" x2="166" y2="145" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+            <path d="M150,152 L150,165 L146,165" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" />
+
+            {/* Forehead/Head Strap (Horizontal band that wraps and extends beyond the head left and right, identical to the pencil sketch) */}
+            <path d="M62,110 Q150,95 238,110 L236,124 Q150,111 64,124 Z" fill="#bfdbfe" fillOpacity="0.70" stroke="#2563eb" strokeWidth="2" />
+
+            {/* Chin Strap Wrap (represented as a vertical/diagonal chin strap outline) */}
+            <path d="M98,140 Q150,252 202,140" fill="none" stroke="#10b981" strokeWidth="3" strokeDasharray="4 4" />
+
+            {/* Vertical alignment / measurement line exactly through the center (with arrowheads representing crown-to-chin height) */}
+            <line x1="150" y1="102" x2="150" y2="218" stroke="#10b981" strokeWidth="2.5" markerStart="url(#arrow-emerald-cl)" markerEnd="url(#arrow-emerald-cl)" />
+
+            {/* Neck area at the bottom */}
+            <path d="M125,245 Q150,255 175,245 L175,270 Q150,280 125,270 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="1.5" />
+            <line x1="150" y1="242" x2="150" y2="273" stroke="#dc2626" strokeWidth="2.5" markerStart="url(#arrow-rose-cl)" markerEnd="url(#arrow-rose-cl)" />
+
+            {/* Dimension value text tags matching the color guidelines */}
+            {/* 1. Around Head (Forehead Strap) */}
+            <g transform="translate(150, 60)" className="text-[10px] font-black text-blue-600">
+              <rect x="-60" y="-8" width="120" height="16" rx="4" fill="white" stroke="#2563eb" strokeWidth="1.5" />
               <text y="3" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="9">Head: {formatVal('Around head')}</text>
             </g>
-            <g transform="translate(225, 205)" className="text-[10px] font-black text-emerald-600">
-              <rect x="-55" y="-8" width="110" height="15" rx="4" fill="white" stroke="#10b981" strokeWidth="1" />
+
+            {/* 2. Around Chin */}
+            <g transform="translate(50, 195)" className="text-[10px] font-black text-emerald-600">
+              <rect x="-50" y="-8" width="100" height="16" rx="4" fill="white" stroke="#10b981" strokeWidth="1.5" />
               <text y="3" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="9">Chin: {formatVal('Around chin')}</text>
             </g>
-            <g transform="translate(165, 290)" className="text-[10px] font-black text-amber-600">
-              <rect x="-55" y="-8" width="110" height="15" rx="4" fill="white" stroke="#f59e0b" strokeWidth="1" />
+
+            {/* 3. Around Neck */}
+            <g transform="translate(250, 195)" className="text-[10px] font-black text-amber-600">
+              <rect x="-50" y="-8" width="100" height="16" rx="4" fill="white" stroke="#f59e0b" strokeWidth="1.5" />
               <text y="3" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="9">Neck: {formatVal('Around neck')}</text>
             </g>
-            <g transform="translate(240, 245)" className="text-[10px] font-black text-rose-600">
-              <rect x="-60" y="-8" width="120" height="15" rx="4" fill="white" stroke="#dc2626" strokeWidth="1" />
-              <text y="3" textAnchor="middle" className="fill-rose-700 font-bold" fontSize="8">Neck Len: {formatVal('Neck length')}</text>
+
+            {/* 4. Neck Length */}
+            <g transform="translate(150, 305)" className="text-[10px] font-black text-rose-600">
+              <rect x="-55" y="-8" width="110" height="16" rx="4" fill="white" stroke="#dc2626" strokeWidth="1.5" />
+              <text y="3" textAnchor="middle" className="fill-rose-700 font-bold" fontSize="9">Neck Len: {formatVal('Neck length')}</text>
             </g>
           </svg>
         );
 
+      case 'Connecting Sleeves':
       case 'Connecting Sleeves/Arm Sleeve':
         return (
           <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
-            {/* Outline arm */}
-            <path d="M50,80 C70,75 130,100 170,120 C220,145 260,180 270,220 C250,230 230,210 200,190 C150,160 90,135 60,140 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
-            
-            {/* Shoulder point */}
-            <path d="M55,77 L62,143" stroke="#2563eb" strokeWidth="2" strokeDasharray="3 3"/>
-            {/* Arm Pit */}
-            <path d="M100,100 L110,147" stroke="#10b981" strokeWidth="2" strokeDasharray="3 3"/>
-            {/* Elbow */}
-            <path d="M175,123 L185,160" stroke="#f59e0b" strokeWidth="2" strokeDasharray="3 3"/>
-            {/* Wrist */}
-            <path d="M245,165 L255,195" stroke="#ec4899" strokeWidth="2" strokeDasharray="3 3"/>
-            {/* Arm length */}
-            <path d="M58,110 Q150,130 250,180" stroke="#7c3aed" strokeWidth="2.5" fill="none" />
+            {/* Torso Back View Background */}
+            <ellipse cx="150" cy="45" rx="16" ry="20" fill="#f4f4f5" stroke="#e4e4e7" strokeWidth="1" />
+            <path d="M 142,60 L 142,85 C 145,88 155,88 158,85 L 158,60 Z" fill="#f4f4f5" stroke="#e4e4e7" strokeWidth="1" />
+            <path d="M 130,85 C 95,90 70,105 60,115 L 75,280 L 225,280 L 240,115 C 230,105 205,90 170,85 Z" fill="#fafafa" stroke="#e4e4e7" strokeWidth="1" />
+
+            {/* Bolero garment outline (collar scoop, sleeves, back connector band) */}
+            <path 
+              d="M 120,90 C 130,105 170,105 180,90 C 210,95 225,103 235,115 C 248,155 258,205 252,260 L 238,258 C 232,205 218,155 205,145 C 180,132 120,132 95,145 C 82,155 68,205 62,258 L 48,260 C 42,205 52,155 65,115 C 75,103 90,95 120,90 Z" 
+              fill="#eff6ff" 
+              fillOpacity="0.85"
+              stroke="#2563eb" 
+              strokeWidth="2" 
+            />
+
+            {/* Measurement lines */}
+            {/* 1. Shoulder indicator */}
+            <line x1="65" y1="115" x2="235" y2="115" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="3 3" />
+            <circle cx="65" cy="115" r="3.5" fill="#2563eb" />
+            <circle cx="235" cy="115" r="3.5" fill="#2563eb" />
+
+            {/* 2. Arm Pit loop on left sleeve */}
+            <ellipse cx="79" cy="131" rx="15" ry="5" transform="rotate(-40, 79, 131)" stroke="#10b981" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
+
+            {/* 3. Elbow loop on left sleeve */}
+            <ellipse cx="66" cy="182" rx="11" ry="4" transform="rotate(-40, 66, 182)" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
+
+            {/* 4. Wrist loop on left sleeve */}
+            <ellipse cx="55" cy="259" rx="8" ry="3" transform="rotate(-40, 55, 259)" stroke="#ec4899" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
+
+            {/* 5. Total arm length path along left sleeve-edge */}
+            <path d="M 65,115 Q 52,185 48,260" stroke="#7c3aed" strokeWidth="2.2" strokeDasharray="3 3" fill="none" />
 
             {/* Labels overlay */}
-            <g transform="translate(60, 45)" className="text-[9px] font-bold">
+            <g transform="translate(150, 65)" className="text-[9px] font-bold">
               <rect x="-55" y="-7" width="110" height="14" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
               <text y="3" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="9">Shoulder: {formatVal('Shoulder')}</text>
             </g>
-            <g transform="translate(105, 75)" className="text-[9px] font-bold">
-              <rect x="-50" y="-7" width="100" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
-              <text y="3" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="9">Arm pit: {formatVal('Arm pit')}</text>
-            </g>
-            <g transform="translate(175, 95)" className="text-[9px] font-bold">
-              <rect x="-50" y="-7" width="100" height="14" rx="3" fill="white" stroke="#f59e0b" strokeWidth="0.5" />
-              <text y="3" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="9">Elbow: {formatVal('Elbow')}</text>
-            </g>
-            <g transform="translate(255, 140)" className="text-[9px] font-bold">
-              <rect x="-50" y="-7" width="100" height="14" rx="3" fill="white" stroke="#ec4899" strokeWidth="0.5" />
-              <text y="3" textAnchor="middle" className="fill-rose-500 font-bold" fontSize="9">Wrist: {formatVal('Wrist')}</text>
-            </g>
-            <g transform="translate(160, 225)" className="text-[9px] font-bold">
+            <g transform="translate(150, 155)" className="text-[9px] font-bold">
               <rect x="-65" y="-7" width="130" height="14" rx="3" fill="white" stroke="#7c3aed" strokeWidth="0.5" />
               <text y="3" textAnchor="middle" className="fill-purple-600 font-bold" fontSize="9">Total Arm: {formatVal('Total arm length')}</text>
+            </g>
+            <g transform="translate(132, 122)" className="text-[9px] font-bold">
+              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="9">Arm pit: {formatVal('Arm pit')}</text>
+            </g>
+            <g transform="translate(122, 185)" className="text-[9px] font-bold">
+              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#f59e0b" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="9">Elbow: {formatVal('Elbow')}</text>
+            </g>
+            <g transform="translate(112, 255)" className="text-[9px] font-bold">
+              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#ec4899" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-rose-500 font-bold" fontSize="9">Wrist: {formatVal('Wrist')}</text>
+            </g>
+          </svg>
+        );
+
+      case 'Arm sleeve Right Hand':
+      case 'Arm sleeve Left Hand':
+        return (
+          <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
+            {/* Cylinder sleeve body */}
+            <polygon points="190,85 78,175 102,205 230,135" fill="#eff6ff" stroke="#2563eb" strokeWidth="2" />
+
+            {/* Upper arm opening (Arm pit) */}
+            <ellipse cx="210" cy="110" rx="26" ry="12" transform="rotate(56, 210, 110)" fill="#eff6ff" stroke="#10b981" strokeWidth="2" />
+
+            {/* Elbow loop */}
+            <ellipse cx="149" cy="148" rx="20" ry="10" transform="rotate(56, 149, 148)" fill="none" stroke="#f59e0b" strokeWidth="2" strokeDasharray="3 3" />
+
+            {/* Wrist opening (Wrist loop) */}
+            <ellipse cx="90" cy="190" rx="16" ry="8" transform="rotate(56, 90, 190)" fill="#dbeafe" stroke="#ec4899" strokeWidth="2" />
+
+            {/* Total length parallel arrow indicator */}
+            <line x1="175" y1="75" x2="55" y2="155" stroke="#7c3aed" strokeWidth="2" />
+            
+            {/* Arrowhead top-right */}
+            <path d="M 163,77 L 175,75 L 173,87" stroke="#7c3aed" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            
+            {/* Arrowhead bottom-left */}
+            <path d="M 67,153 L 55,155 L 57,143" stroke="#7c3aed" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+
+            {/* Labels overlay */}
+            <g transform="translate(100, 95)" className="text-[9px] font-bold">
+              <rect x="-65" y="-7" width="130" height="14" rx="3" fill="white" stroke="#7c3aed" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-purple-600 font-bold" fontSize="9">Total Arm: {formatVal('Total arm length')}</text>
+            </g>
+            <g transform="translate(245, 100)" className="text-[9px] font-bold">
+              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="9">Arm pit: {formatVal('Arm pit')}</text>
+            </g>
+            <g transform="translate(185, 175)" className="text-[9px] font-bold">
+              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#f59e0b" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="9">Elbow: {formatVal('Elbow')}</text>
+            </g>
+            <g transform="translate(75, 235)" className="text-[9px] font-bold">
+              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#ec4899" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-rose-500 font-bold" fontSize="9">Wrist: {formatVal('Wrist')}</text>
             </g>
           </svg>
         );
 
       case 'All Jacket':
         return (
-          <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
-            {/* Outline Jacket */}
-            <path d="M80,60 L220,60 L240,110 L280,180 L250,195 L220,140 L215,250 L85,250 L80,140 L50,195 L20,180 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
-            
-            {/* lines */}
-            <line x1="85" y1="110" x2="215" y2="110" stroke="#2563eb" strokeWidth="2" strokeDasharray="3 3"/>
-            <line x1="85" y1="200" x2="215" y2="200" stroke="#10b981" strokeWidth="2" strokeDasharray="3 3"/>
-            <line x1="220" y1="60" x2="280" y2="180" stroke="#f59e0b" strokeWidth="2" />
-            <line x1="150" y1="60" x2="150" y2="250" stroke="#ec4899" strokeWidth="2" />
+          <svg viewBox="0 0 320 320" className="w-full h-full max-h-[320px]" style={{ minHeight: '260px' }}>
+            {/* Outline Jacket matching the precise handwritten design */}
+            {/* Combined smooth polygon for body and sleeves to make it a seamless filled cloth illustration */}
+            <path d="M 134,80 Q 150,86 166,80 L 200,80 L 250,140 L 280,195 L 268,201 L 238,148 L 195,115 L 195,245 L 105,245 L 105,115 L 62,148 L 32,201 L 20,195 L 50,140 L 100,80 Z" fill="#eff6ff" stroke="#2563eb" strokeWidth="2" strokeLinejoin="round" />
 
-            {/* overlays */}
-            <g transform="translate(150, 20)" className="text-[8px] font-bold">
-              <rect x="-55" y="-6.5" width="110" height="13" rx="2" fill="white" stroke="#2563eb" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="8">Neck: {formatVal('Neck around')}</text>
+            {/* Neck sleeve collar indicator loop */}
+            <ellipse cx="150" cy="79" rx="16" ry="5" fill="#eff6ff" stroke="#2563eb" strokeWidth="1.5" />
+
+            {/* Horizontal Guide lines across jacket body for Chest, Diapharm, Belly, Waist */}
+            <line x1="105" y1="125" x2="195" y2="125" stroke="#10b981" strokeWidth="1.5" strokeDasharray="3 3" />
+            <line x1="105" y1="158" x2="195" y2="158" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="3 3" />
+            <line x1="105" y1="191" x2="195" y2="191" stroke="#3b82f6" strokeWidth="1.5" strokeDasharray="3 3" />
+            <line x1="105" y1="224" x2="195" y2="224" stroke="#e11d48" strokeWidth="1.5" strokeDasharray="3 3" />
+
+            {/* Vertical Total Length double arrow Indicator on left margin of body */}
+            <line x1="93" y1="80" x2="93" y2="245" stroke="#4f46e5" strokeWidth="1.5" strokeDasharray="2 2" />
+            <path d="M 89,87 L 93,80 L 97,87" stroke="#4f46e5" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+            <path d="M 89,238 L 93,245 L 97,238" stroke="#4f46e5" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+
+            {/* Shoulder L-to-R double arrow indicator above top seam */}
+            <line x1="100" y1="65" x2="200" y2="65" stroke="#7c3aed" strokeWidth="1.5" />
+            <path d="M 107,61 L 100,65 L 107,69" stroke="#7c3aed" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+            <path d="M 193,61 L 200,65 L 193,69" stroke="#7c3aed" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+
+            {/* LEFT SLEEVE MEASUREMENTS (Viewer's Left): Arm Pit, Arm Open, Elbow, Arm Close */}
+            {/* Loops on sleeve */}
+            <ellipse cx="102" cy="100" rx="14" ry="5.5" transform="rotate(-50, 102, 100)" fill="none" stroke="#2563eb" strokeWidth="1.5" />
+            <ellipse cx="88" cy="115" rx="13" ry="5" transform="rotate(-50, 88, 115)" fill="none" stroke="#06b6d4" strokeWidth="1.5" strokeDasharray="2 2" />
+            <ellipse cx="56" cy="144" rx="12" ry="4.5" transform="rotate(-50, 56, 144)" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="2 2" />
+            <ellipse cx="25" cy="198" rx="10" ry="4" transform="rotate(-50, 25, 198)" fill="#dbeafe" stroke="#ec4899" strokeWidth="1.5" />
+
+            {/* RIGHT SLEEVE MEASUREMENTS (Viewer's Right): Arm total length parallel arrow */}
+            <line x1="210" y1="67" x2="293" y2="183" stroke="#8b5cf6" strokeWidth="1.5" />
+            <path d="M 218,65 L 210,67 L 216,75" stroke="#8b5cf6" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+            <path d="M 287,175 L 293,183 L 285,185" stroke="#8b5cf6" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+
+            {/* Overlays / Badges matching exactly the handwritten sketch positions */}
+            <g transform="translate(150, 22)" className="text-[8px] font-bold">
+              <rect x="-60" y="-6.5" width="120" height="13" rx="2" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="8">Neck Around: {formatVal('Neck around')}</text>
             </g>
-            <g transform="translate(150, 40)" className="text-[8px] font-bold">
+            <g transform="translate(150, 39)" className="text-[8px] font-bold">
               <rect x="-55" y="-6.5" width="110" height="13" rx="2" fill="white" stroke="#dc2626" strokeWidth="0.5" />
               <text y="2.5" textAnchor="middle" className="fill-red-700 font-bold" fontSize="8">Neck Len: {formatVal('Neck length')}</text>
             </g>
-            <g transform="translate(55, 50)" className="text-[8px] font-bold">
-              <rect x="-45" y="-6.5" width="90" height="13" rx="2" fill="white" stroke="#7c3aed" strokeWidth="0.5" />
+            <g transform="translate(150, 56)" className="text-[8px] font-bold">
+              <rect x="-55" y="-6.5" width="110" height="13" rx="2" fill="white" stroke="#7c3aed" strokeWidth="0.5" />
               <text y="2.5" textAnchor="middle" className="fill-purple-700 font-bold" fontSize="8">Shoulder: {formatVal('Shoulder')}</text>
             </g>
-            <g transform="translate(55, 140)" className="text-[8px] font-bold">
-              <rect x="-45" y="-6.5" width="90" height="13" rx="2" fill="white" stroke="#10b981" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-700 font-bold" fontSize="8">Arm Pit: {formatVal('Arm pit')}</text>
-            </g>
-            <g transform="translate(30, 210)" className="text-[8px] font-bold">
-              <rect x="-45" y="-6.5" width="90" height="13" rx="2" fill="white" stroke="#f59e0b" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-amber-700 font-bold" fontSize="8">Arm Open: {formatVal('Arm open end')}</text>
-            </g>
-            <g transform="translate(265, 130)" className="text-[8px] font-bold">
-              <rect x="-45" y="-6.5" width="90" height="13" rx="2" fill="white" stroke="#3b82f6" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-700 font-bold" fontSize="8">Elbow: {formatVal('Elbow')}</text>
-            </g>
-            <g transform="translate(265, 210)" className="text-[8px] font-bold">
-              <rect x="-45" y="-6.5" width="90" height="13" rx="2" fill="white" stroke="#ec4899" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-pink-700 font-bold" fontSize="8">Arm Close: {formatVal('Arm close end')}</text>
-            </g>
-            <g transform="translate(255, 80)" className="text-[8px] font-bold">
-              <rect x="-55" y="-6.5" width="110" height="13" rx="2" fill="white" stroke="#8b5cf6" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-violet-700 font-bold" fontSize="8">Arm Length: {formatVal('Arm total length')}</text>
-            </g>
-            <g transform="translate(150, 105)" className="text-[8px] font-bold">
-              <rect x="-45" y="-6.2" width="90" height="13" rx="2" fill="white" stroke="#2563eb" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="8">Chest: {formatVal('Chest')}</text>
-            </g>
-            <g transform="translate(150, 137)" className="text-[8px] font-bold">
+
+            {/* Torso horizontal levels: Chest, Diapharm, Belly, Waist */}
+            <g transform="translate(150, 125)" className="text-[8px] font-bold">
               <rect x="-45" y="-6.2" width="90" height="13" rx="2" fill="white" stroke="#10b981" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="8">Diapharm: {formatVal('Diapharm')}</text>
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="8">Chest: {formatVal('Chest')}</text>
             </g>
-            <g transform="translate(150, 170)" className="text-[8px] font-bold">
+            <g transform="translate(150, 158)" className="text-[8px] font-bold">
               <rect x="-45" y="-6.2" width="90" height="13" rx="2" fill="white" stroke="#f59e0b" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="8">Belly: {formatVal('Belly')}</text>
+              <text y="2.5" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="8">Diapharm: {formatVal('Diapharm')}</text>
             </g>
-            <g transform="translate(150, 202)" className="text-[8px] font-bold">
+            <g transform="translate(150, 191)" className="text-[8px] font-bold">
+              <rect x="-45" y="-6.2" width="90" height="13" rx="2" fill="white" stroke="#3b82f6" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="8">Belly: {formatVal('Belly')}</text>
+            </g>
+            <g transform="translate(150, 224)" className="text-[8px] font-bold">
               <rect x="-45" y="-6.2" width="90" height="13" rx="2" fill="white" stroke="#e11d48" strokeWidth="0.5" />
               <text y="2.5" textAnchor="middle" className="fill-rose-600 font-bold" fontSize="8">Waist: {formatVal('Waist')}</text>
             </g>
-            <g transform="translate(150, 235)" className="text-[8px] font-bold">
-              <rect x="-55" y="-6.2" width="110" height="13" rx="2" fill="white" stroke="#ec4899" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-pink-600 font-bold" fontSize="8">Total Len: {formatVal('Total length')}</text>
+            <g transform="translate(150, 262)" className="text-[8px] font-bold">
+              <rect x="-55" y="-6.2" width="110" height="13" rx="2" fill="white" stroke="#4f46e5" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-indigo-600 font-bold" fontSize="8">Total Length: {formatVal('Total length')}</text>
+            </g>
+
+            {/* Left sleeve loops overlays */}
+            <g transform="translate(38, 93)" className="text-[7.5px] font-bold">
+              <rect x="-35" y="-5.5" width="70" height="11" rx="1.5" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.2" textAnchor="middle" className="fill-blue-700 font-bold" fontSize="7.5">Arm Pit: {formatVal('Arm pit')}</text>
+            </g>
+            <g transform="translate(32, 114)" className="text-[7.5px] font-bold">
+              <rect x="-35" y="-5.5" width="70" height="11" rx="1.5" fill="white" stroke="#06b6d4" strokeWidth="0.5" />
+              <text y="2.2" textAnchor="middle" className="fill-cyan-700 font-bold" fontSize="7.5">Arm Open: {formatVal('Arm open end')}</text>
+            </g>
+            <g transform="translate(30, 142)" className="text-[7.5px] font-bold">
+              <rect x="-35" y="-5.5" width="70" height="11" rx="1.5" fill="white" stroke="#d97706" strokeWidth="0.5" />
+              <text y="2.2" textAnchor="middle" className="fill-amber-700 font-bold" fontSize="7.5">Elbow: {formatVal('Elbow')}</text>
+            </g>
+            <g transform="translate(42, 230)" className="text-[7.5px] font-bold">
+              <rect x="-35" y="-5.5" width="70" height="11" rx="1.5" fill="white" stroke="#ec4899" strokeWidth="0.5" />
+              <text y="2.2" textAnchor="middle" className="fill-pink-700 font-bold" fontSize="7.5">Wrist: {formatVal('Arm close end')}</text>
+            </g>
+
+            {/* Right sleeve arm length overlay badge */}
+            <g transform="translate(265, 128)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-5.5" width="110" height="11" rx="1.5" fill="white" stroke="#8b5cf6" strokeWidth="0.5" />
+              <text y="2.2" textAnchor="middle" className="fill-violet-700 font-bold" fontSize="7.5">Arm Length: {formatVal('Arm total length')}</text>
             </g>
           </svg>
         );
 
       case 'All Gloves/Glove With Sleeve':
-        return (
-          <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
-            {/* Outline Glove */}
-            <path d="M120,280 L120,220 C110,210 90,190 90,150 L90,90 C90,80 110,80 110,95 L110,140 L130,140 L130,70 C130,60 150,60 150,75 L150,130 L170,130 L170,60 C170,50 190,50 190,65 L190,130 L210,130 L210,80 C210,70 230,70 230,85 L230,135 L250,150 L250,280 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
-            
-            {/* lines */}
-            <line x1="90" y1="165" x2="250" y2="165" stroke="#2563eb" strokeWidth="2" strokeDasharray="3 3"/>
-            <line x1="120" y1="210" x2="250" y2="210" stroke="#10b981" strokeWidth="2" strokeDasharray="3 3"/>
-            <line x1="185" y1="210" x2="185" y2="280" stroke="#f59e0b" strokeWidth="2" />
-            <line x1="90" y1="140" x2="250" y2="140" stroke="#ec4899" strokeWidth="2" strokeDasharray="3 3" />
+        const handSelectionVal = garment.subOptions?.[ 'Hand Selection' ] || 'Right Hand Glove';
+        const isLeftHand = handSelectionVal === 'Left Hand Glove';
+        const xThumb = isLeftHand ? 277 : 43;
+        const xLeftFinger = isLeftHand ? 209 : 111;
+        const xMiddleFinger = isLeftHand ? 172 : 148;
+        const xRightFinger = isLeftHand ? 139 : 181;
+        const xSmallFinger = isLeftHand ? 110 : 210;
 
-            <g transform="translate(170, 155)" className="text-[8px] font-bold">
-              <rect x="-40" y="-7" width="80" height="13" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="8">Palm: {formatVal('Palm')}</text>
+        return (
+          <svg viewBox="0 0 320 380" className="w-full h-full max-h-[380px]" style={{ minHeight: '300px' }}>
+            <defs>
+              <marker id="arrow-blue-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb" />
+              </marker>
+              <marker id="arrow-emerald-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981" />
+              </marker>
+              <marker id="arrow-amber-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#d97706" />
+              </marker>
+              <marker id="arrow-purple-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed" />
+              </marker>
+            </defs>
+
+            {/* Hand Selection Badge Indicator */}
+            <g transform="translate(160, 18)">
+              <rect x="-70" y="-10" width="140" height="20" rx="10" fill="#1e293b" />
+              <text y="3" textAnchor="middle" className="fill-white font-extrabold text-[9px]" letterSpacing="0.5">
+                {handSelectionVal.toUpperCase()}
+              </text>
             </g>
-            <g transform="translate(185, 195)" className="text-[8px] font-bold">
-              <rect x="-40" y="-7" width="80" height="13" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="8">Wrist: {formatVal('Wrist')}</text>
+
+            {/* Flipped group for hand outline if Left Hand Glove is selected */}
+            <g transform={isLeftHand ? "translate(320, 0) scale(-1, 1)" : ""}>
+              {/* Detailed Outline Glove (Spread Hand + Sleeve) */}
+              <path 
+                d="M 115,360 C 115,330 111,290 111,265 C 111,245 90,230 85,215 C 75,195 45,190 35,178 C 22,166 32,150 48,158 C 68,168 85,172 98,178 L 102,90 Q 112,70 122,90 L 125,152 Q 128,156 131,152 L 138,58 Q 148,38 158,58 L 159,152 Q 162,156 165,152 L 171,70 Q 181,50 191,70 L 191,155 Q 194,159 197,155 L 202,102 Q 210,88 218,102 C 221,142 216,245 199,275 C 197,300 195,330 195,360 Q 155,370 115,360 Z" 
+                fill="#f8fafc" 
+                stroke="#1e293b" 
+                strokeWidth="2.5" 
+                strokeLinejoin="round" 
+                strokeLinecap="round" 
+              />
+              
+              {/* Internal Circumference lines at measurement joints */}
+              {/* 1. Palm */}
+              <path d="M 100,215 Q 150,220 200,215" stroke="#2563eb" strokeWidth="2.5" fill="none" />
+              {/* 2. Wrist */}
+              <path d="M 112,285 Q 155,288 198,285" stroke="#10b981" strokeWidth="2.5" fill="none" />
+              {/* 3. Bottom Sleeve */}
+              <path d="M 115,360 Q 155,363 195,360" stroke="#7c3aed" strokeWidth="2" fill="none" strokeDasharray="3 1" />
+
+              {/* Finger Joint Lines (Bands across spread fingers - 3D loop style) */}
+              {/* Middle finger loop */}
+              <path d="M 137,100 Q 145,103 153,100" stroke="#4f46e5" strokeWidth="2.5" fill="none" />
+              <path d="M 137,100 Q 145,97 153,100" stroke="#4f46e5" strokeWidth="1.2" strokeDasharray="2 1.5" fill="none" opacity="0.6" />
+
+              {/* Index finger loop */}
+              <path d="M 104,120 Q 111,123 118,120" stroke="#0891b2" strokeWidth="2.5" fill="none" />
+              <path d="M 104,120 Q 111,117 118,120" stroke="#0891b2" strokeWidth="1.2" strokeDasharray="2 1.5" fill="none" opacity="0.6" />
+
+              {/* Ring finger loop */}
+              <path d="M 169,110 Q 177,113 185,110" stroke="#059669" strokeWidth="2.5" fill="none" />
+              <path d="M 169,110 Q 177,107 185,110" stroke="#059669" strokeWidth="1.2" strokeDasharray="2 1.5" fill="none" opacity="0.6" />
+
+              {/* Little finger loop */}
+              <path d="M 199,132 Q 206,134 213,132" stroke="#db2777" strokeWidth="2.5" fill="none" />
+              <path d="M 199,132 Q 206,130 213,132" stroke="#db2777" strokeWidth="1.2" strokeDasharray="2 1.5" fill="none" opacity="0.6" />
+
+              {/* Thumb loop */}
+              <path d="M 33,171 Q 43,165 52,154" stroke="#ea580c" strokeWidth="2.5" fill="none" />
+              <path d="M 33,171 Q 41,176 52,154" stroke="#ea580c" strokeWidth="1.2" strokeDasharray="2 1.5" fill="none" opacity="0.6" />
             </g>
-            <g transform="translate(185, 230)" className="text-[8px] font-bold">
-              <rect x="-65" y="-7" width="130" height="13" rx="3" fill="white" stroke="#f59e0b" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="8">Finger to Wrist: {formatVal('Total length medal finger to wrist')}</text>
+
+            {/* vertical side measurement rulers */}
+            {/* Height Line 1: Finger-to-wrist (Left Margin) */}
+            <line x1="35" y1="48" x2="148" y2="48" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+            <line x1="35" y1="275" x2="111" y2="275" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+            <line x1="35" y1="48" x2="35" y2="275" stroke="#d97706" strokeWidth="1.5" markerStart="url(#arrow-amber-cl)" markerEnd="url(#arrow-amber-cl)" />
+
+            {/* Height Line 2: Finger-to-scar-end (Right Margin) */}
+            <line x1="180" y1="48" x2="285" y2="48" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+            <line x1="195" y1="360" x2="285" y2="360" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+            <line x1="285" y1="48" x2="285" y2="360" stroke="#7c3aed" strokeWidth="1.5" markerStart="url(#arrow-purple-cl)" markerEnd="url(#arrow-purple-cl)" />
+
+            {/* Readable Badges Overlay (Outside Flipped Group to Prevent text mirroring) */}
+            {/* 1. Palm */}
+            <g transform="translate(155, 245)" className="text-[8px] font-bold">
+              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#2563eb" strokeWidth="1.5" />
+              <text y="3" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="8">Palm: {formatVal('Palm')}</text>
             </g>
-            <g transform="translate(185, 265)" className="text-[8px] font-bold">
-              <rect x="-65" y="-7" width="130" height="13" rx="3" fill="white" stroke="#7c3aed" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-purple-600 font-bold" fontSize="8">Finger to Scar: {formatVal('Total length medal finger to end of scar')}</text>
+
+            {/* 2. Wrist */}
+            <g transform="translate(155, 312)" className="text-[8px] font-bold">
+              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="1.5" />
+              <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">Wrist: {formatVal('Wrist')}</text>
             </g>
-            <g transform="translate(150, 45)" className="text-[8px] font-bold">
-              <rect x="-45" y="-7" width="90" height="13" rx="3" fill="white" stroke="#4f46e5" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-indigo-600 font-bold" fontSize="8">Medal: {formatVal('Medal finger')}</text>
+
+            {/* 3. Thumb */}
+            <g transform={`translate(${xThumb}, 195)`} className="text-[8px] font-bold">
+              <rect x="-56" y="-7" width="112" height="14" rx="3" fill="white" stroke="#ea580c" strokeWidth="1" />
+              <text y="3" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="8">Thumb: {formatVal('Thumb')} | W: {formatVal('Thumb width')}</text>
             </g>
-            <g transform="translate(110, 65)" className="text-[8px] font-bold">
-              <rect x="-40" y="-7" width="80" height="13" rx="3" fill="white" stroke="#0891b2" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-cyan-600 font-bold" fontSize="8">Left: {formatVal('Left finger')}</text>
+
+            {/* 4. Index Finger / Left */}
+            <g transform={`translate(${xLeftFinger}, 100)`} className="text-[8px] font-bold">
+              <rect x="-58" y="-7" width="116" height="14" rx="3" fill="white" stroke="#0891b2" strokeWidth="1" />
+              <text y="3" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="8">Index: {formatVal('Index finger')} | W: {formatVal('Index finger width')}</text>
             </g>
-            <g transform="translate(210, 75)" className="text-[8px] font-bold">
-              <rect x="-40" y="-7" width="80" height="13" rx="3" fill="white" stroke="#059669" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="8">Right: {formatVal('Right finger')}</text>
+            
+            {/* 5. Middle Finger / Medal */}
+            <g transform={`translate(${xMiddleFinger}, 62)`} className="text-[8px] font-bold">
+              <rect x="-60" y="-7" width="120" height="14" rx="3" fill="white" stroke="#4f46e5" strokeWidth="1.5" />
+              <text y="3" textAnchor="middle" className="fill-indigo-600 font-extrabold" fontSize="8">Middle: {formatVal('Middle finger')} | W: {formatVal('Middle finger width')}</text>
             </g>
-            <g transform="translate(245, 110)" className="text-[8px] font-bold">
-              <rect x="-40" y="-7" width="80" height="13" rx="3" fill="white" stroke="#db2777" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-pink-600 font-bold" fontSize="8">Small: {formatVal('Small finger')}</text>
+
+            {/* 6. Ring Finger / Right */}
+            <g transform={`translate(${xRightFinger}, 105)`} className="text-[8px] font-bold">
+              <rect x="-58" y="-7" width="116" height="14" rx="3" fill="white" stroke="#059669" strokeWidth="1" />
+              <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">Ring: {formatVal('Ring finger')} | W: {formatVal('Ring finger width')}</text>
             </g>
-            <g transform="translate(85, 115)" className="text-[8px] font-bold">
-              <rect x="-40" y="-7" width="80" height="13" rx="3" fill="white" stroke="#ea580c" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-orange-600 font-bold" fontSize="8">Thumb: {formatVal('Thumb')}</text>
+
+            {/* 7. Small Finger */}
+            <g transform={`translate(${xSmallFinger}, 145)`} className="text-[8px] font-bold">
+              <rect x="-56" y="-7" width="112" height="14" rx="3" fill="white" stroke="#db2777" strokeWidth="1" />
+              <text y="3" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="8">Little: {formatVal('Little finger')} | W: {formatVal('Little finger width')}</text>
+            </g>
+
+            {/* 8. Total Length (Finger to Wrist) Left Margin Badge */}
+            <g transform="translate(35, 166)" className="text-[8px] font-bold">
+              <rect x="-24" y="-12" width="48" height="24" rx="4" fill="white" stroke="#d97706" strokeWidth="1.5" />
+              <text y="-2" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="8">To Wrist</text>
+              <text y="8" textAnchor="middle" className="fill-amber-700 font-black" fontSize="8">{formatVal('Total length middle finger to wrist')}</text>
+            </g>
+
+            {/* 9. Total Length (Finger to Scar) Right Margin Badge */}
+            <g transform="translate(285, 204)" className="text-[8px] font-bold">
+              <rect x="-24" y="-12" width="48" height="24" rx="4" fill="white" stroke="#7c3aed" strokeWidth="1.5" />
+              <text y="-2" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="8">To Scar</text>
+              <text y="8" textAnchor="middle" className="fill-purple-700 font-black" fontSize="7">{formatVal('Total length middle finger to end of scar')}</text>
             </g>
           </svg>
         );
 
       case 'Belly Binder':
         return (
-          <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
-            {/* Outline waist torso */}
-            <path d="M80,50 L220,50 L200,240 L100,240 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
-            <path d="M85,100 L215,100 L205,190 L95,190 Z" fill="#bfdbfe" fillOpacity="0.5" stroke="#60a5fa" strokeWidth="1.5" />
+          <svg viewBox="0 0 320 380" className="w-full h-full max-h-[380px]" style={{ minHeight: '300px' }}>
+            <defs>
+              <marker id="arrow-orange-bb" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#ea580c" />
+              </marker>
+              <marker id="arrow-rose-bb" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#e11d48" />
+              </marker>
+            </defs>
 
-            <line x1="85" y1="100" x2="215" y2="100" stroke="#2563eb" strokeWidth="2" strokeDasharray="3 3"/>
-            <line x1="95" y1="190" x2="205" y2="190" stroke="#10b981" strokeWidth="2" strokeDasharray="3 3"/>
-            <line x1="230" y1="100" x2="230" y2="190" stroke="#f59e0b" strokeWidth="2" />
+            {/* Back shading layer for 3D outline realism */}
+            <path 
+              d="M 90,50 Q 160,53 230,50 C 238,90 244,130 248,170 C 252,210 253,235 251,250 L 236,325 Q 203,327 170,325 L 170,240 Q 160,238 150,240 L 150,325 Q 117,327 84,325 L 69,250 C 67,235 68,210 72,170 C 76,130 82,90 90,50 Z" 
+              fill="#ebdcc9" 
+              opacity="0.15"
+            />
 
-            <g transform="translate(150, 75)" className="text-[8px] font-bold">
-              <rect x="-55" y="-7" width="110" height="13" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="8">Diaphrarm: {formatVal('Diaphrarm')}</text>
+            {/* Main Garment Silhouette Shorts/Compression Girdle */}
+            <path 
+              d="M 90,50 Q 160,53 230,50 C 238,90 244,130 248,170 C 252,210 253,235 251,250 L 236,325 Q 203,327 170,325 L 170,240 Q 160,238 150,240 L 150,325 Q 117,327 84,325 L 69,250 C 67,235 68,210 72,170 C 76,130 82,90 90,50 Z" 
+              fill="#fdfaf6" 
+              stroke="#b1967c" 
+              strokeWidth="2.5" 
+              strokeLinejoin="round" 
+            />
+
+            {/* Waist rib band */}
+            <path d="M 90,50 Q 160,53 230,50" stroke="#b1967c" strokeWidth="3" fill="none" />
+            <path d="M 92,64 Q 160,67 228,64" stroke="#d5c3b2" strokeWidth="1.5" fill="none" />
+
+            {/* Crotch opening gap (dark contrast circle/ellipse from standard compression shorts) */}
+            <ellipse cx="160" cy="235" rx="11" ry="14" fill="#0f172a" />
+
+            {/* Middle Front Zipper track and elements */}
+            <line x1="160" y1="64" x2="160" y2="221" stroke="#8c735d" strokeWidth="2.5" />
+            <line x1="158.5" y1="64" x2="158.5" y2="221" stroke="#f6f2eb" strokeWidth="0.5" />
+            
+            {/* Zipper Pull Slider */}
+            <rect x="157.5" y="75" width="5" height="11" rx="1.5" fill="#fdfaf6" stroke="#5d4c3e" strokeWidth="1.2" />
+            <circle cx="160" cy="83" r="1.5" fill="#5d4c3e" />
+
+            {/* Bottom Leg Hems */}
+            <path d="M 84,325 Q 117,327 150,325" stroke="#b1967c" strokeWidth="2.5" fill="none" />
+            <path d="M 170,325 Q 203,327 236,325" stroke="#b1967c" strokeWidth="2.5" fill="none" />
+
+            {/* Internal Circumference Measurement Guides (Dashed bands) */}
+            {/* 1. Diaphragm line */}
+            <path d="M 91,56 Q 160,59 229,56" stroke="#2563eb" strokeWidth="2" strokeDasharray="3 2" fill="none" />
+            
+            {/* 2. Belly line */}
+            <path d="M 80,110 Q 160,114 240,110" stroke="#f59e0b" strokeWidth="2" strokeDasharray="3 2" fill="none" />
+            
+            {/* 3. Waist line */}
+            <path d="M 73,175 Q 160,179 247,175" stroke="#10b981" strokeWidth="2" strokeDasharray="3 2" fill="none" />
+            
+            {/* Hips line */}
+            <path d="M 75,215 Q 160,219 245,215" stroke="#0891b2" strokeWidth="2" strokeDasharray="3 2" fill="none" />
+            
+            {/* 4. Open end thigh (Upper Thigh) */}
+            <path d="M 71,260 Q 110,262 149,260" stroke="#7c3aed" strokeWidth="2" strokeDasharray="3 2" fill="none" />
+            
+            {/* 5. Close end thigh (Lower Thigh) */}
+            <path d="M 80,300 Q 115,302 149,300" stroke="#db2777" strokeWidth="2" strokeDasharray="3 2" fill="none" />
+
+            {/* Vertical Height Measurement Rulers */}
+            {/* Right Height: Diaphragm to Waist */}
+            <line x1="247" y1="175" x2="275" y2="175" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+            <line x1="230" y1="50" x2="275" y2="50" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+            <line x1="270" y1="50" x2="270" y2="175" stroke="#ea580c" strokeWidth="1.5" markerStart="url(#arrow-orange-bb)" markerEnd="url(#arrow-orange-bb)" />
+
+            {/* Left Height: Waist to Close end thigh */}
+            <line x1="73" y1="175" x2="45" y2="175" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+            <line x1="80" y1="300" x2="45" y2="300" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+            <line x1="50" y1="175" x2="50" y2="300" stroke="#e11d48" strokeWidth="1.5" markerStart="url(#arrow-rose-bb)" markerEnd="url(#arrow-rose-bb)" />
+
+            {/* Overlay Badges for measurements */}
+            {/* 1. Diaphragm Badge */}
+            <g transform="translate(160, 42)" className="text-[8px] font-bold">
+              <rect x="-48" y="-7" width="96" height="14" rx="4" fill="white" stroke="#2563eb" strokeWidth="1.5" />
+              <text y="3" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="8">Diaphrom: {formatVal('Diaphrom')}</text>
             </g>
-            <g transform="translate(150, 115)" className="text-[8px] font-bold">
-              <rect x="-45" y="-7" width="90" height="13" rx="3" fill="white" stroke="#f59e0b" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="8">Belly: {formatVal('Belly')}</text>
+
+            {/* 2. Belly Badge */}
+            <g transform="translate(160, 110)" className="text-[8px] font-bold">
+              <rect x="-42" y="-7" width="84" height="14" rx="4" fill="white" stroke="#f59e0b" strokeWidth="1.5" />
+              <text y="3" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="8">Belly: {formatVal('Belly')}</text>
             </g>
-            <g transform="translate(150, 155)" className="text-[8px] font-bold">
-              <rect x="-45" y="-7" width="90" height="13" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="8">Waist: {formatVal('Waist')}</text>
+
+            {/* 3. Waist Badge */}
+            <g transform="translate(160, 175)" className="text-[8px] font-bold">
+              <rect x="-42" y="-7" width="84" height="14" rx="4" fill="white" stroke="#10b981" strokeWidth="1.5" />
+              <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">West: {formatVal('West (Waist)')}</text>
             </g>
-            <g transform="translate(150, 195)" className="text-[8px] font-bold">
-              <rect x="-55" y="-7" width="110" height="13" rx="3" fill="white" stroke="#7c3aed" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-purple-600 font-bold" fontSize="8">Open Thigh: {formatVal('Open end thigh')}</text>
+
+            {/* 3.5. Hips Badge */}
+            <g transform="translate(160, 215)" className="text-[8px] font-bold">
+              <rect x="-42" y="-7" width="84" height="14" rx="4" fill="white" stroke="#0891b2" strokeWidth="1.5" />
+              <text y="3" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="8">Hips: {formatVal('Hips')}</text>
             </g>
-            <g transform="translate(150, 230)" className="text-[8px] font-bold">
-              <rect x="-55" y="-7" width="110" height="13" rx="3" fill="white" stroke="#db2777" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-pink-600 font-bold" fontSize="8">Close Thigh: {formatVal('Close end thigh')}</text>
+
+            {/* 4. Open end thigh Badge */}
+            <g transform="translate(110, 260)" className="text-[8px] font-bold">
+              <rect x="-48" y="-7" width="96" height="14" rx="4" fill="white" stroke="#7c3aed" strokeWidth="1.5" />
+              <text y="3" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="8">Open End: {formatVal('Open End')}</text>
             </g>
-            <g transform="translate(150, 265)" className="text-[8px] font-bold">
-              <rect x="-45" y="-7" width="90" height="13" rx="3" fill="white" stroke="#0891b2" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-cyan-600 font-bold" fontSize="8">Knee: {formatVal('Knee')}</text>
+
+            {/* 5. Close end thigh Badge */}
+            <g transform="translate(110, 300)" className="text-[8px] font-bold">
+              <rect x="-50" y="-7" width="100" height="14" rx="4" fill="white" stroke="#db2777" strokeWidth="1.5" />
+              <text y="3" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="8">Close End: {formatVal('Close End (Leg end)')}</text>
             </g>
-            <g transform="translate(250, 115)" className="text-[8px] font-bold">
-              <rect x="-65" y="-7" width="130" height="13" rx="3" fill="white" stroke="#ea580c" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-orange-600 font-bold" fontSize="8">Dia to Waist: {formatVal('length diaphragm to waist')}</text>
+
+            {/* 7. Diaphragm to Waist Length Badge */}
+            <g transform="translate(280, 112)" className="text-[8px] font-bold">
+              <rect x="-24" y="-12" width="48" height="24" rx="4" fill="white" stroke="#ea580c" strokeWidth="1.5" />
+              <text y="-2" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="8">Dia-West</text>
+              <text y="8" textAnchor="middle" className="fill-orange-700 font-black" fontSize="7">{formatVal('Length Diaphrom to West')}</text>
             </g>
-            <g transform="translate(250, 195)" className="text-[8px] font-bold">
-              <rect x="-65" y="-7" width="130" height="13" rx="3" fill="white" stroke="#e11d48" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-rose-600 font-bold" fontSize="8">Waist to Close: {formatVal('Length waist to close end')}</text>
+
+            {/* 8. Waist to Close Length Badge */}
+            <g transform="translate(40, 237)" className="text-[8px] font-bold">
+              <rect x="-24" y="-12" width="48" height="24" rx="4" fill="white" stroke="#e11d48" strokeWidth="1.5" />
+              <text y="-2" textAnchor="middle" className="fill-rose-600 font-extrabold" fontSize="8">Short-Len</text>
+              <text y="8" textAnchor="middle" className="fill-rose-700 font-black" fontSize="7">{formatVal('Short Length')}</text>
             </g>
           </svg>
         );
@@ -833,50 +1195,137 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
         return (
           <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
             {/* Pants outline */}
-            <path d="M100,40 L200,40 L210,100 L230,260 L180,260 L150,110 L120,260 L70,260 L90,100 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
+            <path d="M 90,40 L 210,40 L 215,90 L 235,260 L 185,260 L 150,110 L 115,260 L 65,260 L 85,90 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
 
-            <line x1="100" y1="40" x2="200" y2="40" stroke="#2563eb" strokeWidth="2" strokeDasharray="3 3"/>
-            <line x1="90" y1="85" x2="210" y2="85" stroke="#10b981" strokeWidth="2" strokeDasharray="3 3"/>
-            <line x1="85" y1="125" x2="145" y2="125" stroke="#f59e0b" strokeWidth="2" strokeDasharray="3 3"/>
-            <line x1="150" y1="110" x2="120" y2="260" stroke="#ec4899" strokeWidth="2" />
-            <line x1="70" y1="250" x2="120" y2="250" stroke="#7c3aed" strokeWidth="2" strokeDasharray="3 3"/>
+            {/* Belly guideline at top */}
+            <line x1="90" y1="40" x2="210" y2="40" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="3 3"/>
+            
+            {/* West guideline */}
+            <line x1="88" y1="60" x2="212" y2="60" stroke="#10b981" strokeWidth="1.5" strokeDasharray="3 3"/>
+            
+            {/* Hips guideline */}
+            <line x1="86" y1="85" x2="214" y2="85" stroke="#0891b2" strokeWidth="1.5" strokeDasharray="3 3"/>
 
-            <g transform="translate(150, 25)" className="text-[8px] font-bold">
-              <rect x="-55" y="-7" width="110" height="13" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="8">Diaphrarm: {formatVal('Diaphrarm')}</text>
+            {/* Ellipses for Round/Thighs/Knee/Calf/Bottom on both legs to match hand drawn sketch */}
+            {/* 1. Round (Groin level y=110) */}
+            <ellipse cx="102" cy="115" rx="16" ry="5" stroke="#f59e0b" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            <ellipse cx="198" cy="115" rx="16" ry="5" stroke="#f59e0b" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+
+            {/* 2. Thigh I (y=145) */}
+            <ellipse cx="98" cy="145" rx="18" ry="5" stroke="#7c3aed" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            <ellipse cx="202" cy="145" rx="18" ry="5" stroke="#7c3aed" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+
+            {/* 3. Thigh II (y=175) */}
+            <ellipse cx="92" cy="175" rx="19" ry="5" stroke="#ec4899" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            <ellipse cx="208" cy="175" rx="19" ry="5" stroke="#ec4899" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+
+            {/* 4. Knee (y=205) */}
+            <ellipse cx="85" cy="205" rx="18" ry="5" stroke="#06b6d4" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            <ellipse cx="215" cy="205" rx="18" ry="5" stroke="#06b6d4" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+
+            {/* 5. Calf (y=232) */}
+            <ellipse cx="78" cy="232" rx="18" ry="5" stroke="#84cc16" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            <ellipse cx="222" cy="232" rx="18" ry="5" stroke="#84cc16" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+
+            {/* 6. Bottom (y=260) */}
+            <line x1="65" y1="260" x2="115" y2="260" stroke="#e11d48" strokeWidth="1.5" strokeDasharray="2 2" />
+            <line x1="185" y1="260" x2="235" y2="260" stroke="#e11d48" strokeWidth="1.5" strokeDasharray="2 2" />
+
+            {/* Height Rule: Crotch Depth (Waist x=150, rise to y=110) */}
+            <line x1="150" y1="40" x2="150" y2="110" stroke="#eab308" strokeWidth="1.5" />
+            {/* Mini arrows for Crotch Depth */}
+            <path d="M 147,45 L 150,40 L 153,45" stroke="#eab308" strokeWidth="1.5" fill="none" />
+            <path d="M 147,105 L 150,110 L 153,105" stroke="#eab308" strokeWidth="1.5" fill="none" />
+
+            {/* Height Rule: Inseam (Crotch rise level y=110 down to bottom opening level y=260) */}
+            <line x1="150" y1="110" x2="150" y2="260" stroke="#ea580c" strokeWidth="1.5" />
+            {/* Mini arrows for Inseam */}
+            <path d="M 147,115 L 150,110 L 153,115" stroke="#ea580c" strokeWidth="1.5" fill="none" />
+            <path d="M 147,255 L 150,260 L 153,255" stroke="#ea580c" strokeWidth="1.5" fill="none" />
+
+            {/* Height Rule: Total Length (Far right ruler from y=40 to y=260) */}
+            <line x1="270" y1="40" x2="270" y2="260" stroke="#2563eb" strokeWidth="1.5" />
+            <line x1="265" y1="40" x2="275" y2="40" stroke="#2563eb" strokeWidth="1.5" />
+            <line x1="265" y1="260" x2="275" y2="260" stroke="#2563eb" strokeWidth="1.5" />
+            {/* Arrow tips for Total Length */}
+            <path d="M 267,45 L 270,40 L 273,45" stroke="#2563eb" strokeWidth="1.5" fill="none" />
+            <path d="M 267,255 L 270,260 L 273,255" stroke="#2563eb" strokeWidth="1.5" fill="none" />
+
+            {/* Badges on the right / center: Vertical Heights */}
+            <g transform="translate(182, 53)" className="text-[7px] font-bold">
+              <rect x="-32" y="-6" width="64" height="12" rx="3" fill="white" stroke="#eab308" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-yellow-600 font-extrabold" fontSize="7">Crotch: {formatVal('Crotch Depth')}</text>
             </g>
-            <g transform="translate(150, 60)" className="text-[8px] font-bold">
-              <rect x="-45" y="-7" width="90" height="13" rx="3" fill="white" stroke="#f59e0b" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="8">Belly: {formatVal('Belly')}</text>
+
+            <g transform="translate(150, 185)" className="text-[7px] font-bold">
+              <rect x="-35" y="-6" width="70" height="12" rx="3" fill="white" stroke="#ea580c" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="7">Inseam: {formatVal('Inseam (Inside Length)')}</text>
             </g>
-            <g transform="translate(150, 95)" className="text-[8px] font-bold">
-              <rect x="-45" y="-7" width="90" height="13" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="8">Waist: {formatVal('Waist')}</text>
+
+            <g transform="translate(265, 145)" className="text-[7px] font-bold">
+              <rect x="-35" y="-14" width="70" height="24" rx="4" fill="white" stroke="#2563eb" strokeWidth="1.2" />
+              <text y="-4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="7">Total Length</text>
+              <text y="6" textAnchor="middle" className="fill-blue-700 font-black" fontSize="7">{formatVal('Total Length')}</text>
             </g>
-            <g transform="translate(100, 135)" className="text-[8px] font-bold">
-              <rect x="-55" y="-7" width="110" height="13" rx="3" fill="white" stroke="#7c3aed" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-purple-600 font-bold" fontSize="8">Open Thigh: {formatVal('Open end thigh')}</text>
+
+            {/* Badges on the Top: Torso Girths */}
+            <g transform="translate(150, 25)" className="text-[7px] font-bold">
+              <rect x="-36" y="-6" width="72" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="7">Belly: {formatVal('Belly')}</text>
             </g>
-            <g transform="translate(100, 175)" className="text-[8px] font-bold">
-              <rect x="-55" y="-7" width="110" height="13" rx="3" fill="white" stroke="#db2777" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-pink-600 font-bold" fontSize="8">Close Thigh: {formatVal('Close end thigh')}</text>
+
+            <g transform="translate(105, 52)" className="text-[7px] font-bold">
+              <rect x="-36" y="-6" width="72" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="7">West: {formatVal('West (Waist)')}</text>
             </g>
-            <g transform="translate(100, 215)" className="text-[8px] font-bold">
-              <rect x="-45" y="-7" width="90" height="13" rx="3" fill="white" stroke="#0891b2" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-cyan-600 font-bold" fontSize="8">Knee: {formatVal('Knee')}</text>
+
+            <g transform="translate(105, 75)" className="text-[7px] font-bold">
+              <rect x="-32" y="-6" width="64" height="12" rx="3" fill="white" stroke="#0891b2" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="7">Hips: {formatVal('Hips')}</text>
             </g>
-            <g transform="translate(100, 255)" className="text-[8px] font-bold">
-              <rect x="-45" y="-7" width="90" height="13" rx="3" fill="white" stroke="#e11d48" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-rose-600 font-bold" fontSize="8">Ankle: {formatVal('Ankle')}</text>
+
+            {/* Circumference Badges on the Left Side pointing to guiding ellipses */}
+            {/* 1. Round (Crotch Round / Seat length) */}
+            <g transform="translate(40, 115)" className="text-[7px] font-bold">
+              <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#f59e0b" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="7">Round: {formatVal('Round (Crotch)')}</text>
             </g>
-            <g transform="translate(235, 60)" className="text-[8px] font-bold">
-              <rect x="-65" y="-7" width="130" height="13" rx="3" fill="white" stroke="#ea580c" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-orange-600 font-bold" fontSize="8">Dia to Waist: {formatVal('length diaphragm to waist')}</text>
+            <path d="M 68,115 L 86,115" stroke="#f59e0b" strokeWidth="0.8" strokeDasharray="1 1" />
+
+            {/* 2. Thigh I */}
+            <g transform="translate(40, 145)" className="text-[7px] font-bold">
+              <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#7c3aed" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="7">Thigh I: {formatVal('Thigh I')}</text>
             </g>
-            <g transform="translate(235, 175)" className="text-[8px] font-bold">
-              <rect x="-65" y="-7" width="130" height="13" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="8">Waist to Ankle: {formatVal('Length waist to ankle')}</text>
+            <path d="M 68,145 L 80,145" stroke="#7c3aed" strokeWidth="0.8" strokeDasharray="1 1" />
+
+            {/* 3. Thigh II */}
+            <g transform="translate(40, 175)" className="text-[7px] font-bold">
+              <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#ec4899" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="7">Thigh II: {formatVal('Thigh II')}</text>
             </g>
+            <path d="M 68,175 L 74,175" stroke="#ec4899" strokeWidth="0.8" strokeDasharray="1 1" />
+
+            {/* 4. Knee */}
+            <g transform="translate(40, 205)" className="text-[7px] font-bold">
+              <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#06b6d4" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="7">Knee: {formatVal('Knee')}</text>
+            </g>
+            <path d="M 68,205 L 68,205" stroke="#06b6d4" strokeWidth="0.8" strokeDasharray="1 1" />
+
+            {/* 5. Calf */}
+            <g transform="translate(40, 232)" className="text-[7px] font-bold">
+              <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#84cc16" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-lime-600 font-extrabold" fontSize="7">Calf: {formatVal('Calf')}</text>
+            </g>
+            <path d="M 68,232 L 64,232" stroke="#84cc16" strokeWidth="0.8" strokeDasharray="1 1" />
+
+            {/* 6. Bottom */}
+            <g transform="translate(40, 260)" className="text-[7px] font-bold">
+              <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#e11d48" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-rose-600 font-extrabold" fontSize="7">Bottom: {formatVal('Bottom')}</text>
+            </g>
+            <path d="M 68,260 L 65,260" stroke="#e11d48" strokeWidth="0.8" strokeDasharray="1 1" />
           </svg>
         );
 
@@ -1557,8 +2006,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
   };
 
   const steps = [
-    { id: 'patient-info', label: 'Registration', icon: User },
-    { id: 'garment-select', label: 'Dr Notes', icon: FileText },
+    { id: 'garment-select', label: 'Configure Clinical & Compression', icon: FileText },
     { id: 'garment-type', label: 'Garment Type', icon: Layers },
     { id: 'measurement-drawing', label: 'Measurement Drawing', icon: Scissors },
     { id: 'review', label: 'Summary', icon: CheckCircle2 },
@@ -1670,228 +2118,13 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
               exit={{ opacity: 0, y: -20 }}
               className="medical-card p-4 sm:p-6 md:p-10 min-h-[500px]"
             >
-              {/* STEP 1: PATIENT INFO */}
-              {activeStep === 'patient-info' && (
-                <div className="space-y-10">
-                  <div className="border-l-4 border-blue-600 pl-6">
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">Patient Metadata Registration</h2>
-                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Foundational Clinical Data</p>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Identity Full Name</label>
-                      <div className="relative">
-                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                        <input 
-                          className="medical-input pl-12" 
-                          placeholder="Mehmood Khan"
-                          value={patient.name}
-                          onChange={(e) => handlePatientChange('name', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contact Handset</label>
-                      <div className="relative">
-                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                        <input 
-                          className="medical-input pl-12" 
-                          placeholder="+92 3XX XXXXXXX"
-                          value={patient.phone}
-                          onChange={(e) => handlePatientChange('phone', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-3 md:col-span-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Physical Domicile Address</label>
-                      <div className="relative">
-                        <MapPin className="absolute left-4 top-4 w-4 h-4 text-slate-300" />
-                        <textarea 
-                          className="medical-input pl-12 pt-4 h-24 resize-none" 
-                          placeholder="Street, Sector, City..."
-                          value={patient.address}
-                          onChange={(e) => handlePatientChange('address', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Referring Consultant</label>
-                      <div className="relative">
-                        <Stethoscope className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                        <input 
-                          className="medical-input pl-12" 
-                          placeholder="Dr. Ahmed"
-                          value={patient.doctorRef}
-                          onChange={(e) => handlePatientChange('doctorRef', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Clinical Institution</label>
-                      <div className="relative">
-                        <Hospital className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                        <input 
-                          className="medical-input pl-12" 
-                          placeholder="Mughal Hospital"
-                          value={patient.hospitalName}
-                          onChange={(e) => handlePatientChange('hospitalName', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Assessment Date</label>
-                      <div className="relative">
-                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                        <input 
-                          type="date"
-                          className="medical-input pl-12" 
-                          value={patient.date}
-                          onChange={(e) => handlePatientChange('date', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Gender / جنس</label>
-                      <div className="relative">
-                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                        <select
-                          className="medical-input pl-12 appearance-none bg-white font-bold"
-                          value={patient.gender}
-                          onChange={(e) => handlePatientChange('gender', e.target.value)}
-                        >
-                          <option value="male">Male (مرد)</option>
-                          <option value="female">Female (عورت)</option>
-                          <option value="other">Other (دیگر)</option>
-                        </select>
-                      </div>
-                    </div>
 
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Age / عمر</label>
-                      <div className="relative">
-                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                        <input 
-                          type="number"
-                          className="medical-input pl-12 font-bold" 
-                          placeholder="e.g. 45"
-                          min="0"
-                          max="120"
-                          value={patient.age || ''}
-                          onChange={(e) => handlePatientChange('age', e.target.value ? Number(e.target.value) : '')}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">City / شہر</label>
-                      <div className="relative">
-                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                        <input 
-                          className="medical-input pl-12 font-bold" 
-                          placeholder="e.g. Karachi"
-                          value={patient.city || ''}
-                          onChange={(e) => handlePatientChange('city', e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">System Patient ID</label>
-                      <div className="relative">
-                        <Fingerprint className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                        <input 
-                          className="medical-input pl-12 bg-slate-50 border-none cursor-not-allowed" 
-                          readOnly
-                          value={patient.patientId}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Highlighted Option: Clinical Photos Status Check */}
-                  <div className="p-6 sm:p-8 rounded-[2rem] bg-gradient-to-br from-indigo-50 via-blue-50 to-indigo-50/30 border-2 border-indigo-200/80 space-y-4 shadow-xl shadow-indigo-100/30 mt-8 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -mr-10 -mt-10 blur-xl" />
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-indigo-200">
-                        <Camera className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-black uppercase text-indigo-900 tracking-wider">Clinical Photo Verification Checklist</h3>
-                        <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-widest leading-none mt-1">Status: Mandatory Requirement Check</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-sm font-black text-slate-800 block">
-                        Has the patient successfully provided or taken their clinical photos of the affected contracture area? <span className="text-rose-600 font-extrabold text-sm">*</span>
-                      </label>
-                      <p className="text-[10px] text-slate-500 font-bold leading-relaxed">
-                        Patient pictures of target burn/contracture are strictly required to compile 3D models before starting product fabrication.
-                      </p>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-4 mt-4">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setProvidedPhotos('yes');
-                          setProvidedPhotosError(null);
-                        }}
-                        className={cn(
-                          "flex-1 py-4 px-6 rounded-2xl font-black uppercase text-xs tracking-widest transition-all border-2 flex items-center justify-center gap-3 cursor-pointer",
-                          providedPhotos === 'yes'
-                            ? "bg-emerald-600 border-emerald-700 text-white shadow-lg shadow-emerald-100"
-                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-                        )}
-                      >
-                        <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", providedPhotos === 'yes' ? "border-white" : "border-slate-300")}>
-                          {providedPhotos === 'yes' && <div className="w-2 h-2 bg-white rounded-full" />}
-                        </div>
-                        Yes, Photos Taken
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setProvidedPhotos('no');
-                          setProvidedPhotosError("Pehley patients ki pics lelen!");
-                        }}
-                        className={cn(
-                          "flex-1 py-4 px-6 rounded-2xl font-black uppercase text-xs tracking-widest transition-all border-2 flex items-center justify-center gap-3 cursor-pointer",
-                          providedPhotos === 'no'
-                            ? "bg-rose-600 border-rose-700 text-white shadow-lg shadow-rose-100"
-                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-                        )}
-                      >
-                        <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", providedPhotos === 'no' ? "border-white" : "border-slate-300")}>
-                          {providedPhotos === 'no' && <div className="w-2 h-2 bg-white rounded-full" />}
-                        </div>
-                        No, Pending Pics
-                      </button>
-                    </div>
-
-                    {providedPhotos === 'no' && (
-                      <div className="p-4 bg-rose-50 border-2 border-rose-200 text-rose-700 rounded-2xl flex items-start gap-3 mt-4 animate-bounce">
-                        <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-                        <div>
-                          <h4 className="text-xs font-black uppercase tracking-wider text-rose-950">Pehley patients ki pics lelen!</h4>
-                          <p className="text-[10px] text-rose-600 font-extrabold mt-1">
-                            Clinical photo upload of the target anatomical region is required before the clinical form can advance to the next step.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
 
               {/* STEP 2: DR NOTES */}
               {activeStep === 'garment-select' && (
                 <div className="space-y-10">
                   <div className="border-l-4 border-blue-600 pl-6">
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">Dr Notes</h2>
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">Configure Clinical & Compression</h2>
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Configure Clinical & Compression Characteristics</p>
                   </div>
 
@@ -1957,31 +2190,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                       </div>
                     </div>
 
-                    {/* Doctor's Notes Textarea with 500-word limit */}
-                    <div className="space-y-4 pt-4">
-                      <div className="flex justify-between items-center">
-                        <label className="text-[12px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-blue-600" />
-                          Doctor's Notes / Case History
-                        </label>
-                        <span className={cn(
-                          "text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg",
-                          countWords(patient.notes || '') > 450 
-                            ? "bg-rose-50 text-rose-600" 
-                            : "bg-slate-100 text-slate-600"
-                        )}>
-                          {countWords(patient.notes || '')} / 500 words
-                        </span>
-                      </div>
-                      <div className="relative">
-                        <textarea
-                          className="w-full min-h-[140px] p-5 rounded-2xl border-2 border-slate-100 bg-white text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all text-sm leading-relaxed"
-                          placeholder="Write down any patient specific clinical notes, injury background, scar-tissue details, skin fragility, or assessment notes..."
-                          value={patient.notes || ''}
-                          onChange={(e) => handleNotesChange(e.target.value)}
-                        />
-                      </div>
-                    </div>
+
 
                     <div className="p-6 bg-slate-50 rounded-3xl border border-slate-200 border-dashed">
                       <div className="flex gap-4">
@@ -2020,13 +2229,17 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                           setGarment(prev => ({ 
                             ...prev, 
                             type: newType,
-                            subOptions: {} // Reset sub-options on change so they are clean
+                            subOptions: newType === 'All Gloves/Glove With Sleeve' 
+                              ? { 'Hand Selection': 'Right Hand Glove' } 
+                              : {} // Reset sub-options on change so they are clean
                           }));
                         }}
                         className="w-full px-5 py-4 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all shadow-sm"
                       >
                         <option value="Face Mask & Chin Binder">Face Mask & Chin Binder</option>
-                        <option value="Connecting Sleeves/Arm Sleeve">Connecting Sleeves/Arm Sleeve</option>
+                        <option value="Connecting Sleeves">Connecting Sleeves</option>
+                        <option value="Arm sleeve Right Hand">Arm sleeve Right Hand</option>
+                        <option value="Arm sleeve Left Hand">Arm sleeve Left Hand</option>
                         <option value="All Jacket">All Jacket</option>
                         <option value="All Gloves/Glove With Sleeve">All Gloves/Glove With Sleeve</option>
                         <option value="Belly Binder">Belly Binder</option>
@@ -2035,6 +2248,49 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                         <option value="All Socks">All Socks</option>
                       </select>
                     </div>
+
+                    {/* Glove Hand Selection - Right Hand / Left Hand Option */}
+                    {garment.type === 'All Gloves/Glove With Sleeve' && (
+                      <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <label className="text-[12px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                          <Scissors className="w-4 h-4 text-blue-600" />
+                          Glove Hand Option (دستانہ ہاتھ کا انتخاب)
+                        </label>
+                        <div className="grid grid-cols-2 gap-4">
+                          {[
+                            { value: 'Right Hand Glove', label: 'Right Hand Glove', native: 'Right Hand (سیدھا ہاتھ)' },
+                            { value: 'Left Hand Glove', label: 'Left Hand Glove', native: 'Left Hand (الٹا ہاتھ)' }
+                          ].map(opt => {
+                            const isSelected = (garment.subOptions?.['Hand Selection'] || 'Right Hand Glove') === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => setGarment(prev => ({
+                                  ...prev,
+                                  subOptions: {
+                                    ...(prev.subOptions || {}),
+                                    'Hand Selection': opt.value
+                                  }
+                                }))}
+                                className={cn(
+                                  "flex flex-col items-center justify-center p-5 rounded-3xl border-2 transition-all text-center cursor-pointer",
+                                  isSelected
+                                    ? "bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-100 scale-102"
+                                    : "bg-white border-slate-100 text-slate-600 hover:bg-slate-50"
+                                )}
+                              >
+                                <span className="text-sm font-black">{opt.label}</span>
+                                <span className={cn(
+                                  "text-[10px] font-medium opacity-80 mt-1",
+                                  isSelected ? "text-blue-100" : "text-slate-400"
+                                )}>{opt.native}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Dynamic sub-options based on garment type selection in high-contrast grid */}
                     {GARMENT_FIELDS[garment.type] && (
@@ -2116,6 +2372,64 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                             </div>
                           </div>
                         ))}
+                      </div>
+
+                      {/* Premium Garment Color Selection */}
+                      <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm space-y-4">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block font-bold">
+                          GARMENT COLOR SELECTION
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { value: 'Beige / Skin', label: 'Beige / Skin', colorHex: '#e6c8a2' },
+                            { value: 'Black Color', label: 'Black Color', colorHex: '#1e293b' },
+                            { value: 'Brown / Cocoa', label: 'Brown / Cocoa', colorHex: '#7c2d12' },
+                            { value: 'Pink Color', label: 'Pink Color', colorHex: '#f472b6' },
+                            { value: 'Off-White / Cream', label: 'Off-White / Cream', colorHex: '#fafafa' }
+                          ].map(col => {
+                            const isSelected = garment.subOptions?.['Color'] === col.value;
+                            return (
+                              <button
+                                key={col.value}
+                                type="button"
+                                onClick={() => setGarment(prev => ({
+                                  ...prev,
+                                  subOptions: {
+                                    ...prev.subOptions,
+                                    'Color': col.value
+                                  }
+                                }))}
+                                className={cn(
+                                  "flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-semibold cursor-pointer",
+                                  isSelected 
+                                    ? "bg-slate-900 border-slate-900 text-white shadow-md scale-102" 
+                                    : "bg-white border-slate-100 text-slate-600 hover:bg-slate-50"
+                                )}
+                              >
+                                <span 
+                                  className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0" 
+                                  style={{ backgroundColor: col.colorHex }}
+                                />
+                                {col.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Notes Space */}
+                      <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm space-y-4">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block font-bold flex justify-between items-center">
+                          <span>MEASUREMENT NOTES</span>
+                          <span className="text-[9px] text-slate-400 font-normal">({countWords(patient.notes || '')}/500 words)</span>
+                        </label>
+                        <textarea
+                          placeholder="Write down any special measurements instructions, scar particulars, or physical condition details here..."
+                          value={patient.notes || ''}
+                          onChange={(e) => handleNotesChange(e.target.value)}
+                          rows={4}
+                          className="w-full text-sm font-semibold p-4 rounded-xl border border-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none bg-slate-50/50 text-slate-800 placeholder:text-slate-300"
+                        />
                       </div>
                     </div>
 
@@ -2336,7 +2650,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
 
                       <div className="p-8 bg-purple-50 rounded-[2.5rem] space-y-6">
                       <h4 className="text-[10px] font-black text-purple-600 uppercase tracking-widest flex items-center gap-2">
-                        <FileText className="w-3 h-3" /> Dr Notes
+                        <FileText className="w-3 h-3" /> Clinical & Compression
                       </h4>
                       <div className="space-y-4">
                         <div>
@@ -2442,11 +2756,6 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                 <button 
                   disabled={currentStepIndex === steps.length - 1}
                   onClick={() => {
-                    if (activeStep === 'patient-info' && providedPhotos === 'no') {
-                      setProvidedPhotosError("Pehley patients ki pics lelen!");
-                      alert("Pehley patients ki pics lelen!");
-                      return;
-                    }
                     setActiveStep(steps[currentStepIndex + 1].id as StepId);
                   }}
                   className="btn-primary px-10 py-4 flex items-center gap-3 disabled:opacity-30"
@@ -2506,7 +2815,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
               </div>
             </div>
             <div className="space-y-6">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 pb-2">Dr Notes & Specifications</h3>
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 pb-2">Clinical & Compression Specifications</h3>
               <div className="p-6 bg-slate-50 rounded-3xl space-y-4">
                 <div><p className="text-[10px] font-bold text-slate-400 uppercase">Garment Type</p><p className="font-black text-slate-900 text-sm uppercase">{garment.type}</p></div>
                 <div className="grid grid-cols-2 gap-2">

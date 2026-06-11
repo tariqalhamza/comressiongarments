@@ -115,6 +115,7 @@ const Settings: React.FC = () => {
 
   const getOrGenerateUserPassword = (usr: any) => {
     if (usr.password) return usr.password;
+    if (!isDemo) return '••••••••';
     
     // Construct a sensible plain-text fallback password using the user's name
     const namePart = (usr.full_name || 'user').trim().split(' ').pop() || 'user';
@@ -671,6 +672,7 @@ const Settings: React.FC = () => {
   const tabs = [
     { id: 'profile', label: 'Personal Profile', icon: User },
     ...(isAdmin ? [{ id: 'users', label: 'Manage Accounts', icon: Users }] : []),
+    { id: 'database', label: 'Database Connection', icon: Database },
   ];
 
   return (
@@ -971,20 +973,26 @@ const Settings: React.FC = () => {
                                     ) : (
                                       <div className="flex items-center gap-2">
                                         <span 
-                                          className="bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded text-slate-800 border border-slate-200/50 cursor-pointer select-all font-bold" 
-                                          title="Click to copy or double click to select"
+                                          className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-800 border border-slate-200/50 cursor-pointer select-all font-bold" 
+                                          title={isDemo ? "Click to copy or double click to select" : "Securely encrypted in Database (Supabase Auth)"}
                                         >
                                           {usr.password || getOrGenerateUserPassword(usr)}
                                         </span>
-                                        <button
-                                          onClick={() => {
-                                            setEditingPasswordUserId(usr.id);
-                                            setTempPasswordValue(usr.password || getOrGenerateUserPassword(usr));
-                                          }}
-                                          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-extrabold text-[8px] uppercase tracking-wider"
-                                        >
-                                          Edit
-                                        </button>
+                                        {isDemo ? (
+                                          <button
+                                            onClick={() => {
+                                              setEditingPasswordUserId(usr.id);
+                                              setTempPasswordValue(usr.password || getOrGenerateUserPassword(usr));
+                                            }}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-extrabold text-[8px] uppercase tracking-wider"
+                                          >
+                                            Edit
+                                          </button>
+                                        ) : (
+                                          <span className="text-[10px] font-bold text-slate-450 text-slate-400 capitalize bg-slate-50 border border-slate-100 rounded px-1.5 py-0.5 select-none" title="Live auth credentials cannot be retrieved client-side for security reasons.">
+                                            DB Secured
+                                          </span>
+                                        )}
                                       </div>
                                     )}
                                   </div>
@@ -1041,6 +1049,183 @@ const Settings: React.FC = () => {
                         </div>
                       )}
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'database' && (
+            <div className="medical-card p-8">
+              <div className="flex justify-between items-start mb-8">
+                <div className="space-y-1">
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight">Database Connection Settings</h3>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Connect App to Supabase Live Database</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isDemo ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 text-[10px] font-black tracking-widest uppercase">
+                      <Database className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                      DEMO MODE ACTIVE
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 text-[10px] font-black tracking-widest uppercase">
+                      <Database className="w-3.5 h-3.5 text-emerald-500" />
+                      LIVE MODE ACTIVE
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-8">
+                {/* Visual Status Indicator Card */}
+                <div className={cn(
+                  "p-6 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all",
+                  isDemo 
+                    ? "bg-amber-50/40 border-amber-100" 
+                    : "bg-emerald-50/40 border-emerald-100"
+                )}>
+                  <div className="space-y-2">
+                    <h4 className={cn(
+                      "text-xs font-black uppercase tracking-widest",
+                      isDemo ? "text-amber-700" : "text-emerald-700"
+                    )}>
+                      Current Backend Source
+                    </h4>
+                    <p className="text-xs text-slate-600 font-medium leading-relaxed max-w-xl">
+                      {isDemo ? (
+                        "Aapka application filhal local offline demo database (Web Storage) use kr raha hey. Is mode mein data aapke browser ke andar hi save hota hey aur dusre computers pe nahi dikhega. Live Database connect karne ke liye niche credentials enter karein."
+                      ) : (
+                        `Mubarak ho! App live Supabase database se kamyabi ke sath connect ho chuki hey. Sabhi user accounts, clinical assessments aur measurement orders direct cloud database pe sync ho rahey hain.`
+                      )}
+                    </p>
+                    {!isDemo && (
+                      <div className="pt-2 text-[10px] font-mono text-emerald-700 select-all font-bold">
+                        Connected Host URL: {supabaseUrl}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Form Inputs for Custom Connection */}
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Supabase Project URL
+                      </label>
+                      <span className="text-[9px] font-bold text-slate-400 lowercase font-mono">VITE_SUPABASE_URL</span>
+                    </div>
+                    <input 
+                      type="url"
+                      placeholder="e.g. https://your-project-id.supabase.co"
+                      value={supabaseUrlInput}
+                      onChange={(e) => setSupabaseUrlInput(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold focus:ring-2 focus:ring-blue-100 focus:bg-white outline-none font-mono tracking-tight" 
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                        Supabase Anonymous/Public API Key
+                      </label>
+                      <span className="text-[9px] font-bold text-slate-400 lowercase font-mono">VITE_SUPABASE_ANON_KEY</span>
+                    </div>
+                    <input 
+                      type="password"
+                      placeholder="e.g. eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      value={supabaseAnonKeyInput}
+                      onChange={(e) => setSupabaseAnonKeyInput(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold focus:ring-2 focus:ring-blue-100 focus:bg-white outline-none font-mono tracking-tight" 
+                    />
+                  </div>
+
+                  {/* Actions for DB Settings */}
+                  <div className="flex flex-wrap gap-4 pt-4 border-t border-slate-50">
+                    <button
+                      type="button"
+                      disabled={isSavingDb}
+                      onClick={handleSaveDb}
+                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-blue-100 cursor-pointer flex items-center gap-2"
+                    >
+                      {isSavingDb ? (
+                        <div className="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <Database className="w-3.5 h-3.5" />
+                      )}
+                      {isSavingDb ? "CONNECTING..." : "SAVE & CONNECT LIVE DATABASE"}
+                    </button>
+
+                    {!isDemo && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSupabaseUrlInput('');
+                          setSupabaseAnonKeyInput('');
+                          localStorage.removeItem('VITE_SUPABASE_URL');
+                          localStorage.removeItem('VITE_SUPABASE_ANON_KEY');
+                          localStorage.removeItem('supabase_force_demo');
+                          window.location.reload();
+                        }}
+                        className="px-6 py-3 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-rose-100 cursor-pointer"
+                      >
+                        DISCONNECT & RETURN TO DEMO
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Highly Informative Urdu/English Developer & Production Setup Guide */}
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 space-y-4">
+                  <div className="flex gap-3 text-slate-500">
+                    <Info className="w-5 h-5 shrink-0 text-blue-500" />
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-black uppercase tracking-wider text-slate-800">Production Deployment Guide (Netlify)</h5>
+                      <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                        Aapne is app ko safe aur production-ready banaya hai. Agar aap chahte hain ke netlify par deployed link permanent bina setting kiye Direct Live database se connect ho jaye, to netlify dashboard mein environment variables set kar dein:
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pl-8 space-y-4">
+                    <div className="space-y-2">
+                      <p className="text-xs font-bold text-slate-700">Steps to set variables on Netlify Dashboard:</p>
+                      <ol className="list-decimal list-inside text-xs text-slate-500 space-y-1 pl-1 font-semibold leading-relaxed">
+                        <li>Go to your Netlify site dashboard (<strong className="text-slate-800">ocgmsoft.netlify.app</strong>).</li>
+                        <li>Click on <strong className="text-slate-800">Site configuration</strong> or <strong className="text-slate-800">Site settings</strong>.</li>
+                        <li>Navigate to <strong className="text-slate-800">Environment variables</strong> in the left submenu.</li>
+                        <li>Add <strong className="text-slate-800">VITE_SUPABASE_URL</strong> with your Supabase Project URL.</li>
+                        <li>Add <strong className="text-slate-800">VITE_SUPABASE_ANON_KEY</strong> with your Supabase Anon/Public Key.</li>
+                        <li>Click <strong className="text-slate-800">Trigger deploy</strong> or make a dummy commit of your files to github to trigger a new build. It will read the production keys directly automatically!</li>
+                      </ol>
+                    </div>
+
+                    <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
+                      <p className="text-xs text-blue-800 font-bold leading-relaxed">
+                        💡 <strong className="font-extrabold uppercase tracking-wide">Instant Troubleshooting Feature:</strong> Agar client ko Netlify variables manually setup karna mushkil lag raha hey, to aap unhain is Settings screen pe la kar <strong className="underline">Supabase Project URL</strong> aur <strong className="underline">Public Key</strong> dalkar direct Save & Connect button click karwa sakte hain. Yeh connection isi browser pe permanently Live mode activate kar dega bina Netlify redeployment ke!
+                      </p>
+                    </div>
+
+                    {isDemo && (
+                      <div className="space-y-2 border-t border-slate-200/60 pt-4">
+                        <h6 className="text-[10px] font-black text-amber-700 uppercase tracking-widest flex items-center gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          Demo Cache Controls
+                        </h6>
+                        <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+                          Aap local demo test profiles aur patients list ko clean karne ke liye niche diye gaye cache clear button ka istemal kar sakte hain:
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleClearDemoData}
+                          className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 hover:text-slate-900 border border-slate-300 text-slate-600 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer flex items-center gap-1.5 animate-in fade-in"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Clear Demo Local Storage Cache
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

@@ -224,6 +224,11 @@ export const clearDemoData = () => {
   }
 };
 
+const isValidUUID = (str: string): boolean => {
+  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return regex.test(str);
+};
+
 export const dbService = {
   patients: {
     async getAll() {
@@ -235,7 +240,38 @@ export const dbService = {
         if (error) throw error;
         isSupabaseOfflineState = false;
         lastSupabaseError = null;
-        return data as Patient[];
+        
+        // Dynamic Hybrid Merge Strategy:
+        // Merge Supabase retrieved patients with LocalStorage copies.
+        // This ensures local-saved backups and failed-to-database-write (due to RLS or foreign keys) patients
+        // are stably and seamlessly displayed list-side for the user to select.
+        const localPatients = getLocalStoragePatients();
+        const remotePatients = (data || []) as Patient[];
+        
+        const patientMap = new Map<string, Patient>();
+        
+        // Add local copies
+        localPatients.forEach(p => {
+          if (p && p.id) {
+            patientMap.set(p.id, p);
+          }
+        });
+        
+        // Overwrite or add remote copies
+        remotePatients.forEach(p => {
+          if (p && p.id) {
+            patientMap.set(p.id, p);
+          }
+        });
+        
+        const mergedList = Array.from(patientMap.values()).sort((a, b) => {
+          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+        });
+        
+        // Silently update cache so we keep them synchronized
+        saveToLocal(mergedList);
+        
+        return mergedList;
       } catch (err: any) {
         console.warn('Supabase Offline. Falling back to LocalStorage:', err);
         isSupabaseOfflineState = true;
@@ -244,68 +280,115 @@ export const dbService = {
       }
     },
     async create(patient: Partial<Patient>) {
-      if (isDemo) {
-        const list = getLocalStoragePatients();
-        const newPatientLocal = { 
-          ...patient, 
-          id: 'pat-' + Math.random().toString(36).substr(2, 9),
-          created_at: new Date().toISOString() 
-        } as Patient;
-        const newList = [newPatientLocal, ...list];
-        saveToLocal(newList);
-        return newPatientLocal;
+      // Retain a local-save ID first
+      const generatedId = 'pat-' + Math.random().toString(36).substr(2, 9);
+      const newPatientLocalObj = { 
+        ...patient, 
+        id: generatedId,
+        created_at: patient.created_at || new Date().toISOString() 
+      } as Patient;
+
+      // Always save to LocalStorage immediately as a reliable persistent backup!
+      try {
+        const localList = getLocalStoragePatients();
+        saveToLocal([newPatientLocalObj, ...localList]);
+      } catch (localWriteErr) {
+        console.warn("Failed immediate local patient caching:", localWriteErr);
       }
+
+      if (isDemo) {
+        return newPatientLocalObj;
+      }
+
       try {
         const cleanPayload = { ...patient };
         delete (cleanPayload as any).id; // Remove client-side temp id if exists
+        
+        // Parse & Clean clinic_id if it's not a valid UUID format (e.g. 'default')
+        if (cleanPayload.clinic_id && !isValidUUID(cleanPayload.clinic_id)) {
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('clinic_id')
+                .eq('id', session.user.id)
+                .single();
+              
+              if (profile?.clinic_id && isValidUUID(profile.clinic_id)) {
+                cleanPayload.clinic_id = profile.clinic_id;
+              } else {
+                delete cleanPayload.clinic_id;
+              }
+            } else {
+              delete cleanPayload.clinic_id;
+            }
+          } catch (e) {
+            delete cleanPayload.clinic_id;
+          }
+        }
+
         const { data, error } = await supabase.from('patients').insert(cleanPayload).select().single();
         if (error) throw error;
-        return data as Patient;
+        
+        // On successful DB save, replace the temporary patient record or update LocalStorage with db-provided record (and UUID)
+        const insertedPatient = data as Patient;
+        const localList = getLocalStoragePatients();
+        const filteredList = localList.filter(p => p.id !== generatedId && p.id !== insertedPatient.id);
+        saveToLocal([insertedPatient, ...filteredList]);
+        
+        return insertedPatient;
       } catch (err) {
-        console.warn('Could not save to Supabase. Saving to LocalStorage:', err);
+        console.warn('Could not save to Supabase. Fallback is already safely active in LocalStorage:', err);
         isSupabaseOfflineState = true;
-        const list = getLocalStoragePatients();
-        const newPatientLocal = { 
-          ...patient, 
-          id: 'pat-' + Math.random().toString(36).substr(2, 9),
-          created_at: new Date().toISOString() 
-        } as Patient;
-        saveToLocal([newPatientLocal, ...list]);
-        return newPatientLocal;
+        return newPatientLocalObj;
       }
     },
     async update(id: string, updates: Partial<Patient>) {
-      if (isDemo) {
+      // Always update LocalStorage copy immediately as a backup
+      try {
         const list = getLocalStoragePatients();
         const index = list.findIndex(p => p.id === id);
-        let updated = { ...updates };
         if (index !== -1) {
           const updatedList = [...list];
           updatedList[index] = { ...updatedList[index], ...updates };
           saveToLocal(updatedList);
-          updated = updatedList[index];
         }
-        return updated;
+      } catch (e) {
+        console.warn("Failed immediate local patient update caching:", e);
       }
+
+      if (isDemo) {
+        const list = getLocalStoragePatients();
+        const found = list.find(p => p.id === id);
+        return found || { ...updates, id } as Patient;
+      }
+
       try {
         const cleanPayload = { ...updates };
         delete (cleanPayload as any).id;
+        
+        if (cleanPayload.clinic_id && !isValidUUID(cleanPayload.clinic_id)) {
+          delete cleanPayload.clinic_id;
+        }
+
         const { data, error } = await supabase.from('patients').update(cleanPayload).eq('id', id).select().single();
         if (error) throw error;
-        return data as Patient;
-      } catch (err) {
-        console.warn('Could not update in Supabase. Updating in LocalStorage:', err);
-        isSupabaseOfflineState = true;
+        
+        const updatedPatient = data as Patient;
         const list = getLocalStoragePatients();
         const index = list.findIndex(p => p.id === id);
-        let updated = { ...updates };
         if (index !== -1) {
           const updatedList = [...list];
-          updatedList[index] = { ...updatedList[index], ...updates };
+          updatedList[index] = updatedPatient;
           saveToLocal(updatedList);
-          updated = updatedList[index];
         }
-        return updated;
+        return updatedPatient;
+      } catch (err) {
+        console.warn('Could not update in Supabase. Falling back to LocalStorage backup:', err);
+        isSupabaseOfflineState = true;
+        const list = getLocalStoragePatients();
+        return list.find(p => p.id === id) || { ...updates, id } as Patient;
       }
     },
     async getById(id: string) {
@@ -325,10 +408,15 @@ export const dbService = {
       }
     },
     async delete(id: string) {
-      if (isDemo) {
+      // Remove from LocalStorage immediately
+      try {
         const list = getLocalStoragePatients();
-        const filtered = list.filter(p => p.id !== id);
-        saveToLocal(filtered);
+        saveToLocal(list.filter(p => p.id !== id));
+      } catch (e) {
+        console.warn("Failed immediate local patient delete:", e);
+      }
+
+      if (isDemo) {
         return true;
       }
       try {
@@ -336,10 +424,8 @@ export const dbService = {
         if (error) throw error;
         return true;
       } catch (err) {
-        console.warn('Could not delete in Supabase. Deleting in LocalStorage:', err);
+        console.warn('Could not delete in Supabase. Already removed from LocalStorage backup:', err);
         isSupabaseOfflineState = true;
-        const list = getLocalStoragePatients();
-        saveToLocal(list.filter(p => p.id !== id));
         return true;
       }
     }
