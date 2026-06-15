@@ -34,7 +34,7 @@ const Login: React.FC = () => {
       const foundProfile = profiles.find((p: any) => p.email?.toLowerCase().trim() === enteredEmail);
 
       const resolvedRole = isSuperAdminEmail ? 'admin' : (foundProfile?.role || 'therapist');
-      const resolvedName = foundProfile?.full_name || (isSuperAdminEmail ? 'Mehmood Admin' : 'Clinic Staff');
+      const resolvedName = foundProfile?.full_name || (isSuperAdminEmail ? 'Mahmood Admin' : 'Clinic Staff');
       const resolvedId = foundProfile?.id || (isSuperAdminEmail ? 'demo-user-123' : 'demo-user-' + Math.random().toString(36).substring(2, 11));
 
       const userObj = {

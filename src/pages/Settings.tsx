@@ -56,7 +56,7 @@ const Settings: React.FC = () => {
           setProfilesList(JSON.parse(stored));
         } else {
           const defaultProfiles = [
-            { id: 'demo-user-123', full_name: 'Dr. Mehmood', role: 'admin', created_at: new Date(2024, 0, 12).toISOString(), email: 'mehmood@medical-clinic.com', password: 'mehmood123' },
+            { id: 'demo-user-123', full_name: 'Dr. Mahmood', role: 'admin', created_at: new Date(2024, 0, 12).toISOString(), email: 'mehmood@medical-clinic.com', password: 'mehmood123' },
             { id: 'demo-user-456', full_name: 'Sarah Khan', role: 'therapist', created_at: new Date().toISOString(), email: 'sarah@overplast.com', password: 'sarah123' },
             { id: 'demo-user-789', full_name: 'Ali Raza', role: 'technician', created_at: new Date().toISOString(), email: 'ali@overplast.com', password: 'ali123' }
           ];
@@ -481,7 +481,7 @@ const Settings: React.FC = () => {
 
   // Administrator Profile State
   const [adminProfile, setAdminProfile] = useState({
-    name: 'Mehmood',
+    name: 'Mahmood',
     email: 'mehmood@medical-clinic.com',
     phone: '300 1234567',
     license: 'ML-772211-M',

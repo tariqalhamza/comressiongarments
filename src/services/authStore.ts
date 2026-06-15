@@ -97,7 +97,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const finalProfile = {
         ...(dbProfile || currentProfile || {
           id: uid,
-          full_name: isSuperAdmin ? 'Mehmood Admin' : 'Clinic Staff',
+          full_name: isSuperAdmin ? 'Mahmood Admin' : 'Clinic Staff',
           role: isSuperAdmin ? 'admin' : 'therapist',
           email: email
         }),
@@ -107,7 +107,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (isSuperAdmin) {
         finalProfile.role = 'admin';
         if (finalProfile.full_name === 'Clinic Staff') {
-          finalProfile.full_name = savedCustom.name || 'Mehmood Admin';
+          finalProfile.full_name = savedCustom.name || 'Mahmood Admin';
         }
       }
       set({ profile: finalProfile });

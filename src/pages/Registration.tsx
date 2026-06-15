@@ -32,6 +32,7 @@ import { Patient } from '../types';
 import { dbService } from '../services/supabase';
 import { cn } from '../lib/utils';
 import { compressImage } from '../lib/imageUtils';
+import AssessmentSummaryModal from '../components/AssessmentSummaryModal';
 
 interface RegistrationProps {
   onStartAssessment: (patient: Patient) => void;
@@ -57,6 +58,10 @@ const Registration: React.FC<RegistrationProps> = ({
 
   // Custom Patient Deletion Confirmation modal state
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
+
+  // States for viewing the full Assessment Summary direct modal
+  const [selectedPatientForSummary, setSelectedPatientForSummary] = useState<Patient | null>(null);
+  const [selectedAssessmentForSummary, setSelectedAssessmentForSummary] = useState<any | null>(null);
 
   // Edit Patient modal states
   const [patientToEdit, setPatientToEdit] = useState<Patient | null>(null);
@@ -106,14 +111,6 @@ const Registration: React.FC<RegistrationProps> = ({
     const files = e.target.files;
     if (files && files[0]) {
       const file = files[0];
-      const maxSizeBytes = 2 * 1024 * 1024; // 2MB restriction
-      if (file.size > maxSizeBytes) {
-        alert("Error: Image size exceeds the 2MB limit! Please choose a smaller file. / تصویر کا سائز 2MB سے زیادہ ہے۔");
-        if (editFileInputRef.current) {
-          editFileInputRef.current.value = "";
-        }
-        return;
-      }
       try {
         setSubmitting(true);
         const compressedBase64 = await compressImage(file);
@@ -227,26 +224,18 @@ const Registration: React.FC<RegistrationProps> = ({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files[0]) {
-      const file = files[0];
-      const maxSizeBytes = 2 * 1024 * 1024; // 2MB restriction
-      if (file.size > maxSizeBytes) {
-        setErrorMsg("Error: Image size exceeds the 2MB limit! Please choose a smaller file. / تصویر کا سائز 2MB سے زیادہ ہے۔ براہ کرم چھوٹی تصویر منتخب کریں۔");
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
-        return;
-      }
-      try {
-        setSubmitting(true);
-        const compressedBase64 = await compressImage(file);
-        setFormData(prev => ({ ...prev, photoUrl: compressedBase64 }));
-        setErrorMsg(null);
-      } catch (err) {
-        console.error("Image compression failed:", err);
-        setErrorMsg("Failed to process image. Please choose another valid image file.");
-      } finally {
-        setSubmitting(false);
-      }
+       const file = files[0];
+       try {
+         setSubmitting(true);
+         const compressedBase64 = await compressImage(file);
+         setFormData(prev => ({ ...prev, photoUrl: compressedBase64 }));
+         setErrorMsg(null);
+       } catch (err) {
+         console.error("Image compression failed:", err);
+         setErrorMsg("Failed to process image. Please choose another valid image file.");
+       } finally {
+         setSubmitting(false);
+       }
     }
   };
 
@@ -463,7 +452,7 @@ const Registration: React.FC<RegistrationProps> = ({
                       <input 
                         type="text"
                         required
-                        placeholder="e.g. Mehmood Khan"
+                        placeholder="e.g. Mahmood Khan"
                         value={formData.fullName}
                         onChange={(e) => handleInputChange('fullName', e.target.value)}
                         className="medical-input pl-12 font-bold text-slate-800"
@@ -609,11 +598,11 @@ const Registration: React.FC<RegistrationProps> = ({
                     </div>
                   </div>
 
-                  {/* 8.2 Affected Area Picture Upload (Max 2MB) */}
+                   {/* 8.2 Affected Area Picture Upload (Auto-optimized) */}
                   <div className="space-y-2 col-span-1 md:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center justify-between">
                       <span>Upload Picture of Affected Area / متاثرہ جگہ کی تصویر</span>
-                      <span className="text-slate-400 font-mono text-[9px] lowercase font-bold">Max size: 2MB</span>
+                      <span className="text-emerald-600 font-mono text-[9px] lowercase font-bold">Auto-optimized / سائز خود کار طریقے سے درست ہوگا</span>
                     </label>
                     
                     <input 
@@ -659,10 +648,10 @@ const Registration: React.FC<RegistrationProps> = ({
                           <UploadCloud className="w-5 h-5 text-slate-400 group-hover:text-blue-500" />
                         </div>
                         <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-tight">
-                          Click to select / upload image (<span className="text-blue-600">Max 2MB</span>)
+                          Click to select / upload image (<span className="text-emerald-600">Any Size Allowed</span>)
                         </span>
-                        <p className="text-[9px] text-[#D97706] font-bold mt-1 text-center">
-                          متاثرہ حصے کی تصویر اپ لوڈ کریں (زیادہ سے زیادہ 2MB)
+                        <p className="text-[9px] text-emerald-600 font-bold mt-1 text-center">
+                          متاثرہ حصے کی تصویر اپ لوڈ کریں (تصویر خود بخود بہتر ہو جائے گی)
                         </p>
                       </div>
                     )}
@@ -816,7 +805,28 @@ const Registration: React.FC<RegistrationProps> = ({
                   </div>
 
                   {/* Fully displayed requested fields list */}
-                  <div className="grid grid-cols-2 gap-3.5 text-[11px] text-slate-600 font-bold bg-slate-50/50 rounded-2xl p-4 border border-slate-100/60">
+                  <div 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const matchedAssessment = savedAssessments.find(
+                        asm => {
+                          if (asm.patient_id && asm.patient_id !== 'anonymous') {
+                            return asm.patient_id === patientItem.id;
+                          }
+                          const asmTime = new Date(asm.created_at).getTime();
+                          const patientTime = new Date(patientItem.created_at).getTime();
+                          return (
+                            asm.patient_name.toLowerCase().trim() === patientItem.full_name.toLowerCase().trim() &&
+                            asmTime >= patientTime - 60000
+                          );
+                        }
+                      );
+                      setSelectedPatientForSummary(patientItem);
+                      setSelectedAssessmentForSummary(matchedAssessment || null);
+                    }}
+                    className="grid grid-cols-2 gap-3.5 text-[11px] text-slate-600 font-bold bg-gradient-to-br from-slate-50 to-blue-50/25 hover:from-blue-50/65 hover:to-indigo-50/45 rounded-2xl p-4 border border-slate-200 hover:border-blue-400 hover:shadow-inner cursor-pointer transition-all duration-350 relative"
+                    title="Click here to view this patient's assessment summary with pictures & drawings"
+                  >
                     
                     {/* Phone / Mobile No */}
                     <div className="space-y-0.5">
@@ -923,7 +933,17 @@ const Registration: React.FC<RegistrationProps> = ({
                 <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2 items-center justify-between pl-2">
                   {(() => {
                     const matchedAssessment = savedAssessments.find(
-                      asm => asm.patient_name.toLowerCase().trim() === patientItem.full_name.toLowerCase().trim()
+                      asm => {
+                        if (asm.patient_id && asm.patient_id !== 'anonymous') {
+                          return asm.patient_id === patientItem.id;
+                        }
+                        const asmTime = new Date(asm.created_at).getTime();
+                        const patientTime = new Date(patientItem.created_at).getTime();
+                        return (
+                          asm.patient_name.toLowerCase().trim() === patientItem.full_name.toLowerCase().trim() &&
+                          asmTime >= patientTime - 60000
+                        );
+                      }
                     );
                     const isAssessmentSaved = !!matchedAssessment;
 
@@ -1262,7 +1282,7 @@ const Registration: React.FC<RegistrationProps> = ({
                   <div className="space-y-2 sm:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center justify-between">
                       <span>Upload Picture of Affected Area / متاثرہ حصے کی تصویر</span>
-                      <span className="text-slate-400 font-mono text-[9px] lowercase font-bold">Max size: 2MB</span>
+                      <span className="text-emerald-600 font-mono text-[9px] lowercase font-bold">Auto-optimized / سائز خود کار طریقے سے درست ہوگا</span>
                     </label>
                     <input 
                       type="file"
@@ -1307,10 +1327,10 @@ const Registration: React.FC<RegistrationProps> = ({
                           <UploadCloud className="w-5 h-5 text-slate-400 group-hover:text-blue-500" />
                         </div>
                         <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-tight">
-                          Click to select / upload image (<span className="text-blue-600">Max 2MB</span>)
+                          Click to select / upload image (<span className="text-emerald-600">Any Size Allowed</span>)
                         </span>
-                        <p className="text-[9px] text-[#D97706] font-bold mt-1 text-center">
-                          متاثرہ حصے کی تصویر اپ لوڈ کریں (زیادہ سے زیادہ 2MB)
+                        <p className="text-[9px] text-emerald-600 font-bold mt-1 text-center">
+                          متاثرہ حصے کی تصویر اپ لوڈ کریں (تصویر خود بخود بہتر ہو جائے گی)
                         </p>
                       </div>
                     )}
@@ -1360,6 +1380,19 @@ const Registration: React.FC<RegistrationProps> = ({
           </div>
         )}
       </AnimatePresence>
+
+      {selectedPatientForSummary && (
+        <AssessmentSummaryModal
+          isOpen={!!selectedPatientForSummary}
+          onClose={() => {
+            setSelectedPatientForSummary(null);
+            setSelectedAssessmentForSummary(null);
+          }}
+          patient={selectedPatientForSummary}
+          assessmentPayload={selectedAssessmentForSummary}
+          onStartAssessment={onStartAssessment ? () => onStartAssessment(selectedPatientForSummary) : undefined}
+        />
+      )}
 
     </div>
   );

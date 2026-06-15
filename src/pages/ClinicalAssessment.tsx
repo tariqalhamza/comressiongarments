@@ -33,6 +33,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { dbService } from '../services/supabase';
 import { compressImage } from '../lib/imageUtils';
 import { Patient } from '../types';
+import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.png';
 
 // --- Types ---
 type StepId = 'garment-select' | 'garment-type' | 'measurement-drawing' | 'review';
@@ -52,15 +53,15 @@ export const GARMENT_FIELDS: Record<string, { id: string; label: string; placeho
     { id: 'total_arm_length', label: 'Total arm length', placeholder: 'e.g., 60 cm' }
   ],
   'Arm sleeve Right Hand': [
-    { id: 'arm_pit', label: 'Arm pit', placeholder: 'e.g., 28 cm' },
+    { id: 'arm_pit', label: 'Open End', placeholder: 'e.g., 28 cm' },
     { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 24 cm' },
-    { id: 'wrist', label: 'Wrist', placeholder: 'e.g., 16 cm' },
+    { id: 'wrist', label: 'Close End', placeholder: 'e.g., 16 cm' },
     { id: 'total_arm_length', label: 'Total arm length', placeholder: 'e.g., 60 cm' }
   ],
   'Arm sleeve Left Hand': [
-    { id: 'arm_pit', label: 'Arm pit', placeholder: 'e.g., 28 cm' },
+    { id: 'arm_pit', label: 'Open End', placeholder: 'e.g., 28 cm' },
     { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 24 cm' },
-    { id: 'wrist', label: 'Wrist', placeholder: 'e.g., 16 cm' },
+    { id: 'wrist', label: 'Close End', placeholder: 'e.g., 16 cm' },
     { id: 'total_arm_length', label: 'Total arm length', placeholder: 'e.g., 60 cm' }
   ],
   'Connecting Sleeves/Arm Sleeve': [
@@ -90,40 +91,34 @@ export const GARMENT_FIELDS: Record<string, { id: string; label: string; placeho
     { id: 'wrist', label: 'Wrist', placeholder: 'e.g., 16 cm' },
     { id: 'total_len_medal_to_wrist', label: 'Total length middle finger to wrist', placeholder: 'e.g., 18 cm' },
     { id: 'thumb', label: 'Thumb', placeholder: 'e.g., 5.5 cm' },
-    { id: 'thumb_width', label: 'Thumb width', placeholder: 'e.g., 2.2 cm' },
     { id: 'index_finger', label: 'Index finger', placeholder: 'e.g., 7.5 cm' },
-    { id: 'index_finger_width', label: 'Index finger width', placeholder: 'e.g., 2.0 cm' },
     { id: 'middle_finger', label: 'Middle finger', placeholder: 'e.g., 8 cm' },
-    { id: 'middle_finger_width', label: 'Middle finger width', placeholder: 'e.g., 2.1 cm' },
     { id: 'ring_finger', label: 'Ring finger', placeholder: 'e.g., 7.5 cm' },
-    { id: 'ring_finger_width', label: 'Ring finger width', placeholder: 'e.g., 2.0 cm' },
     { id: 'little_finger', label: 'Little finger', placeholder: 'e.g., 6 cm' },
-    { id: 'little_finger_width', label: 'Little finger width', placeholder: 'e.g., 1.8 cm' },
     { id: 'total_len_medal_to_scar', label: 'Total length middle finger to end of scar', placeholder: 'e.g., 35 cm' }
   ],
   'Belly Binder': [
     { id: 'diaphrarm', label: 'Diaphrom', placeholder: 'e.g., 51 cm' },
     { id: 'belly', label: 'Belly', placeholder: 'e.g., 53 cm' },
-    { id: 'waist', label: 'West (Waist)', placeholder: 'e.g., 54 cm' },
+    { id: 'waist', label: 'Waist', placeholder: 'e.g., 54 cm' },
     { id: 'hips', label: 'Hips', placeholder: 'e.g., 58 cm' },
     { id: 'open_end_thigh', label: 'Open End', placeholder: 'e.g., 35 cm' },
     { id: 'close_end_thigh', label: 'Close End (Leg end)', placeholder: 'e.g., 25 cm' },
-    { id: 'len_diaphragm_to_waist', label: 'Length Diaphrom to West', placeholder: 'e.g., 18 cm' },
-    { id: 'len_waist_to_close_end', label: 'Short Length', placeholder: 'e.g., 44 cm' }
+    { id: 'len_diaphragm_to_waist', label: 'Length Diaphrom to Waist', placeholder: 'e.g., 18 cm' },
+    { id: 'len_waist_to_close_end', label: 'Waist to Close End', placeholder: 'e.g., 44 cm' }
   ],
   'All Trouser': [
-    { id: 'belly', label: 'Belly', placeholder: 'e.g., 38.5 in / 98 cm' },
-    { id: 'waist', label: 'West (Waist)', placeholder: 'e.g., 38.5 in / 98 cm' },
-    { id: 'hips', label: 'Hips', placeholder: 'e.g., 41 in / 104 cm' },
-    { id: 'crotch_round', label: 'Round (Crotch)', placeholder: 'e.g., 28 in / 71 cm' },
-    { id: 'thigh_1', label: 'Thigh I', placeholder: 'e.g., 22 in / 56 cm' },
-    { id: 'thigh_2', label: 'Thigh II', placeholder: 'e.g., 21.5 in / 55 cm' },
-    { id: 'knee', label: 'Knee', placeholder: 'e.g., 16.5 in / 42 cm' },
-    { id: 'calf', label: 'Calf', placeholder: 'e.g., 15.5 in / 39 cm' },
-    { id: 'bottom_leg_end', label: 'Bottom', placeholder: 'e.g., 9.5 in / 24 cm' },
-    { id: 'crotch_depth', label: 'Crotch Depth', placeholder: 'e.g., 11.5 in / 29 cm' },
-    { id: 'inside_length', label: 'Inseam (Inside Length)', placeholder: 'e.g., 28 in / 71 cm' },
-    { id: 'total_length', label: 'Total Length', placeholder: 'e.g., 36 in / 91 cm' }
+    { id: 'diaphrarm', label: 'Diaphrarm', placeholder: 'e.g., 96 cm' },
+    { id: 'belly', label: 'Belly', placeholder: 'e.g., 98 cm' },
+    { id: 'waist', label: 'Waist', placeholder: 'e.g., 98 cm' },
+    { id: 'hips', label: 'Hips', placeholder: 'e.g., 104 cm' },
+    { id: 'open_end_thigh', label: 'Open end thigh', placeholder: 'e.g., 56 cm' },
+    { id: 'close_end_thigh', label: 'Close end thigh', placeholder: 'e.g., 46 cm' },
+    { id: 'knee', label: 'Knee', placeholder: 'e.g., 42 cm' },
+    { id: 'ankle', label: 'Ankle', placeholder: 'e.g., 25 cm' },
+    { id: 'len_diaphragm_to_waist', label: 'length diaphragm to waist', placeholder: 'e.g., 20 cm' },
+    { id: 'len_waist_to_ankle', label: 'Length waist to ankle', placeholder: 'e.g., 86 cm' },
+    { id: 'total_length', label: 'Total Length', placeholder: 'e.g., 91 cm' }
   ],
   'All Leg Sleeves': [
     { id: 'open_end', label: 'Open end', placeholder: 'e.g., 45 cm' },
@@ -602,11 +597,21 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
     const strokeProps = { stroke: "#2563eb", strokeWidth: "2", fill: "none" };
 
     const formatVal = (label: string) => {
-      let val = garment.subOptions?.[label];
+      let lookupLabel = label;
+      const handSelectionVal = garment.subOptions?.['Hand Selection'] || 'Right Hand Glove';
+      if (garment.type === 'All Gloves/Glove With Sleeve' && handSelectionVal === 'Both Hand Glove') {
+        const prefix = activeBothHandView === 'Left' ? 'Left Hand ' : 'Right Hand ';
+        lookupLabel = `${prefix}${label}`;
+      }
+      let val = garment.subOptions?.[lookupLabel];
       
       // Fallback mappings for backwards compatibility
       if (!val) {
-        if (label === 'Middle finger') val = garment.subOptions?.['Medal finger'];
+        if (label === 'Open End' || label === 'Open end') val = garment.subOptions?.['Open End'] || garment.subOptions?.['Open end'] || garment.subOptions?.['Arm pit'] || garment.subOptions?.['arm_pit'];
+        else if (label === 'Close End' || label === 'Close end') val = garment.subOptions?.['Close End'] || garment.subOptions?.['Close end'] || garment.subOptions?.['Wrist'] || garment.subOptions?.['wrist'];
+        else if (label === 'Arm pit' || label === 'Arm Pit') val = garment.subOptions?.['Arm pit'] || garment.subOptions?.['Arm Pit'] || garment.subOptions?.['Open End'] || garment.subOptions?.['Open end'];
+        else if (label === 'Wrist') val = garment.subOptions?.['Wrist'] || garment.subOptions?.['Close End'] || garment.subOptions?.['Close end'];
+        else if (label === 'Middle finger') val = garment.subOptions?.['Medal finger'];
         else if (label === 'Index finger') val = garment.subOptions?.['Left finger'];
         else if (label === 'Ring finger') val = garment.subOptions?.['Right finger'];
         else if (label === 'Little finger') val = garment.subOptions?.['Small finger'];
@@ -614,11 +619,12 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
         else if (label === 'Total length middle finger to end of scar') val = garment.subOptions?.['Total length medal finger to end of scar'];
         // Belly Binder mappings
         else if (label === 'Diaphrom' || label === 'Diaphrarm') val = garment.subOptions?.['Diaphrom'] || garment.subOptions?.['Diaphrarm'] || garment.subOptions?.['Belly'];
-        else if (label === 'West (Waist)' || label === 'Waist' || label === 'West') val = garment.subOptions?.['West (Waist)'] || garment.subOptions?.['Waist'] || garment.subOptions?.['West'] || garment.subOptions?.['waist'] || garment.subOptions?.['waist'];
+        else if (label === 'West (Waist)' || label === 'Waist' || label === 'West') val = garment.subOptions?.['Waist'] || garment.subOptions?.['West (Waist)'] || garment.subOptions?.['West'] || garment.subOptions?.['waist'];
         else if (label === 'Open End' || label === 'Open end thigh') val = garment.subOptions?.['Open End'] || garment.subOptions?.['Open end thigh'];
         else if (label === 'Close End (Leg end)' || label === 'Close end thigh') val = garment.subOptions?.['Close End (Leg end)'] || garment.subOptions?.['Close end thigh'];
-        else if (label === 'Length Diaphrom to West' || label === 'length diaphragm to waist') val = garment.subOptions?.['Length Diaphrom to West'] || garment.subOptions?.['length diaphragm to waist'];
-        else if (label === 'Short Length' || label === 'Length waist to close end') val = garment.subOptions?.['Short Length'] || garment.subOptions?.['Length waist to close end'];
+        else if (label === 'Length Diaphrom to West' || label === 'Length Diaphrom to Waist' || label === 'length diaphragm to waist') val = garment.subOptions?.['Length Diaphrom to Waist'] || garment.subOptions?.['Length Diaphrom to West'] || garment.subOptions?.['length diaphragm to waist'];
+        else if (label === 'Short Length' || label === 'Length waist to close end' || label === 'Waist to Close End') val = garment.subOptions?.['Waist to Close End'] || garment.subOptions?.['Short Length'] || garment.subOptions?.['Length waist to close end'];
+        else if (label === 'Length waist to ankle') val = garment.subOptions?.['Length waist to ankle'] || garment.subOptions?.['len_waist_to_ankle'];
         // All Trouser backwards compatibility fallbacks
         else if (label === 'Belly') val = garment.subOptions?.['Belly'] || garment.subOptions?.['Diaphrarm'] || garment.subOptions?.['Diaphrom'] || garment.subOptions?.['diaphrarm'];
         else if (label === 'Hips') val = garment.subOptions?.['Hips'] || garment.subOptions?.['hips'];
@@ -643,7 +649,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
     switch (garment.type) {
       case 'Face Mask & Chin Binder':
         return (
-          <svg viewBox="0 0 300 320" className="w-full h-full max-h-[320px]" style={{ minHeight: '260px' }}>
+          <svg viewBox="0 0 300 320" className="w-full h-full max-h-[640px]" style={{ minHeight: '400px' }}>
             <defs>
               <marker id="arrow-blue-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
                 <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb" />
@@ -713,7 +719,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
       case 'Connecting Sleeves':
       case 'Connecting Sleeves/Arm Sleeve':
         return (
-          <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
+          <svg viewBox="0 0 300 300" className="w-full h-full max-h-[600px]" style={{ minHeight: '400px' }}>
             {/* Torso Back View Background */}
             <ellipse cx="150" cy="45" rx="16" ry="20" fill="#f4f4f5" stroke="#e4e4e7" strokeWidth="1" />
             <path d="M 142,60 L 142,85 C 145,88 155,88 158,85 L 158,60 Z" fill="#f4f4f5" stroke="#e4e4e7" strokeWidth="1" />
@@ -773,7 +779,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
       case 'Arm sleeve Right Hand':
       case 'Arm sleeve Left Hand':
         return (
-          <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
+          <svg viewBox="0 0 300 300" className="w-full h-full max-h-[600px]" style={{ minHeight: '400px' }}>
             {/* Cylinder sleeve body */}
             <polygon points="190,85 78,175 102,205 230,135" fill="#eff6ff" stroke="#2563eb" strokeWidth="2" />
 
@@ -802,7 +808,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
             </g>
             <g transform="translate(245, 100)" className="text-[9px] font-bold">
               <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
-              <text y="3" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="9">Arm pit: {formatVal('Arm pit')}</text>
+              <text y="3" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="9">Open End: {formatVal('Open End')}</text>
             </g>
             <g transform="translate(185, 175)" className="text-[9px] font-bold">
               <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#f59e0b" strokeWidth="0.5" />
@@ -810,14 +816,14 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
             </g>
             <g transform="translate(75, 235)" className="text-[9px] font-bold">
               <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#ec4899" strokeWidth="0.5" />
-              <text y="3" textAnchor="middle" className="fill-rose-500 font-bold" fontSize="9">Wrist: {formatVal('Wrist')}</text>
+              <text y="3" textAnchor="middle" className="fill-rose-500 font-bold" fontSize="9">Close End: {formatVal('Close End')}</text>
             </g>
           </svg>
         );
 
       case 'All Jacket':
         return (
-          <svg viewBox="0 0 320 320" className="w-full h-full max-h-[320px]" style={{ minHeight: '260px' }}>
+          <svg viewBox="0 0 320 320" className="w-full h-full max-h-[640px]" style={{ minHeight: '400px' }}>
             {/* Outline Jacket matching the precise handwritten design */}
             {/* Combined smooth polygon for body and sleeves to make it a seamless filled cloth illustration */}
             <path d="M 134,80 Q 150,86 166,80 L 200,80 L 250,140 L 280,195 L 268,201 L 238,148 L 195,115 L 195,245 L 105,245 L 105,115 L 62,148 L 32,201 L 20,195 L 50,140 L 100,80 Z" fill="#eff6ff" stroke="#2563eb" strokeWidth="2" strokeLinejoin="round" />
@@ -904,7 +910,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
             </g>
             <g transform="translate(42, 230)" className="text-[7.5px] font-bold">
               <rect x="-35" y="-5.5" width="70" height="11" rx="1.5" fill="white" stroke="#ec4899" strokeWidth="0.5" />
-              <text y="2.2" textAnchor="middle" className="fill-pink-700 font-bold" fontSize="7.5">Wrist: {formatVal('Arm close end')}</text>
+              <text y="2.2" textAnchor="middle" className="fill-pink-700 font-bold" fontSize="7.5">Close End: {formatVal('Arm close end')}</text>
             </g>
 
             {/* Right sleeve arm length overlay badge */}
@@ -916,8 +922,10 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
         );
 
       case 'All Gloves/Glove With Sleeve':
-        const handSelectionVal = garment.subOptions?.[ 'Hand Selection' ] || 'Right Hand Glove';
-        const isLeftHand = handSelectionVal === 'Left Hand Glove';
+        const handSelectionVal = garment.subOptions?.['Hand Selection'] || 'Right Hand Glove';
+        const isBoth = handSelectionVal === 'Both Hand Glove';
+        const activeHand = isBoth ? activeBothHandView : (handSelectionVal === 'Left Hand Glove' ? 'Left' : 'Right');
+        const isLeftHand = activeHand === 'Left';
         const xThumb = isLeftHand ? 277 : 43;
         const xLeftFinger = isLeftHand ? 209 : 111;
         const xMiddleFinger = isLeftHand ? 172 : 148;
@@ -925,7 +933,36 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
         const xSmallFinger = isLeftHand ? 110 : 210;
 
         return (
-          <svg viewBox="0 0 320 380" className="w-full h-full max-h-[380px]" style={{ minHeight: '300px' }}>
+          <div className="flex flex-col items-center w-full">
+            {isBoth && (
+              <div className="flex gap-2 mb-4 bg-slate-100 p-1.5 rounded-2xl">
+                <button
+                  type="button"
+                  onClick={() => setActiveBothHandView('Right')}
+                  className={cn(
+                    "px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                    activeBothHandView === 'Right'
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-800"
+                  )}
+                >
+                  Right Hand View
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveBothHandView('Left')}
+                  className={cn(
+                    "px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                    activeBothHandView === 'Left'
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-800"
+                  )}
+                >
+                  Left Hand View
+                </button>
+              </div>
+            )}
+            <svg viewBox="0 0 320 380" className="w-full h-full max-h-[760px]" style={{ minHeight: '480px' }}>
             <defs>
               <marker id="arrow-blue-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
                 <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb" />
@@ -1017,32 +1054,32 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
 
             {/* 3. Thumb */}
             <g transform={`translate(${xThumb}, 195)`} className="text-[8px] font-bold">
-              <rect x="-56" y="-7" width="112" height="14" rx="3" fill="white" stroke="#ea580c" strokeWidth="1" />
-              <text y="3" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="8">Thumb: {formatVal('Thumb')} | W: {formatVal('Thumb width')}</text>
+              <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#ea580c" strokeWidth="1" />
+              <text y="3" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="8">Thumb: {formatVal('Thumb')}</text>
             </g>
 
             {/* 4. Index Finger / Left */}
             <g transform={`translate(${xLeftFinger}, 100)`} className="text-[8px] font-bold">
-              <rect x="-58" y="-7" width="116" height="14" rx="3" fill="white" stroke="#0891b2" strokeWidth="1" />
-              <text y="3" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="8">Index: {formatVal('Index finger')} | W: {formatVal('Index finger width')}</text>
+              <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#0891b2" strokeWidth="1" />
+              <text y="3" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="8">Index: {formatVal('Index finger')}</text>
             </g>
             
             {/* 5. Middle Finger / Medal */}
             <g transform={`translate(${xMiddleFinger}, 62)`} className="text-[8px] font-bold">
-              <rect x="-60" y="-7" width="120" height="14" rx="3" fill="white" stroke="#4f46e5" strokeWidth="1.5" />
-              <text y="3" textAnchor="middle" className="fill-indigo-600 font-extrabold" fontSize="8">Middle: {formatVal('Middle finger')} | W: {formatVal('Middle finger width')}</text>
+              <rect x="-34" y="-7" width="68" height="14" rx="3" fill="white" stroke="#4f46e5" strokeWidth="1.5" />
+              <text y="3" textAnchor="middle" className="fill-indigo-600 font-extrabold" fontSize="8">Middle: {formatVal('Middle finger')}</text>
             </g>
 
             {/* 6. Ring Finger / Right */}
             <g transform={`translate(${xRightFinger}, 105)`} className="text-[8px] font-bold">
-              <rect x="-58" y="-7" width="116" height="14" rx="3" fill="white" stroke="#059669" strokeWidth="1" />
-              <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">Ring: {formatVal('Ring finger')} | W: {formatVal('Ring finger width')}</text>
+              <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#059669" strokeWidth="1" />
+              <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">Ring: {formatVal('Ring finger')}</text>
             </g>
 
             {/* 7. Small Finger */}
             <g transform={`translate(${xSmallFinger}, 145)`} className="text-[8px] font-bold">
-              <rect x="-56" y="-7" width="112" height="14" rx="3" fill="white" stroke="#db2777" strokeWidth="1" />
-              <text y="3" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="8">Little: {formatVal('Little finger')} | W: {formatVal('Little finger width')}</text>
+              <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#db2777" strokeWidth="1" />
+              <text y="3" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="8">Little: {formatVal('Little finger')}</text>
             </g>
 
             {/* 8. Total Length (Finger to Wrist) Left Margin Badge */}
@@ -1059,11 +1096,12 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
               <text y="8" textAnchor="middle" className="fill-purple-700 font-black" fontSize="7">{formatVal('Total length middle finger to end of scar')}</text>
             </g>
           </svg>
+          </div>
         );
 
       case 'Belly Binder':
         return (
-          <svg viewBox="0 0 320 380" className="w-full h-full max-h-[380px]" style={{ minHeight: '300px' }}>
+          <svg viewBox="0 0 320 380" className="w-full h-full max-h-[760px]" style={{ minHeight: '480px' }}>
             <defs>
               <marker id="arrow-orange-bb" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
                 <path d="M 0 0 L 10 5 L 0 10 z" fill="#ea580c" />
@@ -1154,7 +1192,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
             {/* 3. Waist Badge */}
             <g transform="translate(160, 175)" className="text-[8px] font-bold">
               <rect x="-42" y="-7" width="84" height="14" rx="4" fill="white" stroke="#10b981" strokeWidth="1.5" />
-              <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">West: {formatVal('West (Waist)')}</text>
+              <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">Waist: {formatVal('Waist')}</text>
             </g>
 
             {/* 3.5. Hips Badge */}
@@ -1178,160 +1216,142 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
             {/* 7. Diaphragm to Waist Length Badge */}
             <g transform="translate(280, 112)" className="text-[8px] font-bold">
               <rect x="-24" y="-12" width="48" height="24" rx="4" fill="white" stroke="#ea580c" strokeWidth="1.5" />
-              <text y="-2" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="8">Dia-West</text>
-              <text y="8" textAnchor="middle" className="fill-orange-700 font-black" fontSize="7">{formatVal('Length Diaphrom to West')}</text>
+              <text y="-2" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="8">Dia-Waist</text>
+              <text y="8" textAnchor="middle" className="fill-orange-700 font-black" fontSize="7">{formatVal('Length Diaphrom to Waist')}</text>
             </g>
 
             {/* 8. Waist to Close Length Badge */}
             <g transform="translate(40, 237)" className="text-[8px] font-bold">
-              <rect x="-24" y="-12" width="48" height="24" rx="4" fill="white" stroke="#e11d48" strokeWidth="1.5" />
-              <text y="-2" textAnchor="middle" className="fill-rose-600 font-extrabold" fontSize="8">Short-Len</text>
-              <text y="8" textAnchor="middle" className="fill-rose-700 font-black" fontSize="7">{formatVal('Short Length')}</text>
+              <rect x="-26" y="-12" width="52" height="24" rx="4" fill="white" stroke="#e11d48" strokeWidth="1.5" />
+              <text y="-2" textAnchor="middle" className="fill-rose-600 font-extrabold" fontSize="8">Wst-Close</text>
+              <text y="8" textAnchor="middle" className="fill-rose-700 font-black" fontSize="7">{formatVal('Waist to Close End')}</text>
             </g>
           </svg>
         );
 
       case 'All Trouser':
         return (
-          <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
-            {/* Pants outline */}
-            <path d="M 90,40 L 210,40 L 215,90 L 235,260 L 185,260 L 150,110 L 115,260 L 65,260 L 85,90 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
+          <svg viewBox="0 0 300 320" className="w-full h-full max-h-[640px]" style={{ minHeight: '400px' }}>
+            {/* Pants outline but shifted down to allow y=20 Diaphrarm */}
+            <path d="M 90,50 L 210,50 L 215,100 L 235,270 L 185,270 L 150,120 L 115,270 L 65,270 L 85,100 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
 
-            {/* Belly guideline at top */}
-            <line x1="90" y1="40" x2="210" y2="40" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="3 3"/>
+            {/* Diaphrarm guideline (upper line) */}
+            <line x1="92" y1="20" x2="208" y2="20" stroke="#4f46e5" strokeWidth="1.5" strokeDasharray="3 3"/>
+
+            {/* Belly guideline at top of trouser */}
+            <line x1="90" y1="50" x2="210" y2="50" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="3 3"/>
             
             {/* West guideline */}
-            <line x1="88" y1="60" x2="212" y2="60" stroke="#10b981" strokeWidth="1.5" strokeDasharray="3 3"/>
+            <line x1="88" y1="70" x2="212" y2="70" stroke="#10b981" strokeWidth="1.5" strokeDasharray="3 3"/>
             
             {/* Hips guideline */}
-            <line x1="86" y1="85" x2="214" y2="85" stroke="#0891b2" strokeWidth="1.5" strokeDasharray="3 3"/>
+            <line x1="86" y1="95" x2="214" y2="95" stroke="#0891b2" strokeWidth="1.5" strokeDasharray="3 3"/>
 
-            {/* Ellipses for Round/Thighs/Knee/Calf/Bottom on both legs to match hand drawn sketch */}
-            {/* 1. Round (Groin level y=110) */}
-            <ellipse cx="102" cy="115" rx="16" ry="5" stroke="#f59e0b" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
-            <ellipse cx="198" cy="115" rx="16" ry="5" stroke="#f59e0b" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            {/* Ellipses for Thighs, Knee, Ankle, Bottom */}
+            {/* Open end thigh (y=125) */}
+            <ellipse cx="102" cy="125" rx="16" ry="5" stroke="#f59e0b" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            <ellipse cx="198" cy="125" rx="16" ry="5" stroke="#f59e0b" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
 
-            {/* 2. Thigh I (y=145) */}
-            <ellipse cx="98" cy="145" rx="18" ry="5" stroke="#7c3aed" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
-            <ellipse cx="202" cy="145" rx="18" ry="5" stroke="#7c3aed" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            {/* Close end thigh (y=170) */}
+            <ellipse cx="94" cy="170" rx="18" ry="5" stroke="#ec4899" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            <ellipse cx="206" cy="170" rx="18" ry="5" stroke="#ec4899" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
 
-            {/* 3. Thigh II (y=175) */}
-            <ellipse cx="92" cy="175" rx="19" ry="5" stroke="#ec4899" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
-            <ellipse cx="208" cy="175" rx="19" ry="5" stroke="#ec4899" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            {/* Knee (y=215) */}
+            <ellipse cx="85" cy="215" rx="18" ry="5" stroke="#06b6d4" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            <ellipse cx="215" cy="215" rx="18" ry="5" stroke="#06b6d4" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
 
-            {/* 4. Knee (y=205) */}
-            <ellipse cx="85" cy="205" rx="18" ry="5" stroke="#06b6d4" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
-            <ellipse cx="215" cy="205" rx="18" ry="5" stroke="#06b6d4" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            {/* Ankle (y=245) */}
+            <ellipse cx="78" cy="245" rx="17" ry="5" stroke="#84cc16" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            <ellipse cx="222" cy="245" rx="17" ry="5" stroke="#84cc16" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
 
-            {/* 5. Calf (y=232) */}
-            <ellipse cx="78" cy="232" rx="18" ry="5" stroke="#84cc16" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
-            <ellipse cx="222" cy="232" rx="18" ry="5" stroke="#84cc16" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            {/* Height Rule: length diaphragm to waist (diaphrarm y=20 to waist y=70) */}
+            <line x1="140" y1="20" x2="140" y2="70" stroke="#4f46e5" strokeWidth="1.5" />
+            <path d="M 137,25 L 140,20 L 143,25" stroke="#4f46e5" strokeWidth="1.5" fill="none" />
+            <path d="M 137,65 L 140,70 L 143,65" stroke="#4f46e5" strokeWidth="1.5" fill="none" />
 
-            {/* 6. Bottom (y=260) */}
-            <line x1="65" y1="260" x2="115" y2="260" stroke="#e11d48" strokeWidth="1.5" strokeDasharray="2 2" />
-            <line x1="185" y1="260" x2="235" y2="260" stroke="#e11d48" strokeWidth="1.5" strokeDasharray="2 2" />
+            {/* Height Rule: Length waist to ankle (waist y=70 to ankle y=245) */}
+            <line x1="20" y1="70" x2="20" y2="245" stroke="#06b6d4" strokeWidth="1.5" />
+            <line x1="15" y1="70" x2="25" y2="70" stroke="#06b6d4" strokeWidth="1.5" />
+            <line x1="15" y1="245" x2="25" y2="245" stroke="#06b6d4" strokeWidth="1.5" />
+            <path d="M 17,75 L 20,70 L 23,75" stroke="#06b6d4" strokeWidth="1.5" fill="none" />
+            <path d="M 17,240 L 20,245 L 23,240" stroke="#06b6d4" strokeWidth="1.5" fill="none" />
 
-            {/* Height Rule: Crotch Depth (Waist x=150, rise to y=110) */}
-            <line x1="150" y1="40" x2="150" y2="110" stroke="#eab308" strokeWidth="1.5" />
-            {/* Mini arrows for Crotch Depth */}
-            <path d="M 147,45 L 150,40 L 153,45" stroke="#eab308" strokeWidth="1.5" fill="none" />
-            <path d="M 147,105 L 150,110 L 153,105" stroke="#eab308" strokeWidth="1.5" fill="none" />
+            {/* Height Rule: Total Length (Far right ruler from y=50 to y=270) */}
+            <line x1="275" y1="50" x2="275" y2="270" stroke="#2563eb" strokeWidth="1.5" />
+            <line x1="270" y1="50" x2="280" y2="50" stroke="#2563eb" strokeWidth="1.5" />
+            <line x1="270" y1="270" x2="280" y2="270" stroke="#2563eb" strokeWidth="1.5" />
+            <path d="M 272,55 L 275,50 L 278,55" stroke="#2563eb" strokeWidth="1.5" fill="none" />
+            <path d="M 272,265 L 275,270 L 278,265" stroke="#2563eb" strokeWidth="1.5" fill="none" />
 
-            {/* Height Rule: Inseam (Crotch rise level y=110 down to bottom opening level y=260) */}
-            <line x1="150" y1="110" x2="150" y2="260" stroke="#ea580c" strokeWidth="1.5" />
-            {/* Mini arrows for Inseam */}
-            <path d="M 147,115 L 150,110 L 153,115" stroke="#ea580c" strokeWidth="1.5" fill="none" />
-            <path d="M 147,255 L 150,260 L 153,255" stroke="#ea580c" strokeWidth="1.5" fill="none" />
-
-            {/* Height Rule: Total Length (Far right ruler from y=40 to y=260) */}
-            <line x1="270" y1="40" x2="270" y2="260" stroke="#2563eb" strokeWidth="1.5" />
-            <line x1="265" y1="40" x2="275" y2="40" stroke="#2563eb" strokeWidth="1.5" />
-            <line x1="265" y1="260" x2="275" y2="260" stroke="#2563eb" strokeWidth="1.5" />
-            {/* Arrow tips for Total Length */}
-            <path d="M 267,45 L 270,40 L 273,45" stroke="#2563eb" strokeWidth="1.5" fill="none" />
-            <path d="M 267,255 L 270,260 L 273,255" stroke="#2563eb" strokeWidth="1.5" fill="none" />
-
-            {/* Badges on the right / center: Vertical Heights */}
-            <g transform="translate(182, 53)" className="text-[7px] font-bold">
-              <rect x="-32" y="-6" width="64" height="12" rx="3" fill="white" stroke="#eab308" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-yellow-600 font-extrabold" fontSize="7">Crotch: {formatVal('Crotch Depth')}</text>
-            </g>
-
-            <g transform="translate(150, 185)" className="text-[7px] font-bold">
-              <rect x="-35" y="-6" width="70" height="12" rx="3" fill="white" stroke="#ea580c" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="7">Inseam: {formatVal('Inseam (Inside Length)')}</text>
-            </g>
-
-            <g transform="translate(265, 145)" className="text-[7px] font-bold">
+            {/* Badges on Total Length & Waist to Ankle */}
+            <g transform="translate(268, 155)" className="text-[7px] font-bold">
               <rect x="-35" y="-14" width="70" height="24" rx="4" fill="white" stroke="#2563eb" strokeWidth="1.2" />
               <text y="-4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="7">Total Length</text>
               <text y="6" textAnchor="middle" className="fill-blue-700 font-black" fontSize="7">{formatVal('Total Length')}</text>
             </g>
 
-            {/* Badges on the Top: Torso Girths */}
-            <g transform="translate(150, 25)" className="text-[7px] font-bold">
+            <g transform="translate(26, 155)" className="text-[7px] font-bold">
+              <rect x="-35" y="-14" width="70" height="24" rx="4" fill="white" stroke="#06b6d4" strokeWidth="1.2" />
+              <text y="-4" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="7">Wst-Ankle</text>
+              <text y="6" textAnchor="middle" className="fill-cyan-700 font-black" fontSize="7">{formatVal('Length waist to ankle')}</text>
+            </g>
+
+            {/* Badges on the Top & Center */}
+            <g transform="translate(150, 10)" className="text-[7px] font-bold">
+              <rect x="-38" y="-6" width="76" height="12" rx="3" fill="white" stroke="#4f46e5" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-indigo-600 font-extrabold" fontSize="7">Diaphrarm: {formatVal('Diaphrarm')}</text>
+            </g>
+
+            <g transform="translate(150, 36)" className="text-[7px] font-bold">
               <rect x="-36" y="-6" width="72" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="1" />
               <text y="2.5" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="7">Belly: {formatVal('Belly')}</text>
             </g>
 
-            <g transform="translate(105, 52)" className="text-[7px] font-bold">
+            <g transform="translate(105, 62)" className="text-[7px] font-bold">
               <rect x="-36" y="-6" width="72" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="7">West: {formatVal('West (Waist)')}</text>
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="7">Waist: {formatVal('Waist')}</text>
             </g>
 
-            <g transform="translate(105, 75)" className="text-[7px] font-bold">
+            <g transform="translate(105, 87)" className="text-[7px] font-bold">
               <rect x="-32" y="-6" width="64" height="12" rx="3" fill="white" stroke="#0891b2" strokeWidth="1" />
               <text y="2.5" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="7">Hips: {formatVal('Hips')}</text>
             </g>
 
+            <g transform="translate(185, 62)" className="text-[7px] font-bold">
+              <rect x="-38" y="-6" width="76" height="12" rx="3" fill="white" stroke="#4f46e5" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-indigo-700 font-black" fontSize="6.5">Dia-Waist: {formatVal('length diaphragm to waist')}</text>
+            </g>
+
             {/* Circumference Badges on the Left Side pointing to guiding ellipses */}
-            {/* 1. Round (Crotch Round / Seat length) */}
-            <g transform="translate(40, 115)" className="text-[7px] font-bold">
-              <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#f59e0b" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="7">Round: {formatVal('Round (Crotch)')}</text>
+            {/* Open end thigh */}
+            <g transform="translate(42, 125)" className="text-[7px] font-bold">
+              <rect x="-32" y="-6" width="64" height="12" rx="3" fill="white" stroke="#f59e0b" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="6.5">Op Thigh: {formatVal('Open end thigh')}</text>
             </g>
-            <path d="M 68,115 L 86,115" stroke="#f59e0b" strokeWidth="0.8" strokeDasharray="1 1" />
 
-            {/* 2. Thigh I */}
-            <g transform="translate(40, 145)" className="text-[7px] font-bold">
-              <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#7c3aed" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="7">Thigh I: {formatVal('Thigh I')}</text>
+            {/* Close end thigh */}
+            <g transform="translate(42, 170)" className="text-[7px] font-bold">
+              <rect x="-32" y="-6" width="64" height="12" rx="3" fill="white" stroke="#ec4899" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="6.5">Cl Thigh: {formatVal('Close end thigh')}</text>
             </g>
-            <path d="M 68,145 L 80,145" stroke="#7c3aed" strokeWidth="0.8" strokeDasharray="1 1" />
 
-            {/* 3. Thigh II */}
-            <g transform="translate(40, 175)" className="text-[7px] font-bold">
-              <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#ec4899" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="7">Thigh II: {formatVal('Thigh II')}</text>
-            </g>
-            <path d="M 68,175 L 74,175" stroke="#ec4899" strokeWidth="0.8" strokeDasharray="1 1" />
-
-            {/* 4. Knee */}
-            <g transform="translate(40, 205)" className="text-[7px] font-bold">
+            {/* Knee */}
+            <g transform="translate(42, 215)" className="text-[7px] font-bold">
               <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#06b6d4" strokeWidth="1" />
               <text y="2.5" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="7">Knee: {formatVal('Knee')}</text>
             </g>
-            <path d="M 68,205 L 68,205" stroke="#06b6d4" strokeWidth="0.8" strokeDasharray="1 1" />
 
-            {/* 5. Calf */}
-            <g transform="translate(40, 232)" className="text-[7px] font-bold">
+            {/* Ankle */}
+            <g transform="translate(42, 245)" className="text-[7px] font-bold">
               <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#84cc16" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-lime-600 font-extrabold" fontSize="7">Calf: {formatVal('Calf')}</text>
+              <text y="2.5" textAnchor="middle" className="fill-lime-600 font-extrabold" fontSize="7">Ankle: {formatVal('Ankle')}</text>
             </g>
-            <path d="M 68,232 L 64,232" stroke="#84cc16" strokeWidth="0.8" strokeDasharray="1 1" />
-
-            {/* 6. Bottom */}
-            <g transform="translate(40, 260)" className="text-[7px] font-bold">
-              <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#e11d48" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-rose-600 font-extrabold" fontSize="7">Bottom: {formatVal('Bottom')}</text>
-            </g>
-            <path d="M 68,260 L 65,260" stroke="#e11d48" strokeWidth="0.8" strokeDasharray="1 1" />
           </svg>
         );
 
       case 'All Leg Sleeves':
         return (
-          <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
+          <svg viewBox="0 0 300 300" className="w-full h-full max-h-[600px]" style={{ minHeight: '400px' }}>
             {/* Outline thigh-calf-ankle cylinder */}
             <path d="M100,50 L200,50 L180,240 L120,240 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
             
@@ -1361,7 +1381,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
 
       case 'All Socks':
         return (
-          <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
+          <svg viewBox="0 0 300 300" className="w-full h-full max-h-[600px]" style={{ minHeight: '400px' }}>
             {/* Socks profile */}
             <path d="M120,40 L190,40 L190,160 L260,210 L230,250 L110,160 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
             
@@ -1406,6 +1426,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
   };
 
   const [measurements, setMeasurements] = useState<MeasurementPoint[]>(getInitialMeasurements('All Gloves/Glove With Sleeve'));
+  const [activeBothHandView, setActiveBothHandView] = useState<'Right' | 'Left'>('Right');
   const [activeMeasuringId, setActiveMeasuringId] = useState<string | null>(null);
   const [clickCount, setClickCount] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -1759,8 +1780,8 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
             el.style.visibility = 'visible';
             el.style.position = 'relative';
             el.style.display = 'block';
-            el.style.width = '210mm';
-            el.style.padding = '20mm';
+            el.style.width = '794px';
+            el.style.padding = '40px';
             el.style.margin = '0 auto';
             el.style.backgroundColor = '#ffffff';
           }
@@ -1775,25 +1796,24 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
         compress: true
       });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const margin = 5; // 5mm margin to keep it breathing inside 1 page
+      const pdfWidth = pdf.internal.pageSize.getWidth() - (margin * 2);
+      const pdfHeight = pdf.internal.pageSize.getHeight() - (margin * 2);
       
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
-      const imgHeightInPdf = (canvasHeight * pdfWidth) / canvasWidth;
+      let finalWidth = pdfWidth;
+      let finalHeight = (canvasHeight * pdfWidth) / canvasWidth;
       
-      let heightLeft = imgHeightInPdf;
-      let position = 0;
-
-      pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeightInPdf, undefined, 'FAST');
-      heightLeft -= pdfHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeightInPdf;
-        pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeightInPdf, undefined, 'FAST');
-        heightLeft -= pdfHeight;
+      if (finalHeight > pdfHeight) {
+        finalHeight = pdfHeight;
+        finalWidth = (canvasWidth * pdfHeight) / canvasHeight;
       }
+
+      const xOffset = margin + (pdfWidth - finalWidth) / 2;
+      const yOffset = margin + (pdfHeight - finalHeight) / 2;
+
+      pdf.addImage(imgData, 'JPEG', xOffset, yOffset, finalWidth, finalHeight, undefined, 'FAST');
       
       const fileName = `Assessment_${patient.name ? patient.name.replace(/\s+/g, '_') : 'Clinical'}_${new Date().getTime()}.pdf`;
       pdf.save(fileName);
@@ -1837,6 +1857,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
     setIsSavingAssessment(true);
     try {
       await dbService.assessments.create({
+        patient_id: patient.id || 'anonymous',
         patient_name: patient.name,
         hospital_name: patient.hospitalName || 'Health Institute',
         doctor_ref: patient.doctorRef || 'N/A',
@@ -1848,7 +1869,9 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
         sub_options: garment.subOptions || {},
         age: patient.age ? Number(patient.age) : 0,
         gender: patient.gender || 'other',
-        city: patient.city || ''
+        city: patient.city || '',
+        photos: photos,
+        photo_url: photos.length > 0 ? photos[photos.length - 1] : undefined
       });
       setIsSavingAssessment(false);
       setSuccessNotification({
@@ -2256,10 +2279,11 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                           <Scissors className="w-4 h-4 text-blue-600" />
                           Glove Hand Option (دستانہ ہاتھ کا انتخاب)
                         </label>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                           {[
                             { value: 'Right Hand Glove', label: 'Right Hand Glove', native: 'Right Hand (سیدھا ہاتھ)' },
-                            { value: 'Left Hand Glove', label: 'Left Hand Glove', native: 'Left Hand (الٹا ہاتھ)' }
+                            { value: 'Left Hand Glove', label: 'Left Hand Glove', native: 'Left Hand (الٹا ہاتھ)' },
+                            { value: 'Both Hand Glove', label: 'Both Hand Glove', native: 'Both Hands (دونوں ہاتھ)' }
                           ].map(opt => {
                             const isSelected = (garment.subOptions?.['Hand Selection'] || 'Right Hand Glove') === opt.value;
                             return (
@@ -2293,38 +2317,64 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                     )}
 
                     {/* Dynamic sub-options based on garment type selection in high-contrast grid */}
-                    {GARMENT_FIELDS[garment.type] && (
-                      <div className="mt-8 space-y-6 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
-                        <div>
-                          <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 text-blue-600">
-                            {garment.type} Specifications
-                          </h4>
-                          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mt-1">
-                            Provide precise custom measurements/details for the following parameters
-                          </p>
+                    {(GARMENT_FIELDS[garment.type] || (garment.type === 'All Gloves/Glove With Sleeve' && garment.subOptions?.['Hand Selection'] === 'Both Hand Glove')) && (() => {
+                      const isBothHandGlove = garment.type === 'All Gloves/Glove With Sleeve' && garment.subOptions?.['Hand Selection'] === 'Both Hand Glove';
+                      const activeGarmentFields = isBothHandGlove
+                        ? [
+                            { id: 'rh_palm', label: 'Right Hand Palm', placeholder: 'e.g., 20 cm' },
+                            { id: 'lh_palm', label: 'Left Hand Palm', placeholder: 'e.g., 20 cm' },
+                            { id: 'rh_wrist', label: 'Right Hand Wrist', placeholder: 'e.g., 16 cm' },
+                            { id: 'lh_wrist', label: 'Left Hand Wrist', placeholder: 'e.g., 16 cm' },
+                            { id: 'rh_total_len_medal_to_wrist', label: 'Right Hand Total length middle finger to wrist', placeholder: 'e.g., 18 cm' },
+                            { id: 'lh_total_len_medal_to_wrist', label: 'Left Hand Total length middle finger to wrist', placeholder: 'e.g., 18 cm' },
+                            { id: 'rh_thumb', label: 'Right Hand Thumb', placeholder: 'e.g., 5.5 cm' },
+                            { id: 'lh_thumb', label: 'Left Hand Thumb', placeholder: 'e.g., 5.5 cm' },
+                            { id: 'rh_index_finger', label: 'Right Hand Index finger', placeholder: 'e.g., 7.5 cm' },
+                            { id: 'lh_index_finger', label: 'Left Hand Index finger', placeholder: 'e.g., 7.5 cm' },
+                            { id: 'rh_middle_finger', label: 'Right Hand Middle finger', placeholder: 'e.g., 8 cm' },
+                            { id: 'lh_middle_finger', label: 'Left Hand Middle finger', placeholder: 'e.g., 8 cm' },
+                            { id: 'rh_ring_finger', label: 'Right Hand Ring finger', placeholder: 'e.g., 7.5 cm' },
+                            { id: 'lh_ring_finger', label: 'Left Hand Ring finger', placeholder: 'e.g., 7.5 cm' },
+                            { id: 'rh_little_finger', label: 'Right Hand Little finger', placeholder: 'e.g., 6 cm' },
+                            { id: 'lh_little_finger', label: 'Left Hand Little finger', placeholder: 'e.g., 6 cm' },
+                            { id: 'rh_total_len_medal_to_scar', label: 'Right Hand Total length middle finger to end of scar', placeholder: 'e.g., 35 cm' },
+                            { id: 'lh_total_len_medal_to_scar', label: 'Left Hand Total length middle finger to end of scar', placeholder: 'e.g., 35 cm' }
+                          ]
+                        : (GARMENT_FIELDS[garment.type] || []);
+
+                      return (
+                        <div className="mt-8 space-y-6 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
+                          <div>
+                            <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 text-blue-600">
+                              {garment.type} Specifications
+                            </h4>
+                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mt-1">
+                              Provide precise custom measurements/details for the following parameters
+                            </p>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {activeGarmentFields.map(opt => (
+                              <div key={opt.id} className="bg-white p-5 rounded-2xl border-2 border-slate-50 shadow-sm hover:border-blue-200 transition-all">
+                                <span className="block text-[11px] font-black text-slate-800 uppercase tracking-wider mb-2">{opt.label}</span>
+                                <input
+                                  type="text"
+                                  placeholder={opt.placeholder}
+                                  value={garment.subOptions?.[opt.label] || ''}
+                                  onChange={(e) => setGarment(prev => ({
+                                    ...prev,
+                                    subOptions: {
+                                      ...prev.subOptions,
+                                      [opt.label]: e.target.value
+                                    }
+                                  }))}
+                                  className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent hover:border-slate-100 rounded-xl text-sm font-bold focus:bg-white focus:border-blue-500 outline-none transition-all"
+                                />
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {GARMENT_FIELDS[garment.type].map(opt => (
-                            <div key={opt.id} className="bg-white p-5 rounded-2xl border-2 border-slate-50 shadow-sm hover:border-blue-200 transition-all">
-                              <span className="block text-[11px] font-black text-slate-800 uppercase tracking-wider mb-2">{opt.label}</span>
-                              <input
-                                type="text"
-                                placeholder={opt.placeholder}
-                                value={garment.subOptions?.[opt.label] || ''}
-                                onChange={(e) => setGarment(prev => ({
-                                  ...prev,
-                                  subOptions: {
-                                    ...prev.subOptions,
-                                    [opt.label]: e.target.value
-                                  }
-                                }))}
-                                className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent hover:border-slate-100 rounded-xl text-sm font-bold focus:bg-white focus:border-blue-500 outline-none transition-all"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -2337,141 +2387,67 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1 text-blue-600 font-black">Interactive Vector Blueprint Calibration</p>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-                    {/* Left Column: Input Panel */}
-                    <div className="lg:col-span-5 space-y-6">
-                      <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 space-y-4">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block font-bold">ACTIVE DESIGN SPECIFICATIONS</span>
-                        <h3 className="text-xl font-black text-slate-950 uppercase tracking-tight">{garment.type}</h3>
-                        <p className="text-slate-500 text-xs font-bold leading-relaxed">
-                          Verify and fine-tune each coordinate below. The blueprint on the right is fully reactive and displays your physical measurements with live visual overlay calibration tags in real-time.
+                  <div className="max-w-5xl mx-auto space-y-8">
+                    {/* Centered Large Vector Illustration Panel */}
+                    <div className="bg-white border-2 border-slate-100 rounded-[3rem] p-8 md:p-12 shadow-xl flex flex-col items-center justify-center relative min-h-[580px] md:min-h-[720px] animate-in zoom-in-95 duration-500">
+                      <div className="absolute top-6 left-6 flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-2xl">
+                        <Activity className="w-4 h-4 text-blue-600 animate-pulse" />
+                        <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">LIVE BLUEPRINT CALIBRATION</span>
+                      </div>
+
+                      <div className="w-full max-w-[760px] aspect-square flex items-center justify-center p-6 transform hover:scale-101 transition-transform duration-300">
+                        {renderMeasurementDrawingSvg()}
+                      </div>
+
+                      <div className="mt-6 text-center">
+                        <p className="text-sm font-black text-slate-950 uppercase tracking-wider">
+                          Reactive Calibration Graph ({garment.type})
                         </p>
-                      </div>
-
-                      <div className="space-y-4">
-                        {(GARMENT_FIELDS[garment.type] || []).map(opt => (
-                          <div key={opt.id} className="bg-white p-5 rounded-2xl border-2 border-slate-100 shadow-sm focus-within:border-blue-500 hover:border-blue-100 transition-all flex items-center justify-between gap-4">
-                            <div className="flex-1">
-                              <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{opt.label}</span>
-                              <input
-                                type="text"
-                                placeholder={opt.placeholder}
-                                value={garment.subOptions?.[opt.label] || ''}
-                                onChange={(e) => setGarment(prev => ({
-                                  ...prev,
-                                  subOptions: {
-                                    ...prev.subOptions,
-                                    [opt.label]: e.target.value
-                                  }
-                                }))}
-                                className="w-full bg-transparent border-none p-0 text-base font-black text-slate-900 focus:ring-0 placeholder:text-slate-200 outline-none"
-                              />
-                            </div>
-                            <div className="bg-blue-50 px-3 py-1.5 rounded-lg text-[10px] font-black text-blue-600 uppercase tracking-wider">
-                              {garment.subOptions?.[opt.label] ? `${garment.subOptions[opt.label]}` : 'PENDING'}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Premium Garment Color Selection */}
-                      <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm space-y-4">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block font-bold">
-                          GARMENT COLOR SELECTION
-                        </label>
-                        <div className="flex flex-wrap gap-2">
-                          {[
-                            { value: 'Beige / Skin', label: 'Beige / Skin', colorHex: '#e6c8a2' },
-                            { value: 'Black Color', label: 'Black Color', colorHex: '#1e293b' },
-                            { value: 'Brown / Cocoa', label: 'Brown / Cocoa', colorHex: '#7c2d12' },
-                            { value: 'Pink Color', label: 'Pink Color', colorHex: '#f472b6' },
-                            { value: 'Off-White / Cream', label: 'Off-White / Cream', colorHex: '#fafafa' }
-                          ].map(col => {
-                            const isSelected = garment.subOptions?.['Color'] === col.value;
-                            return (
-                              <button
-                                key={col.value}
-                                type="button"
-                                onClick={() => setGarment(prev => ({
-                                  ...prev,
-                                  subOptions: {
-                                    ...prev.subOptions,
-                                    'Color': col.value
-                                  }
-                                }))}
-                                className={cn(
-                                  "flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-semibold cursor-pointer",
-                                  isSelected 
-                                    ? "bg-slate-900 border-slate-900 text-white shadow-md scale-102" 
-                                    : "bg-white border-slate-100 text-slate-600 hover:bg-slate-50"
-                                )}
-                              >
-                                <span 
-                                  className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0" 
-                                  style={{ backgroundColor: col.colorHex }}
-                                />
-                                {col.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Notes Space */}
-                      <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm space-y-4">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block font-bold flex justify-between items-center">
-                          <span>MEASUREMENT NOTES</span>
-                          <span className="text-[9px] text-slate-400 font-normal">({countWords(patient.notes || '')}/500 words)</span>
-                        </label>
-                        <textarea
-                          placeholder="Write down any special measurements instructions, scar particulars, or physical condition details here..."
-                          value={patient.notes || ''}
-                          onChange={(e) => handleNotesChange(e.target.value)}
-                          rows={4}
-                          className="w-full text-sm font-semibold p-4 rounded-xl border border-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none bg-slate-50/50 text-slate-800 placeholder:text-slate-300"
-                        />
+                        <p className="text-xs font-bold text-slate-400 uppercase mt-1">
+                          Calculated relative measurements mapping for production line
+                        </p>
                       </div>
                     </div>
 
-                    {/* Right Column: Live Vector Illustration Panel */}
-                    <div className="lg:col-span-7 flex flex-col items-center animate-in zoom-in-95 duration-500">
-                      <div className="w-full bg-white border-2 border-slate-100 rounded-[3rem] p-8 shadow-xl flex flex-col items-center justify-center relative min-h-[400px]">
-                        <div className="absolute top-6 left-6 flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-2xl">
-                          <Activity className="w-4 h-4 text-blue-600 animate-pulse" />
-                          <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">LIVE BLUEPRINT CALIBRATION</span>
+                    {/* Options Row: Garment Color & Measurement Notes only */}
+                    <div className="bg-white p-8 rounded-[3rem] border-2 border-slate-100 shadow-xl space-y-8">
+                      {/* Garment Color Row */}
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="w-full md:w-1/4">
+                          <span className="block text-[11px] font-black text-slate-900 uppercase tracking-widest leading-relaxed">GARMENT COLOR</span>
+                          <span className="text-[9px] text-slate-400 font-bold block mt-1 uppercase">Choose Custom Color</span>
                         </div>
-
-                        <div className="w-full max-w-[320px] aspect-square flex items-center justify-center p-4">
-                          {renderMeasurementDrawingSvg()}
+                        <div className="w-full md:w-3/4">
+                          <textarea
+                            placeholder="Type custom color here (e.g., Beige Skin, Light Pink, Custom Black...)"
+                            value={garment.subOptions?.['Color'] || ''}
+                            onChange={(e) => setGarment(prev => ({
+                              ...prev,
+                              subOptions: {
+                                ...prev.subOptions,
+                                'Color': e.target.value
+                              }
+                            }))}
+                            rows={2}
+                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm font-bold text-slate-900 focus:bg-white focus:border-blue-500 outline-none resize-none placeholder:text-slate-300 transition-all font-sans"
+                          />
                         </div>
+                      </div>
 
-                        <div className="mt-6 text-center">
-                          <p className="text-xs font-black text-slate-950 uppercase tracking-wide">
-                            Reactive Calibration Graph
-                          </p>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">
-                            Calculated relative measurements mapping for production line
-                          </p>
+                      {/* Measurement Notes Row */}
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 pt-8 border-t border-slate-100">
+                        <div className="w-full md:w-1/4">
+                          <span className="block text-[11px] font-black text-slate-900 uppercase tracking-widest leading-relaxed">MEASUREMENT NOTES</span>
+                          <span className="text-[9px] text-slate-400 font-bold block mt-1 uppercase">({countWords(patient.notes || '')}/500 words)</span>
                         </div>
-
-                        {/* Live Measurement Ledger Board */}
-                        <div className="w-full mt-6 border-t border-slate-100 pt-6">
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-center mb-4">SPECIFICATION MATRIX SUMMARY</span>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            {(GARMENT_FIELDS[garment.type] || []).map(opt => {
-                              const rawVal = garment.subOptions?.[opt.label];
-                              const cleanedVal = rawVal ? rawVal.toString().replace(/\s*cm\s*$/gi, '') : '';
-                              const hasValue = cleanedVal.trim().length > 0;
-                              return (
-                                <div key={opt.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex flex-col justify-center items-center text-center">
-                                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">{opt.label}</span>
-                                  <span className={`text-xs font-black ${hasValue ? 'text-blue-600' : 'text-slate-300'}`}>
-                                    {hasValue ? `${cleanedVal} cm` : '—'}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
+                        <div className="w-full md:w-3/4">
+                          <textarea
+                            placeholder="Write down any special measurements instructions, scar particulars, or physical condition details here..."
+                            value={patient.notes || ''}
+                            onChange={(e) => handleNotesChange(e.target.value)}
+                            rows={5}
+                            className="w-full text-sm font-semibold p-5 rounded-2xl border border-slate-100 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none bg-slate-50/50 text-slate-800 placeholder:text-slate-300 transition-all font-sans"
+                          />
                         </div>
                       </div>
                     </div>
@@ -2631,70 +2607,125 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                     <p className="text-emerald-500 text-xs font-bold uppercase tracking-widest mt-1">Ready for Generation</p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <div className="p-8 bg-blue-50 rounded-[2.5rem] space-y-6">
-                      <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
-                        <User className="w-3 h-3" /> Patient Info
-                      </h4>
-                      <div className="space-y-4">
-                        <div>
-                          <p className="text-[8px] font-black text-blue-300 uppercase">Identity</p>
-                          <p className="text-sm font-black text-slate-900">{patient.name || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <p className="text-[8px] font-black text-blue-300 uppercase">Institution</p>
-                          <p className="text-sm font-black text-slate-900">{patient.hospitalName || 'N/A'}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                      <div className="p-8 bg-purple-50 rounded-[2.5rem] space-y-6">
-                      <h4 className="text-[10px] font-black text-purple-600 uppercase tracking-widest flex items-center gap-2">
-                        <FileText className="w-3 h-3" /> Clinical & Compression
-                      </h4>
-                      <div className="space-y-4">
-                        <div>
-                          <p className="text-[8px] font-black text-purple-300 uppercase">Garment Type</p>
-                          <p className="text-sm font-black text-slate-900">{garment.type}</p>
-                        </div>
-                        <div>
-                          <p className="text-[8px] font-black text-purple-300 uppercase">Silicone</p>
-                          <p className="text-sm font-black text-slate-900">{garment.siliconePasting}</p>
-                        </div>
-                        <div>
-                          <p className="text-[8px] font-black text-purple-300 uppercase">Compression</p>
-                          <p className="text-sm font-black text-slate-900">{garment.compression}</p>
-                        </div>
-                        {garment.subOptions && Object.entries(garment.subOptions).filter(([_, v]) => v).length > 0 && (
-                          <div className="pt-2 border-t border-purple-100 space-y-2">
-                            <p className="text-[8px] font-black text-purple-400 uppercase">Custom Specs</p>
-                            <div className="grid grid-cols-1 gap-1 text-[11px] font-bold text-slate-700">
-                              {Object.entries(garment.subOptions).map(([key, val]) => val && (
-                                <div key={key} className="flex justify-between bg-white/60 px-3 py-1.5 rounded-lg border border-purple-100/50">
-                                  <span className="text-slate-500 font-bold uppercase text-[9px]">{key}</span>
-                                  <span className="text-slate-900 font-extrabold">{val}</span>
-                                </div>
-                              ))}
-                            </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div className="lg:col-span-7 p-8 bg-blue-50/60 rounded-[2.5rem] border border-blue-100/40 space-y-8 flex flex-col justify-between">
+                      <div className="space-y-6">
+                        <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2 border-b border-blue-100 pb-3">
+                          <User className="w-4 h-4" /> Patient Demographics & Info
+                        </h4>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-sm">
+                          <div>
+                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Patient File ID</p>
+                            <p className="text-sm font-black text-slate-900 font-mono mt-0.5">{patient.patientId || 'N/A'}</p>
                           </div>
-                        )}
+                          <div>
+                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Patient Name</p>
+                            <p className="text-sm font-black text-slate-900 mt-0.5">{patient.name || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Age & Gender</p>
+                            <p className="text-sm font-bold text-slate-800 capitalize mt-0.5">
+                              {patient.age > 0 ? `${patient.age} Years` : 'N/A'} / {patient.gender || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Contact Phone</p>
+                            <p className="text-sm font-bold text-slate-800 mt-0.5 font-mono">{patient.phone || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">City / Location</p>
+                            <p className="text-sm font-bold text-slate-800 mt-0.5">{patient.city || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Registration Date</p>
+                            <p className="text-sm font-bold text-slate-800 mt-0.5 font-mono">{patient.date || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Assigned Institution / Hospital</p>
+                            <p className="text-sm font-bold text-slate-800 mt-0.5">{patient.hospitalName || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Referring Doctor</p>
+                            <p className="text-sm font-bold text-slate-800 mt-0.5">{patient.doctorRef || 'N/A'}</p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Home Address</p>
+                            <p className="text-xs font-semibold text-slate-700 mt-0.5 leading-relaxed">{patient.address || 'N/A'}</p>
+                          </div>
+                        </div>
                       </div>
+
+                      {/* Patient Uploaded Clinical Image Display */}
+                      {photos && photos.length > 0 && (
+                        <div className="pt-6 border-t border-blue-100/60 space-y-3">
+                          <p className="text-[9px] font-black text-blue-500 uppercase tracking-wider">Uploaded Clinical Patient Photo</p>
+                          <div className="relative group w-full max-w-sm rounded-[2rem] overflow-hidden border border-blue-200/60 bg-white p-2.5 shadow-sm transition-all hover:shadow-md">
+                            <img 
+                              src={photos[photos.length - 1]} 
+                              alt="Clinical Measurement Snapshot" 
+                              className="w-full h-44 object-cover rounded-[1.5rem]"
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="p-5 sm:p-8 bg-emerald-50 rounded-[2.5rem] space-y-4 sm:space-y-6">
-                      <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2">
-                        <Activity className="w-3 h-3" /> Specification Matrix
-                      </h4>
-                      <div className="space-y-4">
-                        <div>
-                          <p className="text-[8px] font-black text-emerald-300 uppercase">Anatomical Parameters</p>
-                          <p className="text-sm font-black text-slate-900">
-                            {Object.values(garment.subOptions || {}).filter(Boolean).length} / {(GARMENT_FIELDS[garment.type] || []).length} Specified
-                          </p>
+                    {/* Right Column: Compression and Specification verification */}
+                    <div className="lg:col-span-5 space-y-8 flex flex-col justify-between">
+                      <div className="p-8 bg-purple-50 rounded-[2.5rem] space-y-6">
+                        <h4 className="text-[10px] font-black text-purple-600 uppercase tracking-widest flex items-center gap-2 border-b border-purple-100 pb-3">
+                          <FileText className="w-3 h-3" /> Clinical & Compression Specs
+                        </h4>
+                        <div className="space-y-4">
+                          <div>
+                            <p className="text-[8px] font-black text-purple-300 uppercase">Garment Type</p>
+                            <p className="text-sm font-black text-slate-900 mt-0.5">{garment.type}</p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black text-purple-300 uppercase">Silicone Option</p>
+                            <p className="text-sm font-black text-slate-900 mt-0.5">{garment.siliconePasting}</p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black text-purple-300 uppercase">Compression Force</p>
+                            <p className="text-sm font-black text-slate-900 mt-0.5">{garment.compression}</p>
+                          </div>
+                          {garment.subOptions && Object.entries(garment.subOptions).filter(([_, v]) => v).length > 0 && (
+                            <div className="pt-2 border-t border-purple-100 space-y-2">
+                              <p className="text-[8px] font-black text-purple-400 uppercase">Custom Sub-Options</p>
+                              <div className="grid grid-cols-1 gap-1 text-[11px] font-bold text-slate-700">
+                                {Object.entries(garment.subOptions).map(([key, val]) => val && (
+                                  <div key={key} className="flex justify-between bg-white/60 px-3 py-1.5 rounded-lg border border-purple-100/50">
+                                    <span className="text-slate-500 font-bold uppercase text-[9px]">{key}</span>
+                                    <span className="text-slate-900 font-extrabold">{val}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div>
-                          <p className="text-[8px] font-black text-emerald-300 uppercase">Status</p>
-                          <p className="text-sm font-black text-emerald-600">Calibration Verified</p>
+                      </div>
+
+                      <div className="p-8 bg-emerald-50 rounded-[2.5rem] space-y-6">
+                        <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2 border-b border-emerald-100 pb-3">
+                          <Activity className="w-3 h-3" /> Specification Matrix
+                        </h4>
+                        <div className="space-y-4">
+                          <div>
+                            <p className="text-[8px] font-black text-emerald-300 uppercase">Anatomical Parameters</p>
+                            <p className="text-sm font-black text-slate-900 mt-0.5 font-mono">
+                              {(() => {
+                                const isBothHandGlove = garment.type === 'All Gloves/Glove With Sleeve' && garment.subOptions?.['Hand Selection'] === 'Both Hand Glove';
+                                const totalExpected = isBothHandGlove ? 18 : (GARMENT_FIELDS[garment.type] || []).length;
+                                return `${Object.values(garment.subOptions || {}).filter(Boolean).length} / ${totalExpected}`;
+                              })()} Specified
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black text-emerald-300 uppercase">Status</p>
+                            <p className="text-sm font-black text-emerald-600 mt-0.5">Calibration & Diagnostics Verified</p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -2777,130 +2808,202 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
         <div 
           ref={reportRef} 
           id="printable-report"
-          className="bg-white pdf-safe-zone"
-          style={{ width: '210mm', minHeight: '297mm' }}
+          className="bg-white pdf-safe-zone p-8 flex flex-col justify-between"
+          style={{ width: '794px', minHeight: '1123px', fontFamily: 'Inter, system-ui, sans-serif' }}
         >
-          <div className="p-10 space-y-12 bg-white pdf-safe-zone">
-          {/* Header */}
-          <div className="flex justify-between items-start border-b-4 border-slate-900 pb-8">
-            <div>
-              <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">Clinical Report</h1>
-              <div className="mt-4">
-                <p className="text-blue-600 font-bold tracking-widest uppercase text-xs">Smart Measurement Technology</p>
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b-4 border-slate-900 pb-5">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center">
+                  <img 
+                    src={logoImg} 
+                    alt="OVERPLAST Logo" 
+                    className="w-full h-full object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-black tracking-tight text-slate-900 leading-none">OVERPLAST</h1>
+                  <p className="text-[11px] font-black text-blue-600 uppercase tracking-widest mt-1">Medical Compression</p>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider leading-none mt-0.5">Measurement System</p>
+                </div>
+              </div>
+              <div className="text-right max-w-[260px]">
+                <h2 className="text-md font-black tracking-tight text-slate-900 uppercase">CLINICAL ASSESSMENT REPORT</h2>
+                <span className="text-[9px] font-black text-slate-400 block uppercase tracking-wider mt-1">Record ID</span>
+                <span className="text-xs font-mono font-black text-slate-800 block break-all leading-none">{patient.patientId}</span>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-sm font-black text-slate-900">{patient.hospitalName}</p>
-              <p className="text-xs font-bold text-slate-400">{patient.date}</p>
-              <p className="text-xs font-black text-blue-600 mt-1">ID: {patient.patientId}</p>
-            </div>
-          </div>
 
-          {/* Details Grid */}
-          <div className="grid grid-cols-2 gap-12">
-            <div className="space-y-6">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 pb-2">Patient Details</h3>
-              <div className="grid grid-cols-1 gap-4">
-                <div><p className="text-[10px] font-bold text-slate-400 uppercase">Name</p><p className="font-black text-slate-900">{patient.name}</p></div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div><p className="text-[10px] font-bold text-slate-400 uppercase">Age</p><p className="font-black text-slate-900">{patient.age ? `${patient.age} years` : 'N/A'}</p></div>
-                  <div><p className="text-[10px] font-bold text-slate-400 uppercase">Gender</p><p className="font-black text-slate-900 capitalize">{patient.gender || 'N/A'}</p></div>
+            {/* Demographics Area */}
+            <div className="grid grid-cols-2 gap-6 p-5 rounded-3xl" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+              <div className="space-y-3">
+                <div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">PATIENT FULL NAME</span>
+                  <span className="text-md font-extrabold text-slate-900">{patient.name || 'N/A'}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Age / عمر</span>
+                    <span className="text-xs font-bold text-slate-800">{patient.age ? `${patient.age} Yrs` : 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Gender / جنس</span>
+                    <span className="text-xs font-bold text-slate-800 uppercase">{patient.gender || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">City / شہر</span>
+                    <span className="text-xs font-bold text-slate-800 uppercase">{patient.city || 'Karachi'}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3 pl-6 border-l border-slate-200">
+                <div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">HOSPITAL OR CLINICAL UNIT</span>
+                  <span className="text-xs font-extrabold text-slate-900 block break-words leading-tight">{patient.hospitalName || 'N/A'}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div><p className="text-[10px] font-bold text-slate-400 uppercase">City</p><p className="font-black text-slate-900 text-sm truncate">{patient.city || 'Karachi'}</p></div>
-                  <div><p className="text-[10px] font-bold text-slate-400 uppercase">Phone</p><p className="font-black text-slate-900">{patient.phone}</p></div>
+                  <div>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Doctor Reference</span>
+                    <span className="text-xs font-bold text-slate-800 block break-words leading-tight">{patient.doctorRef || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Created Date</span>
+                    <span className="text-xs font-bold text-slate-800 block">
+                      {new Date(patient.date).toLocaleDateString('ur-PK', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </span>
+                  </div>
                 </div>
-                <div><p className="text-[10px] font-bold text-slate-400 uppercase">Doctor</p><p className="font-black text-slate-900">{patient.doctorRef}</p></div>
-                <div><p className="text-[10px] font-bold text-slate-400 uppercase">Address</p><p className="font-bold text-slate-700 text-xs leading-relaxed">{patient.address}</p></div>
               </div>
             </div>
-            <div className="space-y-6">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 pb-2">Clinical & Compression Specifications</h3>
-              <div className="p-6 bg-slate-50 rounded-3xl space-y-4">
-                <div><p className="text-[10px] font-bold text-slate-400 uppercase">Garment Type</p><p className="font-black text-slate-900 text-sm uppercase">{garment.type}</p></div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div><p className="text-[10px] font-bold text-slate-400 uppercase">Silicone Selection</p><p className="font-black text-blue-600 text-xs">{garment.siliconePasting}</p></div>
-                  <div><p className="text-[10px] font-bold text-slate-400 uppercase">Compression</p><p className="font-black text-emerald-600 uppercase text-xs">{garment.compression}</p></div>
-                </div>
-                
-                {patient.notes ? (
-                  <div className="pt-3 border-t border-slate-200">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Physician Notes</p>
-                    <p className="text-xs font-bold text-slate-700 bg-white p-3 rounded-2xl border border-slate-100 mt-1 whitespace-pre-wrap break-words leading-relaxed max-h-[140px] overflow-y-auto font-mono">
-                      {patient.notes}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="pt-3 border-t border-slate-200">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Physician Notes</p>
-                    <p className="text-xs text-slate-400 italic bg-white p-3 rounded-2xl border border-slate-100 mt-1">
-                      No additional clinical notes recorded.
-                    </p>
-                  </div>
-                )}
 
-                {garment.subOptions && Object.entries(garment.subOptions).filter(([_, v]) => v).length > 0 && (
-                  <div className="pt-3 border-t border-slate-200 mt-2 space-y-2">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Custom Specs</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {Object.entries(garment.subOptions).map(([key, val]) => val && (
-                        <div key={key} className="bg-white p-2 rounded-xl border border-slate-100">
-                          <span className="text-[8px] text-slate-400 block font-bold uppercase">{key}</span>
-                          <span className="text-[10px] font-black text-slate-900">{val}</span>
-                        </div>
-                      ))}
+            {/* Garment Configuration Specs */}
+            <div className="space-y-4">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">1. Garment & Compression Configuration</h3>
+              <div className="grid grid-cols-4 gap-4">
+                <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
+                  <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Garment Unit</span>
+                  <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{garment.type || 'N/A'}</span>
+                </div>
+                <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
+                  <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Compression</span>
+                  <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{garment.compression || 'None'}</span>
+                </div>
+                <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
+                  <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Silicone Profile</span>
+                  <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{garment.siliconePasting || 'None'}</span>
+                </div>
+                <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
+                  <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Garment Color</span>
+                  <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{garment.subOptions?.['Color'] || 'Standard'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Blueprint Mapping, Custom Parameters & Clinical Upload section */}
+            <div className="space-y-4">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">2. Precision Sizing Blueprint & Calibration</h3>
+              
+              {photos.length > 0 ? (
+                <div className="grid grid-cols-12 gap-5 items-stretch">
+                  {/* Schematic Blueprint Drawing */}
+                  <div className="col-span-5 rounded-3xl p-4 flex flex-col items-center justify-center" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Sizing Schematic Chart</span>
+                    <div className="w-full flex items-center justify-center bg-white rounded-2xl p-3 shadow-sm border border-slate-100" style={{ minHeight: '180px' }}>
+                      <div className="w-[150px] h-[150px] flex items-center justify-center">
+                        {renderMeasurementDrawingSvg()}
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
 
-          {/* Custom Specification Mapping */}
-          <div className="pt-12">
-            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 pb-4 mb-8">Anatomical Blueprint Mapping</h3>
-            <div className="grid grid-cols-2 gap-12 items-center">
-              <div className="bg-slate-50 rounded-[3rem] p-8 border-2 border-slate-100 flex items-center justify-center max-w-[320px] aspect-square mx-auto">
-                <div className="w-[240px] h-[240px] flex items-center justify-center">
-                  {renderMeasurementDrawingSvg()}
+                  {/* Calibration Parameters */}
+                  <div className="col-span-4 space-y-2">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block pl-1">Sizing Matrix</span>
+                    <div className="border border-slate-100 rounded-3xl p-4 space-y-1.5" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9', minHeight: '180px' }}>
+                      {Object.entries(garment.subOptions || {})
+                        .filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection')
+                        .map(([key, val]) => (
+                          <div key={key} className="flex justify-between items-center text-xs pb-1 border-b border-dashed border-slate-200 last:border-none last:pb-0">
+                            <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-wider">{key}</span>
+                            <span className="font-extrabold text-slate-900">
+                              {new RegExp('^\\d+(\\.\\d+)?\\s*(cm|in)?$', 'i').test(String(val).trim()) && !String(val).toLowerCase().includes('cm') ? `${val} cm` : val}
+                            </span>
+                          </div>
+                        ))}
+                      {Object.entries(garment.subOptions || {}).filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection').length === 0 && (
+                        <p className="text-xs text-slate-400 italic">No custom points registered.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Clinical Upload Photo */}
+                  <div className="col-span-3 rounded-3xl p-4 flex flex-col items-center justify-center" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Patient Photo / مریض کی تصویر</span>
+                    <div className="w-full bg-white rounded-2xl p-2 shadow-sm border border-slate-100 flex items-center justify-center overflow-hidden" style={{ minHeight: '180px' }}>
+                      <img 
+                        src={photos[photos.length - 1]} 
+                        alt="Patient Clinical upload" 
+                        referrerPolicy="no-referrer"
+                        className="max-h-[160px] w-auto object-contain rounded-xl"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-4">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr>
-                      <th className="text-[10px] font-black uppercase text-slate-400 pb-4">Anatomical LandMark</th>
-                      <th className="text-[10px] font-black uppercase text-blue-600 pb-4 text-right">Value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.entries(garment.subOptions || {}).map(([key, value]) => value && (
-                      <tr key={key} className="border-b border-slate-50">
-                        <td className="py-3 text-sm font-black text-slate-700">{key}</td>
-                        <td className="py-3 text-sm font-black text-slate-900 text-right">{value}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              ) : (
+                <div className="grid grid-cols-12 gap-6 items-start">
+                  {/* Blueprint Drawing */}
+                  <div className="col-span-7 rounded-3xl p-5 flex flex-col items-center justify-center" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Live Sizing Schematic Chart</span>
+                    <div className="w-full flex justify-center bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                      <div className="w-[200px] h-[200px] flex items-center justify-center">
+                        {renderMeasurementDrawingSvg()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sizing Specifications Table */}
+                  <div className="col-span-5 space-y-3">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block pl-1">Matrix Calibration Parameters</span>
+                    <div className="border border-slate-100 rounded-3xl p-4 space-y-2" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                      {Object.entries(garment.subOptions || {})
+                        .filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection')
+                        .map(([key, val]) => (
+                          <div key={key} className="flex justify-between items-center text-xs pb-1.5 border-b border-dashed border-slate-200 last:border-none last:pb-0">
+                            <span className="text-slate-400 font-extrabold uppercase tracking-wider text-[9px]">{key}</span>
+                            <span className="font-extrabold text-slate-900">
+                              {new RegExp('^\\d+(\\.\\d+)?\\s*(cm|in)?$', 'i').test(String(val).trim()) && !String(val).toLowerCase().includes('cm') ? `${val} cm` : val}
+                            </span>
+                          </div>
+                        ))}
+                      {Object.entries(garment.subOptions || {}).filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection').length === 0 && (
+                        <p className="text-xs text-slate-400 italic">No custom points registered.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Dr Notes Section */}
+            <div className="space-y-2">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">3. Medical Condition & Remarks / ضروری ہدایات</h3>
+              <p className="text-xs text-slate-700 font-bold leading-relaxed p-4 rounded-2xl whitespace-pre-wrap font-mono" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9', minHeight: '100px' }}>
+                {patient.notes || "No extra notes specified."}
+              </p>
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="pt-20 border-t border-slate-100 flex justify-between items-end">
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase">Report Generated ON</p>
-              <p className="text-sm font-black text-slate-900">{new Date().toLocaleString()}</p>
-            </div>
-            <div className="w-64 border-t-2 border-slate-900 pt-3 text-center">
-              <p className="text-sm font-black text-slate-900 uppercase">{patient.doctorRef || 'Clinical Specialist'}</p>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Authorized Signature</p>
-            </div>
+          <div className="border-t pt-4 flex justify-between items-center text-[9px] font-black text-slate-500 uppercase tracking-widest" style={{ borderTop: '1px solid #e2e8f0' }}>
+            <span>SYSTEM VERIFIED CLINICAL MEMORANDUM / روکارڈ طی SIZING CALIBRATION PAGE 1 OF 1</span>
           </div>
         </div>
       </div>
     </div>
-  </div>
 );
 };
 

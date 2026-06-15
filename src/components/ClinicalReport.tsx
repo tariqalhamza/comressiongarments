@@ -1,6 +1,7 @@
 import React from 'react';
 import { Ruler, Camera, ShoppingBag, Activity } from 'lucide-react';
 import { Annotation } from '../types';
+import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.png';
 
 interface ClinicalReportProps {
   patient: { name: string; id: string };
@@ -27,18 +28,24 @@ const ClinicalReport: React.FC<ClinicalReportProps> = ({
     <div className="bg-white p-12 text-slate-900 font-sans max-w-[210mm] mx-auto print:m-0 print:p-8" id="clinical-report">
       {/* Header */}
       <div className="flex justify-between items-start border-b-4 border-slate-900 pb-8 mb-8">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center">
-              <Activity className="w-6 h-6 text-white" />
-            </div>
-            <h1 className="text-2xl font-black uppercase tracking-tighter">Clinical Report</h1>
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center bg-white rounded-2xl p-1 shadow-md border border-slate-100">
+            <img 
+              src={logoImg} 
+              alt="OVERPLAST Logo" 
+              className="w-full h-full object-contain"
+              referrerPolicy="no-referrer"
+            />
           </div>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Digital Measurement & Manufacturing Spec</p>
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 leading-none tracking-tight">OVERPLAST</h1>
+            <p className="text-xs font-black text-blue-600 uppercase tracking-widest mt-1">Medical Compression</p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider leading-none mt-0.5">Measurement System</p>
+          </div>
         </div>
         <div className="text-right">
-          <p className="text-xs font-black text-slate-400 uppercase">Assessment Date</p>
-          <p className="text-sm font-bold">{new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <h2 className="text-md font-black tracking-tight text-slate-900 uppercase">Clinical Report</h2>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">{new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
       </div>
 

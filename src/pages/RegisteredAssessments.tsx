@@ -8,7 +8,6 @@ import {
   Stethoscope, 
   Activity, 
   Download, 
-  Printer, 
   Eye, 
   ChevronRight,
   FileText,
@@ -18,6 +17,8 @@ import { dbService } from '../services/supabase';
 import { motion, AnimatePresence } from 'motion/react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { cn } from '../lib/utils';
+import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.png';
 
 interface RegisteredAssessment {
   id: string;
@@ -31,6 +32,7 @@ interface RegisteredAssessment {
   notes: string;
   sub_options: any;
   photos?: string[];
+  photo_url?: string;
   created_at: string;
   age?: number;
   gender?: string;
@@ -46,7 +48,9 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(initialSearchPatientName);
   const [selectedAssessment, setSelectedAssessment] = useState<RegisteredAssessment | null>(null);
+  const [activeBothHandView, setActiveBothHandView] = useState<'Right' | 'Left'>('Right');
   const [assessmentToDelete, setAssessmentToDelete] = useState<RegisteredAssessment | null>(null);
+  const [patientPhotos, setPatientPhotos] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchAssessments();
@@ -57,6 +61,26 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
     try {
       const data = await dbService.assessments.getAll();
       setAssessments(data || []);
+      
+      // Load patients to resolve any missing photos automatically
+      try {
+        const patientsData = await dbService.patients.getAll();
+        if (patientsData && patientsData.length > 0) {
+          const photoMap: Record<string, string> = {};
+          patientsData.forEach(p => {
+            if (p.photo_url) {
+              photoMap[p.full_name?.toLowerCase().trim()] = p.photo_url;
+              if (p.id) {
+                photoMap[p.id] = p.photo_url;
+              }
+            }
+          });
+          setPatientPhotos(photoMap);
+        }
+      } catch (pErr) {
+        console.warn('Could not load patient list for photo map:', pErr);
+      }
+
       if (initialSearchPatientName) {
         const matched = data?.find(a => 
           a.patient_name.toLowerCase().trim() === initialSearchPatientName.toLowerCase().trim()
@@ -77,6 +101,23 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
     } finally {
       setLoading(false);
     }
+  };
+
+  const getAssessmentPhoto = (assessment: RegisteredAssessment | null): string | undefined => {
+    if (!assessment) return undefined;
+    if (assessment.photo_url) return assessment.photo_url;
+    if (assessment.photos && assessment.photos.length > 0) {
+      return assessment.photos[assessment.photos.length - 1];
+    }
+    const nameKey = assessment.patient_name?.toLowerCase().trim();
+    if (nameKey && patientPhotos[nameKey]) {
+      return patientPhotos[nameKey];
+    }
+    const idKey = (assessment as any).patient_id;
+    if (idKey && patientPhotos[idKey]) {
+      return patientPhotos[idKey];
+    }
+    return undefined;
   };
 
   const handleDeleteAssessment = async () => {
@@ -104,7 +145,11 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
       // Fallback mappings for backwards compatibility
       if (!val) {
         let fallbackKey = '';
-        if (label === 'Middle finger') fallbackKey = 'Medal finger';
+        if (label === 'Open End') fallbackKey = 'Arm pit';
+        else if (label === 'Close End') fallbackKey = 'Wrist';
+        else if (label === 'Arm pit') fallbackKey = 'Open End';
+        else if (label === 'Wrist') fallbackKey = 'Close End';
+        else if (label === 'Middle finger') fallbackKey = 'Medal finger';
         else if (label === 'Index finger') fallbackKey = 'Left finger';
         else if (label === 'Ring finger') fallbackKey = 'Right finger';
         else if (label === 'Little finger') fallbackKey = 'Small finger';
@@ -112,11 +157,11 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         else if (label === 'Total length middle finger to end of scar') fallbackKey = 'Total length medal finger to end of scar';
         // Belly Binder mappings
         else if (label === 'Diaphrom') fallbackKey = 'Diaphrarm';
-        else if (label === 'West (Waist)' || label === 'West') fallbackKey = 'Waist';
+        else if (label === 'West (Waist)' || label === 'West' || label === 'Waist') fallbackKey = 'Waist';
         else if (label === 'Open End') fallbackKey = 'Open end thigh';
         else if (label === 'Close End (Leg end)') fallbackKey = 'Close end thigh';
-        else if (label === 'Length Diaphrom to West') fallbackKey = 'length diaphragm to waist';
-        else if (label === 'Short Length') fallbackKey = 'Length waist to close end';
+        else if (label === 'Length Diaphrom to West' || label === 'Length Diaphrom to Waist') fallbackKey = 'length diaphragm to waist';
+        else if (label === 'Short Length' || label === 'Waist to Close End') fallbackKey = 'Waist to Close End';
         // All Trouser backwards compatibility fallbacks
         else if (label === 'Belly') fallbackKey = 'Diaphrarm';
         else if (label === 'Hips') fallbackKey = 'Hips';
@@ -264,7 +309,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         </g>
         <g transform="translate(245, 100)">
           <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
-          <text y="3" text-anchor="middle" fill="#10b981" font-family="sans-serif" font-size="9" font-weight="bold">Arm pit: ${formatVal('Arm pit')}</text>
+          <text y="3" text-anchor="middle" fill="#10b981" font-family="sans-serif" font-size="9" font-weight="bold">Open End: ${formatVal('Open End')}</text>
         </g>
         <g transform="translate(185, 175)">
           <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#f59e0b" stroke-width="0.5" />
@@ -272,7 +317,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         </g>
         <g transform="translate(75, 235)">
           <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#ec4899" stroke-width="0.5" />
-          <text y="3" text-anchor="middle" fill="#ec4899" font-family="sans-serif" font-size="9" font-weight="bold">Wrist: ${formatVal('Wrist')}</text>
+          <text y="3" text-anchor="middle" fill="#ec4899" font-family="sans-serif" font-size="9" font-weight="bold">Close End: ${formatVal('Close End')}</text>
         </g>
       </svg>`;
     }
@@ -388,24 +433,24 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
           <text y="2.5" text-anchor="middle" fill="#7c3aed" font-family="sans-serif" font-size="8" font-weight="bold">Finger to End: ${formatVal('Total length middle finger to end of scar')}</text>
         </g>
         <g transform="translate(150, 45)">
-          <rect x="-60" y="-7" width="120" height="13" rx="3" fill="white" stroke="#4f46e5" stroke-width="0.5" />
-          <text y="2.5" text-anchor="middle" fill="#4f46e5" font-family="sans-serif" font-size="8" font-weight="bold">Middle: ${formatVal('Middle finger')} | W: ${formatVal('Middle finger width')}</text>
+          <rect x="-34" y="-7" width="68" height="13" rx="3" fill="white" stroke="#4f46e5" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#4f46e5" font-family="sans-serif" font-size="8" font-weight="bold">Middle: ${formatVal('Middle finger')}</text>
         </g>
         <g transform="translate(110, 65)">
-          <rect x="-58" y="-7" width="116" height="13" rx="3" fill="white" stroke="#0891b2" stroke-width="0.5" />
-          <text y="2.5" text-anchor="middle" fill="#0891b2" font-family="sans-serif" font-size="8" font-weight="bold">Index: ${formatVal('Index finger')} | W: ${formatVal('Index finger width')}</text>
+          <rect x="-32" y="-7" width="64" height="13" rx="3" fill="white" stroke="#0891b2" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#0891b2" font-family="sans-serif" font-size="8" font-weight="bold">Index: ${formatVal('Index finger')}</text>
         </g>
         <g transform="translate(210, 75)">
-          <rect x="-58" y="-7" width="116" height="13" rx="3" fill="white" stroke="#059669" stroke-width="0.5" />
-          <text y="2.5" text-anchor="middle" fill="#059669" font-family="sans-serif" font-size="8" font-weight="bold">Ring: ${formatVal('Ring finger')} | W: ${formatVal('Ring finger width')}</text>
+          <rect x="-32" y="-7" width="64" height="13" rx="3" fill="white" stroke="#059669" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#059669" font-family="sans-serif" font-size="8" font-weight="bold">Ring: ${formatVal('Ring finger')}</text>
         </g>
         <g transform="translate(245, 110)">
-          <rect x="-56" y="-7" width="112" height="13" rx="3" fill="white" stroke="#db2777" stroke-width="0.5" />
-          <text y="2.5" text-anchor="middle" fill="#db2777" font-family="sans-serif" font-size="8" font-weight="bold">Little: ${formatVal('Little finger')} | W: ${formatVal('Little finger width')}</text>
+          <rect x="-32" y="-7" width="64" height="13" rx="3" fill="white" stroke="#db2777" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#db2777" font-family="sans-serif" font-size="8" font-weight="bold">Little: ${formatVal('Little finger')}</text>
         </g>
         <g transform="translate(85, 115)">
-          <rect x="-56" y="-7" width="112" height="13" rx="3" fill="white" stroke="#ea580c" stroke-width="0.5" />
-          <text y="2.5" text-anchor="middle" fill="#ea580c" font-family="sans-serif" font-size="8" font-weight="bold">Thumb: ${formatVal('Thumb')} | W: ${formatVal('Thumb width')}</text>
+          <rect x="-32" y="-7" width="64" height="13" rx="3" fill="white" stroke="#ea580c" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#ea580c" font-family="sans-serif" font-size="8" font-weight="bold">Thumb: ${formatVal('Thumb')}</text>
         </g>
       </svg>`;
     }
@@ -428,7 +473,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         </g>
         <g transform="translate(150, 132)">
           <rect x="-45" y="-7" width="90" height="13" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
-          <text y="2.5" text-anchor="middle" fill="#10b981" font-family="sans-serif" font-size="8" font-weight="bold">West: ${formatVal('West (Waist)')}</text>
+          <text y="2.5" text-anchor="middle" fill="#10b981" font-family="sans-serif" font-size="8" font-weight="bold">Waist: ${formatVal('Waist')}</text>
         </g>
         <g transform="translate(150, 163)">
           <rect x="-45" y="-7" width="90" height="13" rx="3" fill="white" stroke="#0891b2" stroke-width="0.5" />
@@ -444,11 +489,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         </g>
         <g transform="translate(250, 115)">
           <rect x="-65" y="-7" width="130" height="13" rx="3" fill="white" stroke="#ea580c" stroke-width="0.5" />
-          <text y="2.5" text-anchor="middle" fill="#ea580c" font-family="sans-serif" font-size="8" font-weight="bold">Dia-West: ${formatVal('Length Diaphrom to West')}</text>
-        </g>
-        <g transform="translate(250, 195)">
-          <rect x="-65" y="-7" width="130" height="13" rx="3" fill="white" stroke="#e11d48" stroke-width="0.5" />
-          <text y="2.5" text-anchor="middle" fill="#e11d48" font-family="sans-serif" font-size="8" font-weight="bold">Short-Len: ${formatVal('Short Length')}</text>
+          <text y="2.5" text-anchor="middle" fill="#ea580c" font-family="sans-serif" font-size="8" font-weight="bold">Dia-Waist: ${formatVal('Length Diaphrom to Waist')}</text>
         </g>
       </svg>`;
     }
@@ -600,95 +641,242 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
     });
   };
 
+  // Helper to accurately convert modern CSS colors to RGB by matching nested parentheses
+  const resolveModernColors = (css: string) => {
+    if (!css) return css;
+    let index = 0;
+    let result = '';
+    
+    while (index < css.length) {
+      const isColorMix = css.startsWith('color-mix(', index);
+      const isOklch = css.startsWith('oklch(', index);
+      const isOklab = css.startsWith('oklab(', index);
+      
+      if (isColorMix || isOklch || isOklab) {
+        const startType = isColorMix ? 'color-mix(' : (isOklch ? 'oklch(' : 'oklab(');
+        const startPos = index;
+        index += startType.length;
+        
+        let parenCount = 1;
+        let matchedParenIndex = -1;
+        while (index < css.length) {
+          if (css[index] === '(') {
+            parenCount++;
+          } else if (css[index] === ')') {
+            parenCount--;
+            if (parenCount === 0) {
+              matchedParenIndex = index;
+              break;
+            }
+          }
+          index++;
+        }
+        
+        if (matchedParenIndex !== -1) {
+          const fullMatch = css.substring(startPos, matchedParenIndex + 1);
+          let fallback = '#1e293b'; 
+          if (fullMatch.includes('white') || fullMatch.includes('255, 255, 255') || fullMatch.includes('255 255 255')) {
+            fallback = '#ffffff';
+          } else if (fullMatch.includes('transparent')) {
+            fallback = 'transparent';
+          } else if (fullMatch.includes('slate-50') || fullMatch.includes('f8fafc')) {
+            fallback = '#f8fafc';
+          } else if (fullMatch.includes('slate-100') || fullMatch.includes('f1f5f9')) {
+            fallback = '#f1f5f9';
+          } else if (fullMatch.includes('slate-200') || fullMatch.includes('e2e8f0')) {
+            fallback = '#e2e8f0';
+          } else if (fullMatch.includes('blue-600')) {
+            fallback = '#2563eb';
+          } else if (fullMatch.includes('blue-500')) {
+            fallback = '#3b82f6';
+          }
+          
+          if (typeof document !== 'undefined') {
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = 1;
+              canvas.height = 1;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.fillStyle = fullMatch;
+                ctx.fillRect(0, 0, 1, 1);
+                const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+                if (r === 0 && g === 0 && b === 0 && a === 0 && !fullMatch.includes('transparent')) {
+                  // Canvas color compiling failed/unsupported in this browser
+                } else {
+                  fallback = a === 255 ? `rgb(${r},${g},${b})` : `rgba(${r},${g},${b},${(a/255).toFixed(2)})`;
+                }
+              }
+            } catch (e) {}
+          }
+          result += fallback;
+          index = matchedParenIndex + 1;
+          continue;
+        }
+      }
+      result += css[index];
+      index++;
+    }
+    return result;
+  };
+
   const handleDownloadPDF = async (assessment: RegisteredAssessment) => {
-    const doc = new jsPDF('p', 'mm', 'a4');
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.text("CLINICAL ASSESSMENT MEMORANDUM", 20, 25);
-    
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`ID: ${assessment.id}`, 20, 32);
-    doc.text(`Created Date: ${new Date(assessment.created_at).toLocaleString()}`, 20, 37);
-
-    doc.setDrawColor(220, 224, 230);
-    doc.line(20, 42, 190, 42);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text("1. CLINICAL METADATA", 20, 50);
-    
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`Patient Full Name: ${assessment.patient_name || 'N/A'}`, 25, 58);
-    doc.text(`Hospital Unit: ${assessment.hospital_name || 'N/A'}`, 25, 64);
-    doc.text(`Referencing Physician: ${assessment.doctor_ref || 'N/A'}`, 25, 70);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text("2. COMPRESSION SPECIFICATIONS", 20, 82);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`Garment Core Unit: ${assessment.garment_type}`, 25, 90);
-    doc.text(`Compression Profile: ${assessment.compression}`, 25, 96);
-    doc.text(`Silicone Integration: ${assessment.silicone_pasting}`, 25, 102);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text("3. CLINICAL NOTES", 20, 114);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    const splitNotes = doc.splitTextToSize(assessment.notes || "No extra medical notes entered.", 160);
-    doc.text(splitNotes, 25, 122);
-
-    // Dynamic Svg Drawing inclusion (with measurements loaded)
-    const offset = 150;
-    
-    // Draw visual diagram on the right side if available
-    const drawingPng = await generateSvgPng(assessment);
-    if (drawingPng) {
-      // Box frame for visual representation
-      doc.setDrawColor(226, 232, 240); // slate-200
-      doc.setFillColor(250, 250, 250); // slate-50
-      doc.roundedRect(115, offset, 75, 82, 3, 3, 'FD');
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139); // slate-500 text
-      doc.text("GARMENT VISUAL LAYOUT / بصری خاکہ", 119, offset + 6);
-      
-      doc.addImage(drawingPng, 'PNG', 117, offset + 10, 71, 68);
-      
-      // Reset color state for subsequent text
-      doc.setTextColor(0, 0, 0); 
+    const reportElement = document.getElementById('registered-assessment-printable');
+    if (!reportElement) {
+      console.error("Printable target element not found.");
+      return;
     }
 
-    // Anatomical values on the left
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text("4. SPECIFICATION CALIBRATION MATRIX", 20, offset);
+    const originalInlineStyles = new Map<HTMLElement, string>();
 
-    let currentY = offset + 8;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
+    try {
+      // Resolve and apply standard plain inline colors for elements with modern color specs to dodge html2canvas crashes
+      const elementsToConvert = [reportElement, ...Array.from(reportElement.querySelectorAll('*'))] as HTMLElement[];
+      elementsToConvert.forEach((el) => {
+        if (!el.style) return;
+        try {
+          const comp = window.getComputedStyle(el);
+          const stylesToApply: { [key: string]: string } = {};
 
-    const subOptionsList = Object.entries(assessment.sub_options || {})
-      .filter(([_, value]) => value !== undefined && value !== '');
+          const colorProps = [
+            'color', 
+            'backgroundColor', 
+            'borderColor', 
+            'borderTopColor', 
+            'borderRightColor', 
+            'borderBottomColor', 
+            'borderLeftColor', 
+            'fill', 
+            'stroke', 
+            'outlineColor'
+          ];
+          
+          colorProps.forEach((prop) => {
+            const val = (comp as any)[prop];
+            if (val && (val.includes('oklch') || val.includes('oklab') || val.includes('color-mix'))) {
+              const resolved = resolveModernColors(val);
+              stylesToApply[prop] = resolved;
+            }
+          });
 
-    if (subOptionsList.length > 0) {
-      subOptionsList.forEach(([key, value]) => {
-        if (currentY < 270) {
-          doc.text(`• ${key.toUpperCase()}: ${value} cm`, 25, currentY);
-          currentY += 6;
+          if (Object.keys(stylesToApply).length > 0) {
+            originalInlineStyles.set(el, el.style.cssText);
+            Object.keys(stylesToApply).forEach((prop) => {
+              (el.style as any)[prop] = stylesToApply[prop];
+            });
+          }
+        } catch (e) {
+          console.warn("Inline modern color mapping failed for:", el, e);
         }
       });
-    } else {
-      doc.text("No specific anatomical points registered details.", 25, currentY);
-    }
 
-    doc.save(`Assessment_${assessment.patient_name.replace(/\s+/g, '_')}_Report.pdf`);
+      // Compile parent document stylesheets to support Tailwind styles in cloned/canvas view
+      let parentPageStyles = "";
+      try {
+        const parentStyleTags = document.getElementsByTagName('style');
+        for (let i = 0; i < parentStyleTags.length; i++) {
+          try {
+            parentPageStyles += parentStyleTags[i].innerHTML + "\n";
+          } catch {}
+        }
+        for (let i = 0; i < document.styleSheets.length; i++) {
+          try {
+            const sheet = document.styleSheets[i];
+            if (sheet.cssRules) {
+              for (let j = 0; j < sheet.cssRules.length; j++) {
+                parentPageStyles += sheet.cssRules[j].cssText + "\n";
+              }
+            }
+          } catch (sheetErr) {
+            console.warn("Skipping stylesheet parsing:", sheetErr);
+          }
+        }
+      } catch (globalStyleErr) {
+        console.warn("Could not compile parent styles synchronously:", globalStyleErr);
+      }
+
+      // Pre-resolve color-space rules (oklch, color-mix) in our gathered styles using our optimized processor
+      const resolvedParentStyles = resolveModernColors(parentPageStyles);
+
+      // Give browser brief layout breath
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const canvas = await html2canvas(reportElement, {
+        scale: 2.5,
+        useCORS: true,
+        allowTaint: false,
+        imageTimeout: 0,
+        backgroundColor: '#ffffff',
+        logging: false,
+        onclone: (clonedDoc) => {
+          // EXTREME SANITIZATION for html2canvas
+          // 1. Remove standard link tags to prevent cross-origin stylesheet parsing and styling latency
+          const links = clonedDoc.getElementsByTagName('link');
+          for (let i = links.length - 1; i >= 0; i--) {
+            if (links[i].rel === 'stylesheet') {
+              links[i].parentNode?.removeChild(links[i]);
+            }
+          }
+
+          // 2. Remove default style tags inside clone to make room for our compiled style
+          const cloneStyles = clonedDoc.getElementsByTagName('style');
+          for (let i = cloneStyles.length - 1; i >= 0; i--) {
+            cloneStyles[i].parentNode?.removeChild(cloneStyles[i]);
+          }
+
+          // 3. Inject pre-processed pristine compiled style sheet
+          const consolidatedStyle = clonedDoc.createElement('style');
+          consolidatedStyle.innerHTML = resolvedParentStyles;
+          clonedDoc.head.appendChild(consolidatedStyle);
+
+          // 4. Force colors to compile in style elements inside clone to prevent rendering omissions
+          const elements = clonedDoc.getElementsByTagName('*');
+          for (let i = 0; i < elements.length; i++) {
+            const el = elements[i] as HTMLElement;
+            if (el.style) {
+              const props = ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke', 'outlineColor'];
+              props.forEach(prop => {
+                const val = (el.style as any)[prop];
+                if (val && (val.includes('oklch') || val.includes('color-mix') || val.includes('oklab'))) {
+                  (el.style as any)[prop] = resolveModernColors(val);
+                }
+              });
+            }
+          }
+        }
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const margin = 5; // 5mm margin to keep it breathing but strictly inside 1 page
+      const pageWidth = 210 - (margin * 2);
+      const pageHeight = 297 - (margin * 2);
+      
+      let finalWidth = pageWidth;
+      let finalHeight = (canvas.height * pageWidth) / canvas.width;
+      
+      if (finalHeight > pageHeight) {
+        finalHeight = pageHeight;
+        finalWidth = (canvas.width * pageHeight) / canvas.height;
+      }
+      
+      const xOffset = margin + (pageWidth - finalWidth) / 2;
+      const yOffset = margin + (pageHeight - finalHeight) / 2;
+
+      pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
+
+      const filename = `Assessment_${assessment.patient_name.trim().replace(/\s+/g, '_')}_Specifications.pdf`;
+      pdf.save(filename);
+    } catch (e) {
+      console.error("PDF generation error:", e);
+    } finally {
+      // Restore original inline styles
+      originalInlineStyles.forEach((originalStyle, el) => {
+        try {
+          el.style.cssText = originalStyle;
+        } catch (err) {}
+      });
+    }
   };
 
   const filtered = assessments.filter(a => 
@@ -698,17 +886,28 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
   );
 
   const renderAssessmentDrawingSvg = (assessment: RegisteredAssessment) => {
+    const handSelectionVal = assessment.sub_options?.['Hand Selection'] || 'Right Hand Glove';
+    const isBoth = assessment.garment_type === 'All Gloves/Glove With Sleeve' && handSelectionVal === 'Both Hand Glove';
+
     const formatVal = (label: string) => {
+      let lookupLabel = label;
+      if (isBoth) {
+        lookupLabel = `${activeBothHandView} Hand ${label}`;
+      }
       let key = Object.keys(assessment.sub_options || {}).find(
-        k => k.toLowerCase() === label.toLowerCase()
-      ) || label;
+        k => k.toLowerCase() === lookupLabel.toLowerCase()
+      ) || lookupLabel;
       
       let val = assessment.sub_options?.[key];
       
       // Fallback mappings for backwards compatibility
       if (!val) {
         let fallbackKey = '';
-        if (label === 'Middle finger') fallbackKey = 'Medal finger';
+        if (label === 'Open End') fallbackKey = 'Arm pit';
+        else if (label === 'Close End') fallbackKey = 'Wrist';
+        else if (label === 'Arm pit') fallbackKey = 'Open End';
+        else if (label === 'Wrist') fallbackKey = 'Close End';
+        else if (label === 'Middle finger') fallbackKey = 'Medal finger';
         else if (label === 'Index finger') fallbackKey = 'Left finger';
         else if (label === 'Ring finger') fallbackKey = 'Right finger';
         else if (label === 'Little finger') fallbackKey = 'Small finger';
@@ -716,11 +915,11 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         else if (label === 'Total length middle finger to end of scar') fallbackKey = 'Total length medal finger to end of scar';
         // Belly Binder mappings
         else if (label === 'Diaphrom') fallbackKey = 'Diaphrarm';
-        else if (label === 'West (Waist)' || label === 'West') fallbackKey = 'Waist';
+        else if (label === 'West (Waist)' || label === 'West' || label === 'Waist') fallbackKey = 'Waist';
         else if (label === 'Open End') fallbackKey = 'Open end thigh';
         else if (label === 'Close End (Leg end)') fallbackKey = 'Close end thigh';
-        else if (label === 'Length Diaphrom to West') fallbackKey = 'length diaphragm to waist';
-        else if (label === 'Short Length') fallbackKey = 'Length waist to close end';
+        else if (label === 'Length Diaphrom to West' || label === 'Length Diaphrom to Waist') fallbackKey = 'length diaphragm to waist';
+        else if (label === 'Short Length' || label === 'Waist to Close End') fallbackKey = 'Waist to Close End';
         // All Trouser backwards compatibility fallbacks
         else if (label === 'Belly') fallbackKey = 'Diaphrarm';
         else if (label === 'Hips') fallbackKey = 'Hips';
@@ -911,7 +1110,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
             </g>
             <g transform="translate(245, 100)" className="text-[9px] font-bold">
               <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
-              <text y="3" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="9">Arm pit: {formatVal('Arm pit')}</text>
+              <text y="3" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="9">Open End: {formatVal('Open End')}</text>
             </g>
             <g transform="translate(185, 175)" className="text-[9px] font-bold">
               <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#f59e0b" strokeWidth="0.5" />
@@ -919,7 +1118,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
             </g>
             <g transform="translate(75, 235)" className="text-[9px] font-bold">
               <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#ec4899" strokeWidth="0.5" />
-              <text y="3" textAnchor="middle" className="fill-rose-500 font-bold" fontSize="9">Wrist: {formatVal('Wrist')}</text>
+              <text y="3" textAnchor="middle" className="fill-rose-500 font-bold" fontSize="9">Close End: {formatVal('Close End')}</text>
             </g>
           </svg>
         );
@@ -1027,7 +1226,9 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
       case 'All Gloves/Glove With Sleeve':
         {
           const handSelectionVal = assessment.sub_options?.['Hand Selection'] || 'Right Hand Glove';
-          const isLeftHand = handSelectionVal === 'Left Hand Glove';
+          const isBoth = handSelectionVal === 'Both Hand Glove';
+          const activeHand = isBoth ? activeBothHandView : (handSelectionVal === 'Left Hand Glove' ? 'Left' : 'Right');
+          const isLeftHand = activeHand === 'Left';
           const xThumb = isLeftHand ? 277 : 43;
           const xLeftFinger = isLeftHand ? 209 : 111;
           const xMiddleFinger = isLeftHand ? 172 : 148;
@@ -1035,7 +1236,36 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
           const xSmallFinger = isLeftHand ? 110 : 210;
 
           return (
-            <svg viewBox="0 0 320 380" className="w-full h-full max-h-[380px]" style={{ minHeight: '300px' }}>
+            <div className="flex flex-col items-center w-full">
+              {isBoth && (
+                <div className="flex gap-2 mb-4 bg-slate-100 p-1.5 rounded-2xl no-print">
+                  <button
+                    type="button"
+                    onClick={() => setActiveBothHandView('Right')}
+                    className={cn(
+                      "px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                      activeBothHandView === 'Right'
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    )}
+                  >
+                    Right Hand View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveBothHandView('Left')}
+                    className={cn(
+                      "px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                      activeBothHandView === 'Left'
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    )}
+                  >
+                    Left Hand View
+                  </button>
+                </div>
+              )}
+              <svg viewBox="0 0 320 380" className="w-full h-full max-h-[380px]" style={{ minHeight: '300px' }}>
               <defs>
                 <marker id="arrow-blue-reg" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
                   <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb" />
@@ -1127,32 +1357,32 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
 
               {/* 3. Thumb */}
               <g transform={`translate(${xThumb}, 195)`} className="text-[8px] font-bold">
-                <rect x="-56" y="-7" width="112" height="14" rx="3" fill="white" stroke="#ea580c" strokeWidth="1" />
-                <text y="3" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="8">Thumb: {formatVal('Thumb')} | W: {formatVal('Thumb width')}</text>
+                <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#ea580c" strokeWidth="1" />
+                <text y="3" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="8">Thumb: {formatVal('Thumb')}</text>
               </g>
 
               {/* 4. Index Finger / Left */}
               <g transform={`translate(${xLeftFinger}, 100)`} className="text-[8px] font-bold">
-                <rect x="-58" y="-7" width="116" height="14" rx="3" fill="white" stroke="#0891b2" strokeWidth="1" />
-                <text y="3" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="8">Index: {formatVal('Index finger')} | W: {formatVal('Index finger width')}</text>
+                <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#0891b2" strokeWidth="1" />
+                <text y="3" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="8">Index: {formatVal('Index finger')}</text>
               </g>
 
               {/* 5. Middle Finger / Medal */}
               <g transform={`translate(${xMiddleFinger}, 62)`} className="text-[8px] font-bold">
-                <rect x="-60" y="-7" width="120" height="14" rx="3" fill="white" stroke="#4f46e5" strokeWidth="1.5" />
-                <text y="3" textAnchor="middle" className="fill-indigo-600 font-extrabold" fontSize="8">Middle: {formatVal('Middle finger')} | W: {formatVal('Middle finger width')}</text>
+                <rect x="-34" y="-7" width="68" height="14" rx="3" fill="white" stroke="#4f46e5" strokeWidth="1.5" />
+                <text y="3" textAnchor="middle" className="fill-indigo-600 font-extrabold" fontSize="8">Middle: {formatVal('Middle finger')}</text>
               </g>
 
               {/* 6. Ring Finger / Right */}
               <g transform={`translate(${xRightFinger}, 105)`} className="text-[8px] font-bold">
-                <rect x="-58" y="-7" width="116" height="14" rx="3" fill="white" stroke="#059669" strokeWidth="1" />
-                <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">Ring: {formatVal('Ring finger')} | W: {formatVal('Ring finger width')}</text>
+                <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#059669" strokeWidth="1" />
+                <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">Ring: {formatVal('Ring finger')}</text>
               </g>
 
               {/* 7. Small Finger */}
               <g transform={`translate(${xSmallFinger}, 145)`} className="text-[8px] font-bold">
-                <rect x="-56" y="-7" width="112" height="14" rx="3" fill="white" stroke="#db2777" strokeWidth="1" />
-                <text y="3" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="8">Little: {formatVal('Little finger')} | W: {formatVal('Little finger width')}</text>
+                <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#db2777" strokeWidth="1" />
+                <text y="3" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="8">Little: {formatVal('Little finger')}</text>
               </g>
 
               {/* 8. Total Length (Finger to Wrist) Left Margin Badge */}
@@ -1169,6 +1399,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
                 <text y="8" textAnchor="middle" className="fill-purple-700 font-black" fontSize="7">{formatVal('Total length middle finger to end of scar')}</text>
               </g>
             </svg>
+            </div>
           );
         }
 
@@ -1265,7 +1496,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
             {/* 3. Waist Badge */}
             <g transform="translate(160, 175)" className="text-[8px] font-bold">
               <rect x="-42" y="-7" width="84" height="14" rx="4" fill="white" stroke="#10b981" strokeWidth="1.5" />
-              <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">West: {formatVal('West (Waist)')}</text>
+              <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">Waist: {formatVal('Waist')}</text>
             </g>
 
             {/* 3.5. Hips Badge */}
@@ -1289,154 +1520,136 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
             {/* 7. Diaphragm to Waist Length Badge */}
             <g transform="translate(280, 112)" className="text-[8px] font-bold">
               <rect x="-24" y="-12" width="48" height="24" rx="4" fill="white" stroke="#ea580c" strokeWidth="1.5" />
-              <text y="-2" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="8">Dia-West</text>
-              <text y="8" textAnchor="middle" className="fill-orange-700 font-black" fontSize="7">{formatVal('Length Diaphrom to West')}</text>
+              <text y="-2" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="8">Dia-Waist</text>
+              <text y="8" textAnchor="middle" className="fill-orange-700 font-black" fontSize="7">{formatVal('Length Diaphrom to Waist')}</text>
             </g>
 
             {/* 8. Waist to Close Length Badge */}
             <g transform="translate(40, 237)" className="text-[8px] font-bold">
-              <rect x="-24" y="-12" width="48" height="24" rx="4" fill="white" stroke="#e11d48" strokeWidth="1.5" />
-              <text y="-2" textAnchor="middle" className="fill-rose-600 font-extrabold" fontSize="8">Short-Len</text>
-              <text y="8" textAnchor="middle" className="fill-rose-700 font-black" fontSize="7">{formatVal('Short Length')}</text>
+              <rect x="-26" y="-12" width="52" height="24" rx="4" fill="white" stroke="#e11d48" strokeWidth="1.5" />
+              <text y="-2" textAnchor="middle" className="fill-rose-600 font-extrabold" fontSize="8">Wst-Close</text>
+              <text y="8" textAnchor="middle" className="fill-rose-700 font-black" fontSize="7">{formatVal('Waist to Close End')}</text>
             </g>
           </svg>
         );
 
       case 'All Trouser':
         return (
-          <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
-            {/* Pants outline */}
-            <path d="M 90,40 L 210,40 L 215,90 L 235,260 L 185,260 L 150,110 L 115,260 L 65,260 L 85,90 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
+          <svg viewBox="0 0 300 320" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
+            {/* Pants outline but shifted down to allow y=20 Diaphrarm */}
+            <path d="M 90,50 L 210,50 L 215,100 L 235,270 L 185,270 L 150,120 L 115,270 L 65,270 L 85,100 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
 
-            {/* Belly guideline at top */}
-            <line x1="90" y1="40" x2="210" y2="40" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="3 3"/>
+            {/* Diaphrarm guideline (upper line) */}
+            <line x1="92" y1="20" x2="208" y2="20" stroke="#4f46e5" strokeWidth="1.5" strokeDasharray="3 3"/>
+
+            {/* Belly guideline at top of trouser */}
+            <line x1="90" y1="50" x2="210" y2="50" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="3 3"/>
             
             {/* West guideline */}
-            <line x1="88" y1="60" x2="212" y2="60" stroke="#10b981" strokeWidth="1.5" strokeDasharray="3 3"/>
+            <line x1="88" y1="70" x2="212" y2="70" stroke="#10b981" strokeWidth="1.5" strokeDasharray="3 3"/>
             
             {/* Hips guideline */}
-            <line x1="86" y1="85" x2="214" y2="85" stroke="#0891b2" strokeWidth="1.5" strokeDasharray="3 3"/>
+            <line x1="86" y1="95" x2="214" y2="95" stroke="#0891b2" strokeWidth="1.5" strokeDasharray="3 3"/>
 
-            {/* Ellipses for Round/Thighs/Knee/Calf/Bottom on both legs to match hand drawn sketch */}
-            {/* 1. Round (Groin level y=110) */}
-            <ellipse cx="102" cy="115" rx="16" ry="5" stroke="#f59e0b" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
-            <ellipse cx="198" cy="115" rx="16" ry="5" stroke="#f59e0b" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            {/* Ellipses for Thighs, Knee, Ankle, Bottom */}
+            {/* Open end thigh (y=125) */}
+            <ellipse cx="102" cy="125" rx="16" ry="5" stroke="#f59e0b" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            <ellipse cx="198" cy="125" rx="16" ry="5" stroke="#f59e0b" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
 
-            {/* 2. Thigh I (y=145) */}
-            <ellipse cx="98" cy="145" rx="18" ry="5" stroke="#7c3aed" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
-            <ellipse cx="202" cy="145" rx="18" ry="5" stroke="#7c3aed" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            {/* Close end thigh (y=170) */}
+            <ellipse cx="94" cy="170" rx="18" ry="5" stroke="#ec4899" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            <ellipse cx="206" cy="170" rx="18" ry="5" stroke="#ec4899" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
 
-            {/* 3. Thigh II (y=175) */}
-            <ellipse cx="92" cy="175" rx="19" ry="5" stroke="#ec4899" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
-            <ellipse cx="208" cy="175" rx="19" ry="5" stroke="#ec4899" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            {/* Knee (y=215) */}
+            <ellipse cx="85" cy="215" rx="18" ry="5" stroke="#06b6d4" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            <ellipse cx="215" cy="215" rx="18" ry="5" stroke="#06b6d4" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
 
-            {/* 4. Knee (y=205) */}
-            <ellipse cx="85" cy="205" rx="18" ry="5" stroke="#06b6d4" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
-            <ellipse cx="215" cy="205" rx="18" ry="5" stroke="#06b6d4" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            {/* Ankle (y=245) */}
+            <ellipse cx="78" cy="245" rx="17" ry="5" stroke="#84cc16" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            <ellipse cx="222" cy="245" rx="17" ry="5" stroke="#84cc16" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
 
-            {/* 5. Calf (y=232) */}
-            <ellipse cx="78" cy="232" rx="18" ry="5" stroke="#84cc16" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
-            <ellipse cx="222" cy="232" rx="18" ry="5" stroke="#84cc16" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
+            {/* Height Rule: length diaphragm to waist (diaphrarm y=20 to waist y=70) */}
+            <line x1="140" y1="20" x2="140" y2="70" stroke="#4f46e5" strokeWidth="1.5" />
+            <path d="M 137,25 L 140,20 L 143,25" stroke="#4f46e5" strokeWidth="1.5" fill="none" />
+            <path d="M 137,65 L 140,70 L 143,65" stroke="#4f46e5" strokeWidth="1.5" fill="none" />
 
-            {/* 6. Bottom (y=260) */}
-            <line x1="65" y1="260" x2="115" y2="260" stroke="#e11d48" strokeWidth="1.5" strokeDasharray="2 2" />
-            <line x1="185" y1="260" x2="235" y2="260" stroke="#e11d48" strokeWidth="1.5" strokeDasharray="2 2" />
+            {/* Height Rule: Length waist to ankle (waist y=70 to ankle y=245) */}
+            <line x1="20" y1="70" x2="20" y2="245" stroke="#06b6d4" strokeWidth="1.5" />
+            <line x1="15" y1="70" x2="25" y2="70" stroke="#06b6d4" strokeWidth="1.5" />
+            <line x1="15" y1="245" x2="25" y2="245" stroke="#06b6d4" strokeWidth="1.5" />
+            <path d="M 17,75 L 20,70 L 23,75" stroke="#06b6d4" strokeWidth="1.5" fill="none" />
+            <path d="M 17,240 L 20,245 L 23,240" stroke="#06b6d4" strokeWidth="1.5" fill="none" />
 
-            {/* Height Rule: Crotch Depth (Waist x=150, rise to y=110) */}
-            <line x1="150" y1="40" x2="150" y2="110" stroke="#eab308" strokeWidth="1.5" />
-            {/* Mini arrows for Crotch Depth */}
-            <path d="M 147,45 L 150,40 L 153,45" stroke="#eab308" strokeWidth="1.5" fill="none" />
-            <path d="M 147,105 L 150,110 L 153,105" stroke="#eab308" strokeWidth="1.5" fill="none" />
+            {/* Height Rule: Total Length (Far right ruler from y=50 to y=270) */}
+            <line x1="275" y1="50" x2="275" y2="270" stroke="#2563eb" strokeWidth="1.5" />
+            <line x1="270" y1="50" x2="280" y2="50" stroke="#2563eb" strokeWidth="1.5" />
+            <line x1="270" y1="270" x2="280" y2="270" stroke="#2563eb" strokeWidth="1.5" />
+            <path d="M 272,55 L 275,50 L 278,55" stroke="#2563eb" strokeWidth="1.5" fill="none" />
+            <path d="M 272,265 L 275,270 L 278,265" stroke="#2563eb" strokeWidth="1.5" fill="none" />
 
-            {/* Height Rule: Inseam (Crotch rise level y=110 down to bottom opening level y=260) */}
-            <line x1="150" y1="110" x2="150" y2="260" stroke="#ea580c" strokeWidth="1.5" />
-            {/* Mini arrows for Inseam */}
-            <path d="M 147,115 L 150,110 L 153,115" stroke="#ea580c" strokeWidth="1.5" fill="none" />
-            <path d="M 147,255 L 150,260 L 153,255" stroke="#ea580c" strokeWidth="1.5" fill="none" />
-
-            {/* Height Rule: Total Length (Far right ruler from y=40 to y=260) */}
-            <line x1="270" y1="40" x2="270" y2="260" stroke="#2563eb" strokeWidth="1.5" />
-            <line x1="265" y1="40" x2="275" y2="40" stroke="#2563eb" strokeWidth="1.5" />
-            <line x1="265" y1="260" x2="275" y2="260" stroke="#2563eb" strokeWidth="1.5" />
-            {/* Arrow tips for Total Length */}
-            <path d="M 267,45 L 270,40 L 273,45" stroke="#2563eb" strokeWidth="1.5" fill="none" />
-            <path d="M 267,255 L 270,260 L 273,255" stroke="#2563eb" strokeWidth="1.5" fill="none" />
-
-            {/* Badges on the right / center: Vertical Heights */}
-            <g transform="translate(182, 53)" className="text-[7px] font-bold">
-              <rect x="-32" y="-6" width="64" height="12" rx="3" fill="white" stroke="#eab308" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-yellow-600 font-extrabold" fontSize="7">Crotch: {formatVal('Crotch Depth')}</text>
-            </g>
-
-            <g transform="translate(150, 185)" className="text-[7px] font-bold">
-              <rect x="-35" y="-6" width="70" height="12" rx="3" fill="white" stroke="#ea580c" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="7">Inseam: {formatVal('Inseam (Inside Length)')}</text>
-            </g>
-
-            <g transform="translate(265, 145)" className="text-[7px] font-bold">
+            {/* Badges on Total Length & Waist to Ankle */}
+            <g transform="translate(268, 155)" className="text-[7px] font-bold">
               <rect x="-35" y="-14" width="70" height="24" rx="4" fill="white" stroke="#2563eb" strokeWidth="1.2" />
               <text y="-4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="7">Total Length</text>
               <text y="6" textAnchor="middle" className="fill-blue-700 font-black" fontSize="7">{formatVal('Total Length')}</text>
             </g>
 
-            {/* Badges on the Top: Torso Girths */}
-            <g transform="translate(150, 25)" className="text-[7px] font-bold">
+            <g transform="translate(26, 155)" className="text-[7px] font-bold">
+              <rect x="-35" y="-14" width="70" height="24" rx="4" fill="white" stroke="#06b6d4" strokeWidth="1.2" />
+              <text y="-4" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="7">Wst-Ankle</text>
+              <text y="6" textAnchor="middle" className="fill-cyan-700 font-black" fontSize="7">{formatVal('Length waist to ankle')}</text>
+            </g>
+
+            {/* Badges on the Top & Center */}
+            <g transform="translate(150, 10)" className="text-[7px] font-bold">
+              <rect x="-38" y="-6" width="76" height="12" rx="3" fill="white" stroke="#4f46e5" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-indigo-600 font-extrabold" fontSize="7">Diaphrarm: {formatVal('Diaphrarm')}</text>
+            </g>
+
+            <g transform="translate(150, 36)" className="text-[7px] font-bold">
               <rect x="-36" y="-6" width="72" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="1" />
               <text y="2.5" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="7">Belly: {formatVal('Belly')}</text>
             </g>
 
-            <g transform="translate(105, 52)" className="text-[7px] font-bold">
+            <g transform="translate(105, 62)" className="text-[7px] font-bold">
               <rect x="-36" y="-6" width="72" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="7">West: {formatVal('West (Waist)')}</text>
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="7">Waist: {formatVal('Waist')}</text>
             </g>
 
-            <g transform="translate(105, 75)" className="text-[7px] font-bold">
+            <g transform="translate(105, 87)" className="text-[7px] font-bold">
               <rect x="-32" y="-6" width="64" height="12" rx="3" fill="white" stroke="#0891b2" strokeWidth="1" />
               <text y="2.5" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="7">Hips: {formatVal('Hips')}</text>
             </g>
 
+            <g transform="translate(185, 62)" className="text-[7px] font-bold">
+              <rect x="-38" y="-6" width="76" height="12" rx="3" fill="white" stroke="#4f46e5" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-indigo-700 font-black" fontSize="6.5">Dia-Waist: {formatVal('length diaphragm to waist')}</text>
+            </g>
+
             {/* Circumference Badges on the Left Side pointing to guiding ellipses */}
-            {/* 1. Round (Crotch Round / Seat length) */}
-            <g transform="translate(40, 115)" className="text-[7px] font-bold">
-              <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#f59e0b" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="7">Round: {formatVal('Round (Crotch)')}</text>
+            {/* Open end thigh */}
+            <g transform="translate(42, 125)" className="text-[7px] font-bold">
+              <rect x="-32" y="-6" width="64" height="12" rx="3" fill="white" stroke="#f59e0b" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="6.5">Op Thigh: {formatVal('Open end thigh')}</text>
             </g>
-            <path d="M 68,115 L 86,115" stroke="#f59e0b" strokeWidth="0.8" strokeDasharray="1 1" />
 
-            {/* 2. Thigh I */}
-            <g transform="translate(40, 145)" className="text-[7px] font-bold">
-              <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#7c3aed" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="7">Thigh I: {formatVal('Thigh I')}</text>
+            {/* Close end thigh */}
+            <g transform="translate(42, 170)" className="text-[7px] font-bold">
+              <rect x="-32" y="-6" width="64" height="12" rx="3" fill="white" stroke="#ec4899" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="6.5">Cl Thigh: {formatVal('Close end thigh')}</text>
             </g>
-            <path d="M 68,145 L 80,145" stroke="#7c3aed" strokeWidth="0.8" strokeDasharray="1 1" />
 
-            {/* 3. Thigh II */}
-            <g transform="translate(40, 175)" className="text-[7px] font-bold">
-              <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#ec4899" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="7">Thigh II: {formatVal('Thigh II')}</text>
-            </g>
-            <path d="M 68,175 L 74,175" stroke="#ec4899" strokeWidth="0.8" strokeDasharray="1 1" />
-
-            {/* 4. Knee */}
-            <g transform="translate(40, 205)" className="text-[7px] font-bold">
+            {/* Knee */}
+            <g transform="translate(42, 215)" className="text-[7px] font-bold">
               <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#06b6d4" strokeWidth="1" />
               <text y="2.5" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="7">Knee: {formatVal('Knee')}</text>
             </g>
-            <path d="M 68,205 L 68,205" stroke="#06b6d4" strokeWidth="0.8" strokeDasharray="1 1" />
 
-            {/* 5. Calf */}
-            <g transform="translate(40, 232)" className="text-[7px] font-bold">
+            {/* Ankle */}
+            <g transform="translate(42, 245)" className="text-[7px] font-bold">
               <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#84cc16" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-lime-600 font-extrabold" fontSize="7">Calf: {formatVal('Calf')}</text>
+              <text y="2.5" textAnchor="middle" className="fill-lime-600 font-extrabold" fontSize="7">Ankle: {formatVal('Ankle')}</text>
             </g>
-            <path d="M 68,232 L 64,232" stroke="#84cc16" strokeWidth="0.8" strokeDasharray="1 1" />
-
-            {/* 6. Bottom */}
-            <g transform="translate(40, 260)" className="text-[7px] font-bold">
-              <rect x="-28" y="-6" width="56" height="12" rx="3" fill="white" stroke="#e11d48" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-rose-600 font-extrabold" fontSize="7">Bottom: {formatVal('Bottom')}</text>
-            </g>
-            <path d="M 68,260 L 65,260" stroke="#e11d48" strokeWidth="0.8" strokeDasharray="1 1" />
           </svg>
         );
 
@@ -1699,7 +1912,9 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
                         .map(([key, val]) => (
                           <div key={key} className="flex justify-between items-center text-xs pb-1.5 border-b border-dashed border-slate-100 last:border-none last:pb-0">
                             <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">{key}</span>
-                            <span className="font-extrabold text-slate-900">{val} cm</span>
+                            <span className="font-extrabold text-slate-900">
+                              {/^\d+(\.\d+)?\s*(cm|in)?$/i.test(String(val).trim()) && !String(val).toLowerCase().includes('cm') ? `${val} cm` : val}
+                            </span>
                           </div>
                         ))}
                       {Object.entries(selectedAssessment.sub_options || {}).filter(([_, val]) => val !== undefined && val !== '').length === 0 && (
@@ -1707,6 +1922,21 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
                       )}
                     </div>
                   </div>
+
+                  {/* Patient Clinical Photo */}
+                  {getAssessmentPhoto(selectedAssessment) && (
+                    <div className="space-y-2">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Patient Uploaded Photo / مريض كی تصویر</span>
+                      <div className="bg-slate-50/50 rounded-2xl p-3 border border-slate-100 flex items-center justify-center overflow-hidden">
+                        <img 
+                          src={getAssessmentPhoto(selectedAssessment)} 
+                          alt="Patient Clinical upload" 
+                          referrerPolicy="no-referrer"
+                          className="max-h-[160px] w-auto object-contain rounded-xl shadow-sm border border-slate-200"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Notes snippet */}
                   <div className="space-y-2">
@@ -1717,19 +1947,12 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
                   </div>
 
                   {/* Actions */}
-                  <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div className="pt-2">
                     <button 
                       onClick={() => handleDownloadPDF(selectedAssessment)}
-                      className="py-3 px-4 bg-slate-900 hover:bg-slate-850 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 border border-transparent shadow-lg shadow-slate-100 hover:scale-[1.02]"
+                      className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-850 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 border border-transparent shadow-lg shadow-slate-100 hover:scale-[1.02]"
                     >
                       <Download className="w-3.5 h-3.5" /> PDF Document
-                    </button>
-                    
-                    <button 
-                      onClick={() => handleDownloadPDF(selectedAssessment)} // Re-using PDF for consistent standard download output
-                      className="py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-100 hover:scale-[1.02]"
-                    >
-                      <Printer className="w-3.5 h-3.5" /> Print Copy
                     </button>
                   </div>
                 </motion.div>
@@ -1778,6 +2001,179 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
           </div>
         </div>
       )}
+
+      {/* Hidden high-fidelity printable report template container */}
+      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', pointerEvents: 'none' }}>
+        <div 
+          id="registered-assessment-printable" 
+          className="w-[794px] bg-white p-10 text-slate-800 flex flex-col justify-between"
+          style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+        >
+          {selectedAssessment && (
+            <div className="space-y-8">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b-4 border-slate-900 pb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center">
+                    <img 
+                      src={logoImg} 
+                      alt="OVERPLAST Logo" 
+                      className="w-full h-full object-contain"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-black tracking-tight text-slate-900 leading-none">OVERPLAST</h1>
+                    <p className="text-[11px] font-black text-blue-600 uppercase tracking-widest mt-1">Medical Compression</p>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider leading-none mt-0.5">Measurement System</p>
+                  </div>
+                </div>
+                <div className="text-right max-w-[260px]">
+                  <h2 className="text-md font-black tracking-tight text-slate-900 uppercase">CLINICAL ASSESSMENT REPORT</h2>
+                  <span className="text-[9px] font-black text-slate-400 block uppercase tracking-wider mt-1">Record ID</span>
+                  <span className="text-xs font-mono font-black text-slate-800 block break-all leading-none">{selectedAssessment.id}</span>
+                </div>
+              </div>
+
+              {/* Demographics */}
+              <div className="grid grid-cols-2 gap-6 p-6 rounded-3xl" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">PATIENT FULL NAME</span>
+                    <span className="text-md font-extrabold text-slate-900">{selectedAssessment.patient_name || 'N/A'}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Age / عمر</span>
+                      <span className="text-xs font-bold text-slate-800">{selectedAssessment.age ? `${selectedAssessment.age} Yrs` : 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Gender / جنس</span>
+                      <span className="text-xs font-bold text-slate-800 uppercase">{selectedAssessment.gender || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">City / شہر</span>
+                      <span className="text-xs font-bold text-slate-800 uppercase">{selectedAssessment.city || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3 pl-6 border-l border-slate-200">
+                  <div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">HOSPITAL OR CLINICAL UNIT</span>
+                    <span className="text-xs font-extrabold text-slate-900 block break-words leading-tight">{selectedAssessment.hospital_name || 'N/A'}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Doctor Reference</span>
+                      <span className="text-xs font-bold text-slate-800 block break-words leading-tight">{selectedAssessment.doctor_ref || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Created Date</span>
+                      <span className="text-xs font-bold text-slate-800 block">
+                        {new Date(selectedAssessment.created_at).toLocaleDateString('ur-PK', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Specs */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">1. Garment & Compression Configuration</h3>
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
+                    <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Garment Unit</span>
+                    <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{selectedAssessment.garment_type}</span>
+                  </div>
+                  <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
+                    <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Compression</span>
+                    <span className="font-extrabold text-slate-800 text-xs block mt-1">{selectedAssessment.compression}</span>
+                  </div>
+                  <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
+                    <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Silicone Profile</span>
+                    <span className="font-extrabold text-slate-800 text-xs block mt-1">{selectedAssessment.silicone_pasting}</span>
+                  </div>
+                  <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
+                    <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Garment Color</span>
+                    <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{selectedAssessment.sub_options?.['Color'] || 'Standard'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Blueprint Drawing + Measurements Grid side-by-side */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">2. Precision Sizing Blueprint & Calibration</h3>
+                <div className="grid grid-cols-12 gap-6 items-start">
+                  
+                  {/* Drawing Area */}
+                  <div className="col-span-7 rounded-3xl p-5 flex flex-col items-center justify-center min-h-[350px]" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Live Sizing Schematic Chart</span>
+                    <div className="w-full flex justify-center bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                      {renderAssessmentDrawingSvg(selectedAssessment)}
+                    </div>
+                  </div>
+
+                  {/* Sizing Specifications Table */}
+                  <div className="col-span-5 space-y-3">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block pl-1">Matrix Calibration Parameters</span>
+                    <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4 space-y-2" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                      {Object.entries(selectedAssessment.sub_options || {})
+                        .filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection')
+                        .map(([key, val]) => (
+                          <div key={key} className="flex justify-between items-center text-xs pb-1.5 border-b border-dashed border-slate-200 last:border-none last:pb-0">
+                            <span className="text-slate-400 font-extrabold uppercase tracking-wider text-[9px]">{key}</span>
+                            <span className="font-extrabold text-slate-900">
+                              {/^\d+(\.\d+)?\s*(cm|in)?$/i.test(String(val).trim()) && !String(val).toLowerCase().includes('cm') ? `${val} cm` : val}
+                            </span>
+                          </div>
+                        ))}
+                      {Object.entries(selectedAssessment.sub_options || {}).filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection').length === 0 && (
+                        <p className="text-xs text-slate-400 italic">No custom points registered.</p>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Notes & Uploaded Photo Section */}
+              <div className="grid grid-cols-12 gap-6">
+                {/* Notes Column */}
+                <div className={getAssessmentPhoto(selectedAssessment) ? "col-span-7 space-y-2" : "col-span-12 space-y-2"}>
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">3. Medical Condition & Remarks / ضروری ہدایات</h3>
+                  <p className="text-xs text-slate-700 font-bold leading-relaxed p-4 rounded-2xl whitespace-pre-wrap font-mono" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9', minHeight: '130px' }}>
+                    {selectedAssessment.notes || "No extra notes specified."}
+                  </p>
+                </div>
+
+                {/* Photo Column */}
+                {getAssessmentPhoto(selectedAssessment) && (
+                  <div className="col-span-5 space-y-2">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">4. Patient Clinical Photo / مريض كی تصویر</h3>
+                    <div className="rounded-2xl p-2 flex items-center justify-center bg-white" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9', height: '130px' }}>
+                      <img 
+                        src={getAssessmentPhoto(selectedAssessment)} 
+                        alt="Patient Clinical upload" 
+                        referrerPolicy="no-referrer"
+                        className="max-h-[114px] max-w-full object-contain rounded-xl"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t pt-5 flex justify-between items-center text-[9px] font-black text-slate-500 uppercase tracking-widest" style={{ borderTop: '1px solid #e2e8f0' }}>
+                <span>SYSTEM VERIFIED CLINICAL MEMORANDUM / طبی ریکارڈ</span>
+                <span>Sizing Calibration Page 1 of 1</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
