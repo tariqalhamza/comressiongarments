@@ -33,6 +33,7 @@ import { dbService } from '../services/supabase';
 import { cn } from '../lib/utils';
 import { compressImage } from '../lib/imageUtils';
 import AssessmentSummaryModal from '../components/AssessmentSummaryModal';
+import { useAuthStore } from '../services/authStore';
 
 interface RegistrationProps {
   onStartAssessment: (patient: Patient) => void;
@@ -45,6 +46,8 @@ const Registration: React.FC<RegistrationProps> = ({
   onPatientSelect, 
   onViewSavedAssessment 
 }) => {
+  const { profile: loggedInProfile } = useAuthStore();
+  const [profiles, setProfiles] = useState<any[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [savedAssessments, setSavedAssessments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -194,12 +197,24 @@ const Registration: React.FC<RegistrationProps> = ({
   const fetchRecentPatients = async () => {
     try {
       setLoading(true);
-      const [patientsData, assessmentsData] = await Promise.all([
+      const isUserAdmin = loggedInProfile?.role === 'admin' || 
+        ['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com'].includes(loggedInProfile?.email?.toLowerCase().trim() || '');
+
+      const promises: any[] = [
         dbService.patients.getAll(),
         dbService.assessments.getAll()
-      ]);
-      setPatients(patientsData || []);
-      setSavedAssessments(assessmentsData || []);
+      ];
+
+      if (isUserAdmin) {
+        promises.push(dbService.profiles.getAll());
+      }
+
+      const results = await Promise.all(promises);
+      setPatients(results[0] || []);
+      setSavedAssessments(results[1] || []);
+      if (isUserAdmin && results[2]) {
+        setProfiles(results[2] || []);
+      }
     } catch (err) {
       console.error('Failed to load patients list or assessments:', err);
     } finally {
@@ -757,6 +772,13 @@ const Registration: React.FC<RegistrationProps> = ({
                       <h4 className="font-black text-slate-950 text-xl tracking-tight leading-tight group-hover:text-blue-700 transition-colors">
                         {patientItem.full_name}
                       </h4>
+                      {/* Scoped Registrar Name - Only visible to administrators */}
+                      {loggedInProfile?.role === 'admin' && patientItem.created_by && (
+                        <div className="mt-1.5 text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-2 py-0.5 inline-flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                          <span>By: <span className="font-extrabold text-slate-700">{profiles.find(p => p.id === patientItem.created_by)?.full_name || 'Staff User'}</span></span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Card Actions (Edit & Delete) */}

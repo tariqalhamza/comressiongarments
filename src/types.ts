@@ -11,6 +11,7 @@ export interface Patient {
   id: string;
   clinic_id: string;
   full_name: string;
+  created_by?: string;
   age: number;
   gender: 'male' | 'female' | 'other';
   height?: number;
@@ -75,4 +76,5 @@ export interface Order {
   config: GarmentConfig;
   created_at: string;
   updated_at: string;
+  created_by?: string;
 }

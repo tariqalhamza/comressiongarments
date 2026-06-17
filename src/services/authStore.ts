@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase, isDemo, promiseWithTimeout } from './supabase';
+import { supabase, isDemo, promiseWithTimeout, updateCurrentUserContext } from './supabase';
 import { User } from '@supabase/supabase-js';
 
 interface AuthState {
@@ -290,3 +290,15 @@ if (isDemo) {
     }
   }, 2300);
 }
+
+// Keep current database user context synchronized on any auth state changes
+if (typeof useAuthStore.subscribe === 'function') {
+  useAuthStore.subscribe((state) => {
+    updateCurrentUserContext(
+      state.user?.id || null,
+      state.user?.email || null,
+      state.profile?.role || 'therapist'
+    );
+  });
+}
+

@@ -229,66 +229,106 @@ const isValidUUID = (str: string): boolean => {
   return regex.test(str);
 };
 
+export let currentUserId: string | null = null;
+export let currentUserEmail: string | null = null;
+export let currentUserRole: string = 'therapist';
+
+export const updateCurrentUserContext = (id: string | null, email: string | null, role: string) => {
+  currentUserId = id;
+  currentUserEmail = email;
+  currentUserRole = role;
+};
+
+export const isCurrentUserAdmin = () => {
+  if (currentUserRole === 'admin') return true;
+  if (currentUserEmail) {
+    const emailLower = currentUserEmail.toLowerCase().trim();
+    if (['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com'].includes(emailLower)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+// Auto-hydrate from localStorage on boot to avoid initial query mismatch
+try {
+  const cachedSess = localStorage.getItem('demo_user_logged_in');
+  if (cachedSess) {
+    const parsed = JSON.parse(cachedSess);
+    if (parsed.user) {
+      currentUserId = parsed.user.id || null;
+      currentUserEmail = parsed.user.email || null;
+    }
+    if (parsed.profile) {
+      currentUserRole = parsed.profile.role || 'therapist';
+    }
+  }
+} catch (e) {
+  console.warn("Offline context pre-hydration on boot failed:", e);
+}
+
 export const dbService = {
   patients: {
     async getAll() {
+      let result: Patient[] = [];
       if (isDemo) {
-        return getLocalStoragePatients();
+        result = getLocalStoragePatients();
+      } else {
+        try {
+          const { data, error } = await promiseWithTimeout(supabase.from('patients').select('*').order('created_at', { ascending: false }));
+          if (error) throw error;
+          isSupabaseOfflineState = false;
+          lastSupabaseError = null;
+          
+          const localPatients = getLocalStoragePatients();
+          const remotePatients = (data || []) as Patient[];
+          const patientMap = new Map<string, Patient>();
+          
+          localPatients.forEach(p => {
+            if (p && p.id) {
+              patientMap.set(p.id, p);
+            }
+          });
+          
+          remotePatients.forEach(p => {
+            if (p && p.id) {
+              patientMap.set(p.id, p);
+            }
+          });
+          
+          const mergedList = Array.from(patientMap.values()).sort((a, b) => {
+            return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+          });
+          
+          saveToLocal(mergedList);
+          result = mergedList;
+        } catch (err: any) {
+          console.warn('Supabase Offline. Falling back to LocalStorage:', err);
+          isSupabaseOfflineState = true;
+          lastSupabaseError = err;
+          result = getLocalStoragePatients();
+        }
       }
-      try {
-        const { data, error } = await promiseWithTimeout(supabase.from('patients').select('*').order('created_at', { ascending: false }));
-        if (error) throw error;
-        isSupabaseOfflineState = false;
-        lastSupabaseError = null;
-        
-        // Dynamic Hybrid Merge Strategy:
-        // Merge Supabase retrieved patients with LocalStorage copies.
-        // This ensures local-saved backups and failed-to-database-write (due to RLS or foreign keys) patients
-        // are stably and seamlessly displayed list-side for the user to select.
-        const localPatients = getLocalStoragePatients();
-        const remotePatients = (data || []) as Patient[];
-        
-        const patientMap = new Map<string, Patient>();
-        
-        // Add local copies
-        localPatients.forEach(p => {
-          if (p && p.id) {
-            patientMap.set(p.id, p);
-          }
-        });
-        
-        // Overwrite or add remote copies
-        remotePatients.forEach(p => {
-          if (p && p.id) {
-            patientMap.set(p.id, p);
-          }
-        });
-        
-        const mergedList = Array.from(patientMap.values()).sort((a, b) => {
-          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-        });
-        
-        // Silently update cache so we keep them synchronized
-        saveToLocal(mergedList);
-        
-        return mergedList;
-      } catch (err: any) {
-        console.warn('Supabase Offline. Falling back to LocalStorage:', err);
-        isSupabaseOfflineState = true;
-        lastSupabaseError = err;
-        return getLocalStoragePatients();
+
+      // Filter by ownership if current user is not Admin
+      if (!isCurrentUserAdmin() && currentUserId) {
+        result = result.filter(p => p.created_by === currentUserId);
       }
+      return result;
     },
     async create(patient: Partial<Patient>) {
-      // Retain a local-save ID first
+      const fullPatientPayload = {
+        ...patient,
+        created_by: currentUserId || undefined
+      };
+
       const generatedId = 'pat-' + Math.random().toString(36).substr(2, 9);
       const newPatientLocalObj = { 
-        ...patient, 
+        ...fullPatientPayload, 
         id: generatedId,
         created_at: patient.created_at || new Date().toISOString() 
       } as Patient;
 
-      // Always save to LocalStorage immediately as a reliable persistent backup!
       try {
         const localList = getLocalStoragePatients();
         saveToLocal([newPatientLocalObj, ...localList]);
@@ -301,10 +341,9 @@ export const dbService = {
       }
 
       try {
-        const cleanPayload = { ...patient };
-        delete (cleanPayload as any).id; // Remove client-side temp id if exists
+        const cleanPayload = { ...fullPatientPayload };
+        delete (cleanPayload as any).id;
         
-        // Parse & Clean clinic_id if it's not a valid UUID format (e.g. 'default')
         if (cleanPayload.clinic_id && !isValidUUID(cleanPayload.clinic_id)) {
           try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -331,7 +370,6 @@ export const dbService = {
         const { data, error } = await supabase.from('patients').insert(cleanPayload).select().single();
         if (error) throw error;
         
-        // On successful DB save, replace the temporary patient record or update LocalStorage with db-provided record (and UUID)
         const insertedPatient = data as Patient;
         const localList = getLocalStoragePatients();
         const filteredList = localList.filter(p => p.id !== generatedId && p.id !== insertedPatient.id);
@@ -345,7 +383,6 @@ export const dbService = {
       }
     },
     async update(id: string, updates: Partial<Patient>) {
-      // Always update LocalStorage copy immediately as a backup
       try {
         const list = getLocalStoragePatients();
         const index = list.findIndex(p => p.id === id);
@@ -394,21 +431,32 @@ export const dbService = {
     async getById(id: string) {
       if (isDemo) {
         const list = getLocalStoragePatients();
-        return list.find(p => p.id === id) || null;
+        const found = list.find(p => p.id === id) || null;
+        if (found && !isCurrentUserAdmin() && currentUserId && found.created_by !== currentUserId) {
+          return null;
+        }
+        return found;
       }
       try {
         const { data, error } = await supabase.from('patients').select('*').eq('id', id).single();
         if (error) throw error;
-        return data as Patient;
+        const found = data as Patient;
+        if (found && !isCurrentUserAdmin() && currentUserId && found.created_by !== currentUserId) {
+          return null;
+        }
+        return found;
       } catch (err) {
         console.warn('Could not fetch from Supabase. Sourcing from LocalStorage:', err);
         isSupabaseOfflineState = true;
         const list = getLocalStoragePatients();
-        return list.find(p => p.id === id) || null;
+        const found = list.find(p => p.id === id) || null;
+        if (found && !isCurrentUserAdmin() && currentUserId && found.created_by !== currentUserId) {
+          return null;
+        }
+        return found;
       }
     },
     async delete(id: string) {
-      // Remove from LocalStorage immediately
       try {
         const list = getLocalStoragePatients();
         saveToLocal(list.filter(p => p.id !== id));
@@ -432,53 +480,78 @@ export const dbService = {
   },
   orders: {
     async getAll() {
+      let result: any[] = [];
       if (isDemo) {
-        return getLocalStorageOrders();
+        result = getLocalStorageOrders();
+      } else {
+        try {
+          const { data, error } = await promiseWithTimeout(supabase.from('orders').select('*').order('created_at', { ascending: false }));
+          if (error) throw error;
+          result = data || [];
+        } catch (err) {
+          isSupabaseOfflineState = true;
+          result = getLocalStorageOrders();
+        }
       }
-      try {
-        const { data, error } = await promiseWithTimeout(supabase.from('orders').select('*').order('created_at', { ascending: false }));
-        if (error) throw error;
-        return data;
-      } catch (err) {
-        isSupabaseOfflineState = true;
-        return getLocalStorageOrders();
+
+      if (!isCurrentUserAdmin() && currentUserId) {
+        result = result.filter(o => o.created_by === currentUserId);
       }
+      return result;
     },
     async getRecent() {
+      let result: any[] = [];
       if (isDemo) {
-        const list = getLocalStorageOrders();
-        return list.slice(0, 5);
+        result = getLocalStorageOrders();
+      } else {
+        try {
+          const { data, error } = await promiseWithTimeout(supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(5));
+          if (error) throw error;
+          result = data || [];
+        } catch (err) {
+          isSupabaseOfflineState = true;
+          const list = getLocalStorageOrders();
+          result = list;
+        }
       }
-      try {
-        const { data, error } = await promiseWithTimeout(supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(5));
-        if (error) throw error;
-        return data;
-      } catch (err) {
-        isSupabaseOfflineState = true;
-        const list = getLocalStorageOrders();
-        return list.slice(0, 5);
+
+      if (!isCurrentUserAdmin() && currentUserId) {
+        result = result.filter(o => o.created_by === currentUserId);
       }
+      return result.slice(0, 5);
     },
     async getByPatient(patientId: string) {
+      let result: any[] = [];
       if (isDemo) {
-        const list = getLocalStorageOrders();
-        return list.filter(o => o.patient_id === patientId);
+        result = getLocalStorageOrders();
+      } else {
+        try {
+          const { data, error } = await supabase.from('orders').select('*').eq('patient_id', patientId).order('created_at', { ascending: false });
+          if (error) throw error;
+          result = data || [];
+        } catch (err) {
+          isSupabaseOfflineState = true;
+          result = getLocalStorageOrders();
+        }
       }
-      try {
-        const { data, error } = await supabase.from('orders').select('*').eq('patient_id', patientId).order('created_at', { ascending: false });
-        if (error) throw error;
-        return data;
-      } catch (err) {
-        isSupabaseOfflineState = true;
-        const list = getLocalStorageOrders();
-        return list.filter(o => o.patient_id === patientId);
+
+      result = result.filter(o => o.patient_id === patientId);
+
+      if (!isCurrentUserAdmin() && currentUserId) {
+        result = result.filter(o => o.created_by === currentUserId);
       }
+      return result;
     },
     async create(order: any) {
+      const fullOrderPayload = {
+        ...order,
+        created_by: currentUserId || undefined
+      };
+
       if (isDemo) {
         const list = getLocalStorageOrders();
         const newOrderLocal = {
-          ...order,
+          ...fullOrderPayload,
           id: 'ORD-' + Math.random().toString(36).substr(2, 5).toUpperCase(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -488,14 +561,14 @@ export const dbService = {
         return newOrderLocal;
       }
       try {
-        const { data, error } = await supabase.from('orders').insert(order).select().single();
+        const { data, error } = await supabase.from('orders').insert(fullOrderPayload).select().single();
         if (error) throw error;
         return data;
       } catch (err) {
         isSupabaseOfflineState = true;
         const list = getLocalStorageOrders();
         const newOrderLocal = {
-          ...order,
+          ...fullOrderPayload,
           id: 'ORD-' + Math.random().toString(36).substr(2, 5).toUpperCase(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -558,12 +631,17 @@ export const dbService = {
   },
   assessments: {
     async getAll() {
-      return getLocalStorageAssessments();
+      let result = getLocalStorageAssessments();
+      if (!isCurrentUserAdmin() && currentUserId) {
+        result = result.filter(a => a.created_by === currentUserId);
+      }
+      return result;
     },
     async create(assessment: any) {
       const list = getLocalStorageAssessments();
       const newAssessment = {
         ...assessment,
+        created_by: currentUserId || undefined,
         id: 'asm-' + Math.random().toString(36).substr(2, 9),
         created_at: new Date().toISOString()
       };
@@ -574,6 +652,22 @@ export const dbService = {
       const list = getLocalStorageAssessments();
       saveAssessmentsToLocal(list.filter(a => a.id !== id));
       return true;
+    }
+  },
+  profiles: {
+    async getAll() {
+      if (isDemo) {
+        const stored = localStorage.getItem('demo_profiles');
+        return stored ? JSON.parse(stored) : [];
+      }
+      try {
+        const { data, error } = await supabase.from('profiles').select('*');
+        if (error) throw error;
+        return data;
+      } catch (err) {
+        const stored = localStorage.getItem('demo_profiles');
+        return stored ? JSON.parse(stored) : [];
+      }
     }
   }
 };
