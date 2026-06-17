@@ -879,6 +879,48 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
     }
   };
 
+  const handleWhatsAppShare = (assessment: RegisteredAssessment) => {
+    let messageText = `🩺 *CLINICAL ASSESSMENT SUMMARY / خلاصہ طبی معائنہ*\n\n`;
+    messageText += `*👤 PATIENT DETAILS / معلومات مریض*\n`;
+    messageText += `• File ID: *${assessment.id || 'N/A'}*\n`;
+    messageText += `• Name / نام: *${assessment.patient_name || 'N/A'}*\n`;
+    messageText += `• Age / Gender: *${assessment.age && assessment.age > 0 ? `${assessment.age} Yrs` : 'N/A'} / ${assessment.gender || 'N/A'}*\n`;
+    messageText += `• City / Location: *${assessment.city || 'N/A'}*\n`;
+    messageText += `• Date / تاریخ: *${assessment.created_at ? new Date(assessment.created_at).toLocaleDateString() : new Date().toLocaleDateString()}*\n`;
+    messageText += `• Institution / Hospital: *${assessment.hospital_name || 'N/A'}*\n`;
+    messageText += `• Referring Surgeon: *${assessment.doctor_ref || 'N/A'}*\n`;
+    messageText += `\n`;
+
+    messageText += `*📦 GARMENT CONFIGURATION / گارمنٹ کنفیگریشن*\n`;
+    messageText += `• Garment Type: *${assessment.garment_type || 'N/A'}*\n`;
+    messageText += `• Silicone Option: *${assessment.silicone_pasting || 'N/A'}*\n`;
+    messageText += `• Compression Force: *${assessment.compression || 'N/A'}*\n`;
+    messageText += `\n`;
+
+    // Add sub-options / hand measurements if they exist
+    if (assessment.sub_options) {
+      const activeSubOptions = Object.entries(assessment.sub_options).filter(([_, val]) => val !== undefined && val !== null && String(val).trim() !== '');
+      if (activeSubOptions.length > 0) {
+        messageText += `*📐 CORE MEASUREMENTS / پیمائش*\n`;
+        activeSubOptions.forEach(([key, val]) => {
+          messageText += `• ${key}: *${val}*\n`;
+        });
+        messageText += `\n`;
+      }
+    }
+
+    if (assessment.notes) {
+      messageText += `*📝 SURGEON CLINICAL NOTES / ڈاکٹر کے نوٹس*\n`;
+      messageText += `"${assessment.notes}"\n\n`;
+    }
+
+    messageText += `*Generated via Overplast Live Calibration Portal*`;
+
+    const encodedText = encodeURIComponent(messageText);
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   const filtered = assessments.filter(a => 
     a.patient_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     a.hospital_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1045,21 +1087,24 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
             {/* 2. Arm Pit loop on left sleeve */}
             <ellipse cx="79" cy="131" rx="15" ry="5" transform="rotate(-40, 79, 131)" stroke="#10b981" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
 
-            {/* 3. Elbow loop on left sleeve */}
+            {/* 3. Open End loop on left sleeve (between Arm pit and Elbow) */}
+            <ellipse cx="72.5" cy="156.5" rx="13" ry="4" transform="rotate(-40, 72.5, 156.5)" stroke="#3b82f6" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
+
+            {/* 4. Elbow loop on left sleeve */}
             <ellipse cx="66" cy="182" rx="11" ry="4" transform="rotate(-40, 66, 182)" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
 
-            {/* 4. Wrist loop on left sleeve */}
+            {/* 5. Close End loop on left sleeve */}
             <ellipse cx="55" cy="259" rx="8" ry="3" transform="rotate(-40, 55, 259)" stroke="#ec4899" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
 
-            {/* 5. Total arm length path along left sleeve-edge */}
+            {/* 6. Total arm length path along left sleeve-edge */}
             <path d="M 65,115 Q 52,185 48,260" stroke="#7c3aed" strokeWidth="2.2" strokeDasharray="3 3" fill="none" />
 
             {/* Labels overlay */}
-            <g transform="translate(150, 65)" className="text-[9px] font-bold">
+            <g transform="translate(150, 60)" className="text-[9px] font-bold">
               <rect x="-55" y="-7" width="110" height="14" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
               <text y="3" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="9">Shoulder: {formatVal('Shoulder')}</text>
             </g>
-            <g transform="translate(150, 155)" className="text-[9px] font-bold">
+            <g transform="translate(150, 290)" className="text-[9px] font-bold">
               <rect x="-65" y="-7" width="130" height="14" rx="3" fill="white" stroke="#7c3aed" strokeWidth="0.5" />
               <text y="3" textAnchor="middle" className="fill-purple-600 font-bold" fontSize="9">Total Arm: {formatVal('Total arm length')}</text>
             </g>
@@ -1067,13 +1112,17 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
               <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
               <text y="3" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="9">Arm pit: {formatVal('Arm pit')}</text>
             </g>
+            <g transform="translate(127, 153.5)" className="text-[9px] font-bold">
+              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#3b82f6" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="9">Open End: {formatVal('Open End')}</text>
+            </g>
             <g transform="translate(122, 185)" className="text-[9px] font-bold">
               <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#f59e0b" strokeWidth="0.5" />
               <text y="3" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="9">Elbow: {formatVal('Elbow')}</text>
             </g>
-            <g transform="translate(112, 255)" className="text-[9px] font-bold">
+            <g transform="translate(102, 265)" className="text-[9px] font-bold">
               <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#ec4899" strokeWidth="0.5" />
-              <text y="3" textAnchor="middle" className="fill-rose-500 font-bold" fontSize="9">Wrist: {formatVal('Wrist')}</text>
+              <text y="3" textAnchor="middle" className="fill-rose-500 font-bold" fontSize="9">Close End: {formatVal('Close End')}</text>
             </g>
           </svg>
         );
@@ -1283,8 +1332,8 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
 
               {/* Hand Selection Badge Indicator */}
               <g transform="translate(160, 18)">
-                <rect x="-70" y="-10" width="140" height="20" rx="10" fill="#1e293b" />
-                <text y="3" textAnchor="middle" className="fill-white font-extrabold text-[9px]" letterSpacing="0.5">
+                <rect x="-70" y="-10" width="140" height="20" rx="10" fill="#f8fafc" stroke="#1e293b" strokeWidth="1" />
+                <text y="3.5" textAnchor="middle" fill="#1e293b" fontSize="9.5" fontWeight="900" fontFamily="sans-serif" letterSpacing="0.5">
                   {handSelectionVal.toUpperCase()}
                 </text>
               </g>
@@ -1947,12 +1996,21 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
                   </div>
 
                   {/* Actions */}
-                  <div className="pt-2">
+                  <div className="pt-2 flex flex-col sm:flex-row gap-3">
                     <button 
                       onClick={() => handleDownloadPDF(selectedAssessment)}
-                      className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-850 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 border border-transparent shadow-lg shadow-slate-100 hover:scale-[1.02]"
+                      className="flex-1 py-3 px-4 bg-slate-900 hover:bg-slate-850 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 border border-transparent shadow-lg shadow-slate-100 hover:scale-[1.02]"
                     >
                       <Download className="w-3.5 h-3.5" /> PDF Document
+                    </button>
+                    <button 
+                      onClick={() => handleWhatsAppShare(selectedAssessment)}
+                      className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 border border-transparent shadow-lg shadow-emerald-100 hover:scale-[1.02]"
+                    >
+                      <svg className="w-3.5 h-3.5 fill-current text-white" viewBox="0 0 24 24">
+                        <path d="M12.012 2c-5.506 0-9.988 4.475-9.988 9.977 0 1.764.46 3.42 1.258 4.876L2 22l5.3-1.383c1.4.764 2.99 1.192 4.697 1.192 5.508 0 9.99-4.476 9.99-9.982C22.012 6.477 17.525 2 12.012 2zm6.39 14.125c-.262.733-1.528 1.343-2.112 1.404-.567.06-1.12.23-3.626-.8-3.208-1.32-5.282-4.578-5.442-4.793-.16-.214-1.288-1.705-1.288-3.253 0-1.548.814-2.31 1.103-2.613.29-.304.633-.38.844-.38.21 0 .422.003.606.012.193.008.455-.074.71.554.264.65.903 2.192.98 2.348.08.156.133.338.028.544-.105.206-.16.333-.316.516-.156.182-.327.406-.467.545-.154.153-.314.32-.136.623.18.303.8 1.3 1.714 2.113.117.104.225.21.32.31.78.825 1.454 1.053 1.768 1.185.314.133.5.112.686-.098.187-.21.802-.93.1017-1.246.216-.317.433-.266.727-.156.294.11 1.86.877 2.177 1.033.317.156.527.23.605.367.078.136.078.79-.184 1.523z" />
+                      </svg>
+                      Share / واٹس ایپ
                     </button>
                   </div>
                 </motion.div>

@@ -205,15 +205,17 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
             <circle cx="235" cy="115" r="3.5" fill="#2563eb" />
 
             <ellipse cx="79" cy="131" rx="15" ry="5" transform="rotate(-40, 79, 131)" stroke="#10b981" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
+            {/* 3. Open End loop on left sleeve (between Arm pit and Elbow) */}
+            <ellipse cx="72.5" cy="156.5" rx="13" ry="4" transform="rotate(-40, 72.5, 156.5)" stroke="#3b82f6" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
             <ellipse cx="66" cy="182" rx="11" ry="4" transform="rotate(-40, 66, 182)" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
             <ellipse cx="55" cy="259" rx="8" ry="3" transform="rotate(-40, 55, 259)" stroke="#ec4899" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
             <path d="M 65,115 Q 52,185 48,260" stroke="#7c3aed" strokeWidth="2.2" strokeDasharray="3 3" fill="none" />
 
-            <g transform="translate(150, 65)" className="text-[9px] font-bold">
+            <g transform="translate(150, 60)" className="text-[9px] font-bold">
               <rect x="-55" y="-7" width="110" height="14" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
               <text y="3" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="9">Shoulder: {formatVal('Shoulder')}</text>
             </g>
-            <g transform="translate(150, 155)" className="text-[9px] font-bold">
+            <g transform="translate(150, 290)" className="text-[9px] font-bold">
               <rect x="-65" y="-7" width="130" height="14" rx="3" fill="white" stroke="#7c3aed" strokeWidth="0.5" />
               <text y="3" textAnchor="middle" className="fill-purple-600 font-bold" fontSize="9">Total Arm: {formatVal('Total arm length')}</text>
             </g>
@@ -221,13 +223,17 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
               <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
               <text y="3" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="9">Arm pit: {formatVal('Arm pit')}</text>
             </g>
+            <g transform="translate(127, 153.5)" className="text-[9px] font-bold">
+              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#3b82f6" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="9">Open End: {formatVal('Open End')}</text>
+            </g>
             <g transform="translate(122, 185)" className="text-[9px] font-bold">
               <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#f59e0b" strokeWidth="0.5" />
               <text y="3" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="9">Elbow: {formatVal('Elbow')}</text>
             </g>
-            <g transform="translate(112, 255)" className="text-[9px] font-bold">
+            <g transform="translate(102, 265)" className="text-[9px] font-bold">
               <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#ec4899" strokeWidth="0.5" />
-              <text y="3" textAnchor="middle" className="fill-rose-500 font-bold" fontSize="9">Wrist: {formatVal('Wrist')}</text>
+              <text y="3" textAnchor="middle" className="fill-rose-500 font-bold" fontSize="9">Close End: {formatVal('Close End')}</text>
             </g>
           </svg>
         );
@@ -403,8 +409,8 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
               </defs>
 
               <g transform="translate(160, 18)">
-                <rect x="-70" y="-10" width="140" height="20" rx="10" fill="#1e293b" />
-                <text y="3" textAnchor="middle" className="fill-white font-extrabold text-[9px]" letterSpacing="0.5">
+                <rect x="-70" y="-10" width="140" height="20" rx="10" fill="#f8fafc" stroke="#1e293b" strokeWidth="1" />
+                <text y="3.5" textAnchor="middle" fill="#1e293b" fontSize="9.5" fontWeight="900" fontFamily="sans-serif" letterSpacing="0.5">
                   {handSelectionVal.toUpperCase()}
                 </text>
               </g>

@@ -114,7 +114,7 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patient, onBack, onStar
           <div className="medical-card p-6 border-l-4 border-l-blue-600">
             <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
               <Stethoscope className="w-4 h-4 text-blue-600" />
-              Attending Physician
+              Attending Surgeon
             </h3>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">

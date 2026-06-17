@@ -581,23 +581,6 @@ const Registration: React.FC<RegistrationProps> = ({
                     </div>
                   </div>
 
-                  {/* 8.1 Affected Area (Anatomical Site) */}
-                  <div className="space-y-1.5 col-span-1 md:col-span-2">
-                    <label className="text-[10px] font-black text-amber-600 uppercase tracking-widest ml-1 flex items-center gap-1">
-                      Affected Area / متاثرہ جگہ (جسم کا حصہ)
-                    </label>
-                    <div className="relative">
-                      <SlidersHorizontal className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-500" />
-                      <input 
-                        type="text"
-                        placeholder="e.g. Left lower limb, Right leg / بائیں ٹانگ، دایاں ہاتھ"
-                        value={formData.affectedArea}
-                        onChange={(e) => handleInputChange('affectedArea', e.target.value)}
-                        className="medical-input pl-12 font-bold text-slate-800 border-amber-200/50 focus:border-amber-500/80 focus:ring-amber-500/20"
-                      />
-                    </div>
-                  </div>
-
                    {/* 8.2 Affected Area Picture Upload (Auto-optimized) */}
                   <div className="space-y-2 col-span-1 md:col-span-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center justify-between">
@@ -768,10 +751,10 @@ const Registration: React.FC<RegistrationProps> = ({
 
                 <div className="space-y-4 pl-2">
                   {/* Card Title Header with Name & Primary Actions */}
-                  <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
+                  <div className="flex items-start justify-between gap-2 border-b border-slate-200 pb-3">
                     <div className="space-y-0.5">
-                      <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Patient Profile</span>
-                      <h4 className="font-extrabold text-slate-900 text-base tracking-tight leading-tight group-hover:text-blue-600 transition-colors">
+                      <span className="text-[10px] font-black text-blue-800 uppercase tracking-widest">PATIENT PROFILE / معلومات مریض</span>
+                      <h4 className="font-black text-slate-950 text-xl tracking-tight leading-tight group-hover:text-blue-700 transition-colors">
                         {patientItem.full_name}
                       </h4>
                     </div>
@@ -784,7 +767,7 @@ const Registration: React.FC<RegistrationProps> = ({
                           e.stopPropagation();
                           startEditingPatient(patientItem);
                         }}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all cursor-pointer"
+                        className="p-1.5 text-slate-600 hover:text-blue-800 hover:bg-blue-50 rounded-xl transition-all cursor-pointer"
                         title="Edit Record"
                       >
                         <Pencil className="w-4 h-4" />
@@ -796,7 +779,7 @@ const Registration: React.FC<RegistrationProps> = ({
                           e.stopPropagation();
                           setPatientToDelete(patientItem);
                         }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                        className="p-1.5 text-slate-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
                         title="Delete Record"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -824,24 +807,24 @@ const Registration: React.FC<RegistrationProps> = ({
                       setSelectedPatientForSummary(patientItem);
                       setSelectedAssessmentForSummary(matchedAssessment || null);
                     }}
-                    className="grid grid-cols-2 gap-3.5 text-[11px] text-slate-600 font-bold bg-gradient-to-br from-slate-50 to-blue-50/25 hover:from-blue-50/65 hover:to-indigo-50/45 rounded-2xl p-4 border border-slate-200 hover:border-blue-400 hover:shadow-inner cursor-pointer transition-all duration-350 relative"
+                    className="grid grid-cols-2 gap-3.5 text-[11px] text-slate-900 font-extrabold bg-gradient-to-br from-slate-100 to-blue-50 shadow-sm hover:from-blue-100/50 hover:to-indigo-50 rounded-2xl p-4 border-2 border-slate-300 hover:border-blue-500 hover:shadow-md cursor-pointer transition-all duration-350 relative"
                     title="Click here to view this patient's assessment summary with pictures & drawings"
                   >
                     
                     {/* Phone / Mobile No */}
                     <div className="space-y-0.5">
-                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest">Mob No / موبائل</span>
-                      <div className="flex items-center gap-1.5 text-slate-800 font-semibold font-mono">
-                        <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+                      <span className="block text-[9px] font-black text-slate-800 uppercase tracking-widest">Mob No / موبائل</span>
+                      <div className="flex items-center gap-1.5 text-slate-950 font-black font-mono text-[11px] md:text-xs">
+                        <Phone className="w-3.5 h-3.5 text-slate-800 shrink-0" />
                         <span>{patientItem.phone || 'None'}</span>
                       </div>
                     </div>
 
                     {/* Age & Gender */}
                     <div className="space-y-0.5">
-                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest">Age & Gender</span>
-                      <div className="flex items-center gap-1 text-slate-800 font-semibold uppercase text-[10px]">
-                        <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[9px] capitalize">{patientItem.gender}</span>
+                      <span className="block text-[9px] font-black text-slate-800 uppercase tracking-widest">Age & Gender</span>
+                      <div className="flex items-center gap-1.5 text-slate-950 font-black uppercase text-[11px] md:text-xs">
+                        <span className="px-2 py-0.5 bg-blue-600 text-white rounded font-black text-[9px] capitalize">{patientItem.gender}</span>
                         <span>•</span>
                         <span>{patientItem.age} Yrs</span>
                       </div>
@@ -849,27 +832,27 @@ const Registration: React.FC<RegistrationProps> = ({
 
                     {/* Doctor Name */}
                     <div className="space-y-0.5">
-                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest">Doctor name / ڈاکٹر</span>
-                      <div className="flex items-center gap-1 text-slate-800 font-semibold truncate">
-                        <Stethoscope className="w-3 h-3 text-slate-400 shrink-0" />
+                      <span className="block text-[9px] font-black text-slate-800 uppercase tracking-widest">Doctor name / ڈاکٹر</span>
+                      <div className="flex items-center gap-1.5 text-slate-950 font-black text-[11px] md:text-xs truncate">
+                        <Stethoscope className="w-3.5 h-3.5 text-slate-800 shrink-0" />
                         <span className="truncate">{patientItem.doctor_name || 'No referral'}</span>
                       </div>
                     </div>
 
                     {/* Hospital Name */}
                     <div className="space-y-0.5">
-                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest">Hospital / ہسپتال</span>
-                      <div className="flex items-center gap-1 text-slate-800 font-semibold truncate">
-                        <Hospital className="w-3 h-3 text-slate-400 shrink-0" />
+                      <span className="block text-[9px] font-black text-slate-800 uppercase tracking-widest">Hospital / ہسپتال</span>
+                      <div className="flex items-center gap-1.5 text-slate-950 font-black text-[11px] md:text-xs truncate">
+                        <Hospital className="w-3.5 h-3.5 text-slate-800 shrink-0" />
                         <span className="truncate">{patientItem.hospital || 'Not declared'}</span>
                       </div>
                     </div>
 
                     {/* Registration Date */}
-                    <div className="space-y-0.5 col-span-2 border-t border-slate-200/50 pt-2">
-                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest">Date / تاریخ</span>
-                      <div className="flex items-center gap-1.5 text-slate-800 font-medium font-mono text-[10px]">
-                        <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
+                    <div className="space-y-1 col-span-2 border-t-2 border-slate-300 pt-2.5">
+                      <span className="block text-[9px] font-black text-slate-800 uppercase tracking-widest">Date / تاریخ</span>
+                      <div className="flex items-center gap-1.5 text-slate-950 font-black font-mono text-[11px] md:text-xs">
+                        <Calendar className="w-3.5 h-3.5 text-slate-800 shrink-0" />
                         <span>
                           {new Date(patientItem.created_at).toLocaleDateString(undefined, {
                             year: 'numeric',
@@ -881,20 +864,20 @@ const Registration: React.FC<RegistrationProps> = ({
                     </div>
 
                     {/* Physical Address */}
-                    <div className="space-y-0.5 col-span-2 border-t border-slate-200/50 pt-2">
-                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest">Address / پتہ</span>
-                      <div className="flex items-start gap-1 text-slate-500 font-normal leading-relaxed text-[10px]">
-                        <MapPin className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1 col-span-2 border-t-2 border-slate-300 pt-2.5">
+                      <span className="block text-[9px] font-black text-slate-800 uppercase tracking-widest">Address / پتہ</span>
+                      <div className="flex items-start gap-1.5 text-slate-950 font-black leading-relaxed text-[11px] md:text-xs">
+                        <MapPin className="w-3.5 h-3.5 text-slate-800 shrink-0 mt-0.5" />
                         <span className="line-clamp-2">{patientItem.address || 'No location address registered'}</span>
                       </div>
                     </div>
 
                     {/* Affected Area (Anatomical Site) */}
                     {patientItem.medical_condition && patientItem.medical_condition !== 'General' && (
-                      <div className="space-y-0.5 col-span-2 border-t border-slate-200/50 pt-2">
-                        <span className="block text-[8px] font-black text-[#d97706] uppercase tracking-widest">Affected Area / متاثرہ جگہ</span>
-                        <div className="flex items-center gap-1.5 text-slate-800 font-semibold text-[10px] mt-1">
-                          <SlidersHorizontal className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <div className="space-y-1 col-span-2 border-t-2 border-slate-300 pt-2.5">
+                        <span className="block text-[9px] font-black text-amber-900 uppercase tracking-widest">Affected Area / متاثرہ جگہ</span>
+                        <div className="flex items-center gap-1.5 text-slate-950 font-black text-[11px] md:text-xs mt-1">
+                          <SlidersHorizontal className="w-4 h-4 text-amber-700 shrink-0" />
                           <span>{patientItem.medical_condition}</span>
                         </div>
                       </div>
@@ -902,9 +885,9 @@ const Registration: React.FC<RegistrationProps> = ({
 
                     {/* Affected Area Photo */}
                     {patientItem.photo_url && (
-                      <div className="space-y-1 col-span-2 border-t border-slate-200/50 pt-2">
-                        <span className="block text-[8px] font-black text-amber-600 uppercase tracking-widest">Affected Area Picture / متاثرہ حصہ کی تصویر</span>
-                        <div className="relative rounded-xl overflow-hidden border border-slate-100 aspect-video max-h-[100px] mt-1 flex items-center justify-center bg-slate-50">
+                      <div className="space-y-1.5 col-span-2 border-t-2 border-slate-300 pt-2.5">
+                        <span className="block text-[9px] font-black text-amber-900 uppercase tracking-widest">Affected Area Picture / متاثرہ حصہ کی تصویر</span>
+                        <div className="relative rounded-2xl overflow-hidden border-2 border-slate-300 aspect-video max-h-[120px] mt-1 flex items-center justify-center bg-slate-50 shadow-inner">
                           <img 
                             src={patientItem.photo_url} 
                             alt={`${patientItem.full_name} affected area`} 
@@ -917,10 +900,10 @@ const Registration: React.FC<RegistrationProps> = ({
 
                     {/* Doctor's Notes / Case History */}
                     {patientItem.notes && (
-                      <div className="space-y-0.5 col-span-2 border-t border-slate-200/50 pt-2 text-[#D97706]">
-                        <span className="block text-[8px] font-black text-amber-600 uppercase tracking-widest">Doctor's Notes / Case History</span>
-                        <div className="flex items-start gap-1.5 bg-amber-50/55 p-2 rounded-xl border border-amber-100/60 text-slate-700 font-medium leading-normal text-[10px] mt-1 break-words w-full">
-                          <FileText className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                      <div className="space-y-1 col-span-2 border-t-2 border-slate-300 pt-2.5">
+                        <span className="block text-[9px] font-black text-amber-900 uppercase tracking-widest">Doctor's Notes / Case History</span>
+                        <div className="flex items-start gap-1.5 bg-amber-50 p-2.5 rounded-2xl border-2 border-amber-300 text-slate-950 font-black leading-normal text-[11px] md:text-xs mt-1 break-words w-full">
+                          <FileText className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                           <span>{patientItem.notes}</span>
                         </div>
                       </div>
@@ -1257,23 +1240,6 @@ const Registration: React.FC<RegistrationProps> = ({
                         value={editFormData.address}
                         onChange={(e) => handleEditInputChange('address', e.target.value)}
                         className="medical-input pl-12 font-bold text-slate-800"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Affected Area */}
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <label className="text-[10px] font-black text-amber-600 uppercase tracking-widest ml-1 flex items-center gap-1 justify-start">
-                      Affected Area / متاثرہ جگہ (جسم کا حصہ)
-                    </label>
-                    <div className="relative">
-                      <SlidersHorizontal className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-500" />
-                      <input 
-                        type="text"
-                        placeholder="e.g. Left lower limb / بائیں ٹانگ"
-                        value={editFormData.affectedArea}
-                        onChange={(e) => handleEditInputChange('affectedArea', e.target.value)}
-                        className="medical-input pl-12 font-bold text-slate-800 border-amber-200/50"
                       />
                     </div>
                   </div>

@@ -49,7 +49,8 @@ export const GARMENT_FIELDS: Record<string, { id: string; label: string; placeho
     { id: 'shoulder', label: 'Shoulder', placeholder: 'e.g., 42 cm' },
     { id: 'arm_pit', label: 'Arm pit', placeholder: 'e.g., 28 cm' },
     { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 24 cm' },
-    { id: 'wrist', label: 'Wrist', placeholder: 'e.g., 16 cm' },
+    { id: 'open_end', label: 'Open End', placeholder: 'e.g., 18 cm' },
+    { id: 'close_end', label: 'Close End', placeholder: 'e.g., 14 cm' },
     { id: 'total_arm_length', label: 'Total arm length', placeholder: 'e.g., 60 cm' }
   ],
   'Arm sleeve Right Hand': [
@@ -68,7 +69,8 @@ export const GARMENT_FIELDS: Record<string, { id: string; label: string; placeho
     { id: 'shoulder', label: 'Shoulder', placeholder: 'e.g., 42 cm' },
     { id: 'arm_pit', label: 'Arm pit', placeholder: 'e.g., 28 cm' },
     { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 24 cm' },
-    { id: 'wrist', label: 'Wrist', placeholder: 'e.g., 16 cm' },
+    { id: 'open_end', label: 'Open End', placeholder: 'e.g., 18 cm' },
+    { id: 'close_end', label: 'Close End', placeholder: 'e.g., 14 cm' },
     { id: 'total_arm_length', label: 'Total arm length', placeholder: 'e.g., 60 cm' }
   ],
   'All Jacket': [
@@ -743,21 +745,24 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
             {/* 2. Arm Pit loop on left sleeve */}
             <ellipse cx="79" cy="131" rx="15" ry="5" transform="rotate(-40, 79, 131)" stroke="#10b981" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
 
-            {/* 3. Elbow loop on left sleeve */}
+            {/* 3. Open End loop on left sleeve (between Arm pit and Elbow) */}
+            <ellipse cx="72.5" cy="156.5" rx="13" ry="4" transform="rotate(-40, 72.5, 156.5)" stroke="#3b82f6" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
+
+            {/* 4. Elbow loop on left sleeve */}
             <ellipse cx="66" cy="182" rx="11" ry="4" transform="rotate(-40, 66, 182)" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
 
-            {/* 4. Wrist loop on left sleeve */}
+            {/* 5. Close End loop on left sleeve */}
             <ellipse cx="55" cy="259" rx="8" ry="3" transform="rotate(-40, 55, 259)" stroke="#ec4899" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
 
-            {/* 5. Total arm length path along left sleeve-edge */}
+            {/* 6. Total arm length path along left sleeve-edge */}
             <path d="M 65,115 Q 52,185 48,260" stroke="#7c3aed" strokeWidth="2.2" strokeDasharray="3 3" fill="none" />
 
             {/* Labels overlay */}
-            <g transform="translate(150, 65)" className="text-[9px] font-bold">
+            <g transform="translate(150, 60)" className="text-[9px] font-bold">
               <rect x="-55" y="-7" width="110" height="14" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
               <text y="3" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="9">Shoulder: {formatVal('Shoulder')}</text>
             </g>
-            <g transform="translate(150, 155)" className="text-[9px] font-bold">
+            <g transform="translate(150, 290)" className="text-[9px] font-bold">
               <rect x="-65" y="-7" width="130" height="14" rx="3" fill="white" stroke="#7c3aed" strokeWidth="0.5" />
               <text y="3" textAnchor="middle" className="fill-purple-600 font-bold" fontSize="9">Total Arm: {formatVal('Total arm length')}</text>
             </g>
@@ -765,13 +770,17 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
               <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
               <text y="3" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="9">Arm pit: {formatVal('Arm pit')}</text>
             </g>
+            <g transform="translate(127, 153.5)" className="text-[9px] font-bold">
+              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#3b82f6" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="9">Open End: {formatVal('Open End')}</text>
+            </g>
             <g transform="translate(122, 185)" className="text-[9px] font-bold">
               <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#f59e0b" strokeWidth="0.5" />
               <text y="3" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="9">Elbow: {formatVal('Elbow')}</text>
             </g>
-            <g transform="translate(112, 255)" className="text-[9px] font-bold">
+            <g transform="translate(102, 265)" className="text-[9px] font-bold">
               <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#ec4899" strokeWidth="0.5" />
-              <text y="3" textAnchor="middle" className="fill-rose-500 font-bold" fontSize="9">Wrist: {formatVal('Wrist')}</text>
+              <text y="3" textAnchor="middle" className="fill-rose-500 font-bold" fontSize="9">Close End: {formatVal('Close End')}</text>
             </g>
           </svg>
         );
@@ -980,8 +989,8 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
 
             {/* Hand Selection Badge Indicator */}
             <g transform="translate(160, 18)">
-              <rect x="-70" y="-10" width="140" height="20" rx="10" fill="#1e293b" />
-              <text y="3" textAnchor="middle" className="fill-white font-extrabold text-[9px]" letterSpacing="0.5">
+              <rect x="-70" y="-10" width="140" height="20" rx="10" fill="#f8fafc" stroke="#1e293b" strokeWidth="1" />
+              <text y="3.5" textAnchor="middle" fill="#1e293b" fontSize="9.5" fontWeight="900" fontFamily="sans-serif" letterSpacing="0.5">
                 {handSelectionVal.toUpperCase()}
               </text>
             </g>
@@ -1026,20 +1035,20 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
               {/* Thumb loop */}
               <path d="M 33,171 Q 43,165 52,154" stroke="#ea580c" strokeWidth="2.5" fill="none" />
               <path d="M 33,171 Q 41,176 52,154" stroke="#ea580c" strokeWidth="1.2" strokeDasharray="2 1.5" fill="none" opacity="0.6" />
+
+              {/* vertical side measurement rulers (Moved inside flipped group for perfect coordinates alignment on both views) */}
+              {/* Height Line 1: Finger-to-wrist (Left Margin in Right View, Right Margin in Left View) */}
+              <line x1="35" y1="48" x2="148" y2="48" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+              <line x1="35" y1="275" x2="111" y2="275" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+              <line x1="35" y1="48" x2="35" y2="275" stroke="#d97706" strokeWidth="1.5" markerStart="url(#arrow-amber-cl)" markerEnd="url(#arrow-amber-cl)" />
+
+              {/* Height Line 2: Finger-to-scar-end (Right Margin in Right View, Left Margin in Left View) */}
+              <line x1="180" y1="48" x2="285" y2="48" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+              <line x1="195" y1="360" x2="285" y2="360" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+              <line x1="285" y1="48" x2="285" y2="360" stroke="#7c3aed" strokeWidth="1.5" markerStart="url(#arrow-purple-cl)" markerEnd="url(#arrow-purple-cl)" />
             </g>
 
-            {/* vertical side measurement rulers */}
-            {/* Height Line 1: Finger-to-wrist (Left Margin) */}
-            <line x1="35" y1="48" x2="148" y2="48" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
-            <line x1="35" y1="275" x2="111" y2="275" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
-            <line x1="35" y1="48" x2="35" y2="275" stroke="#d97706" strokeWidth="1.5" markerStart="url(#arrow-amber-cl)" markerEnd="url(#arrow-amber-cl)" />
-
-            {/* Height Line 2: Finger-to-scar-end (Right Margin) */}
-            <line x1="180" y1="48" x2="285" y2="48" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
-            <line x1="195" y1="360" x2="285" y2="360" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
-            <line x1="285" y1="48" x2="285" y2="360" stroke="#7c3aed" strokeWidth="1.5" markerStart="url(#arrow-purple-cl)" markerEnd="url(#arrow-purple-cl)" />
-
-            {/* Readable Badges Overlay (Outside Flipped Group to Prevent text mirroring) */}
+            {/* Readable Badges Overlay (Outside Flipped Group to Prevent text mirroring, with coordinates swapped dynamically) */}
             {/* 1. Palm */}
             <g transform="translate(155, 245)" className="text-[8px] font-bold">
               <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#2563eb" strokeWidth="1.5" />
@@ -1082,15 +1091,15 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
               <text y="3" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="8">Little: {formatVal('Little finger')}</text>
             </g>
 
-            {/* 8. Total Length (Finger to Wrist) Left Margin Badge */}
-            <g transform="translate(35, 166)" className="text-[8px] font-bold">
+            {/* 8. Total Length (Finger to Wrist) Badge - dynamically positioned left/right margins based on view */}
+            <g transform={`translate(${isLeftHand ? 285 : 35}, 166)`} className="text-[8px] font-bold">
               <rect x="-24" y="-12" width="48" height="24" rx="4" fill="white" stroke="#d97706" strokeWidth="1.5" />
               <text y="-2" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="8">To Wrist</text>
               <text y="8" textAnchor="middle" className="fill-amber-700 font-black" fontSize="8">{formatVal('Total length middle finger to wrist')}</text>
             </g>
 
-            {/* 9. Total Length (Finger to Scar) Right Margin Badge */}
-            <g transform="translate(285, 204)" className="text-[8px] font-bold">
+            {/* 9. Total Length (Finger to Scar) Badge - dynamically positioned left/right margins based on view */}
+            <g transform={`translate(${isLeftHand ? 35 : 285}, 204)`} className="text-[8px] font-bold">
               <rect x="-24" y="-12" width="48" height="24" rx="4" fill="white" stroke="#7c3aed" strokeWidth="1.5" />
               <text y="-2" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="8">To Scar</text>
               <text y="8" textAnchor="middle" className="fill-purple-700 font-black" fontSize="7">{formatVal('Total length middle finger to end of scar')}</text>
@@ -1448,6 +1457,284 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
     setMeasurements(getInitialMeasurements(garment.type));
     setActiveMeasuringId(null);
   }, [garment.type]);
+
+  const triggerDownloadDrawing = (imageBlob: Blob | null) => {
+    if (imageBlob) {
+      try {
+        const downloadLink = document.createElement('a');
+        downloadLink.href = window.URL.createObjectURL(imageBlob);
+        downloadLink.download = `${(patient.name || 'Patient').replace(/\s+/g, '_')}_drawing.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+      } catch (downloadErr) {
+        console.error("Auto-download failed:", downloadErr);
+        alert("Failed to download drawing / ڈاؤن لوڈ نہیں ہو سکا۔");
+      }
+    } else {
+      alert("Drawing generation failed / نقشہ نہیں بن سکا۔");
+    }
+  };
+
+  const handleDownloadDrawing = () => {
+    try {
+      const container = 
+        document.getElementById('measurement-drawing-container') ||
+        document.getElementById('measurement-drawing-container-review-photo') ||
+        document.getElementById('measurement-drawing-container-review-no-photo');
+      const svgElement = container?.querySelector('svg');
+      if (!svgElement) {
+        alert("Could not load drawing element. / نقشہ نہیں ملا۔");
+        return;
+      }
+
+      let processedSvgString = new XMLSerializer().serializeToString(svgElement);
+
+      const viewBox = svgElement.getAttribute('viewBox')?.split(/\s+/) || [];
+      const viewWidth = viewBox[2] ? viewBox[2] : '400';
+      const viewHeight = viewBox[3] ? viewBox[3] : '400';
+
+      // Ensure that standalone SVG contains the correct XML elements, namespaces, width, and height attributes
+      if (processedSvgString.includes('<svg')) {
+        const rootEnd = processedSvgString.indexOf('>');
+        let rootTag = processedSvgString.slice(0, rootEnd);
+        
+        // Remove any existing width or height attributes to prevent duplication
+        rootTag = rootTag.replace(/\s(width|height)="[^"]*"/g, '');
+        
+        if (!rootTag.includes('xmlns=')) {
+          rootTag = rootTag.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+        }
+        
+        // Inject absolute width and height attributes (Mandatory for browsers to load SVG images correctly into Canvas)
+        rootTag = rootTag.replace('<svg', `<svg width="${viewWidth}" height="${viewHeight}"`);
+        
+        processedSvgString = rootTag + processedSvgString.slice(rootEnd);
+      }
+
+      // Map Tailwind fill and font classes to direct XML attributes for accurate canvas export
+      const classMap: { [key: string]: string } = {
+        'fill-red-700': 'fill="#b91c1c"',
+        'fill-purple-700': 'fill="#7e22ce"',
+        'fill-emerald-600': 'fill="#10b981"',
+        'fill-emerald-700': 'fill="#047857"',
+        'fill-amber-600': 'fill="#d97706"',
+        'fill-amber-700': 'fill="#b55309"',
+        'fill-blue-600': 'fill="#2563eb"',
+        'fill-blue-700': 'fill="#1d4ed8"',
+        'fill-rose-600': 'fill="#e11d48"',
+        'fill-rose-700': 'fill="#be123c"',
+        'fill-indigo-600': 'fill="#4f46e5"',
+        'fill-indigo-700': 'fill="#4338ca"',
+        'fill-cyan-600': 'fill="#0891b2"',
+        'fill-cyan-700': 'fill="#0e7490"',
+        'fill-pink-600': 'fill="#db2777"',
+        'fill-pink-700': 'fill="#be185d"',
+        'fill-purple-600': 'fill="#9333ea"',
+        'fill-orange-600': 'fill="#ea580c"',
+        'fill-orange-700': 'fill="#c2410c"',
+        'fill-violet-700': 'fill="#6d28d9"',
+        'fill-[#1e293b]': 'fill="#1e293b"',
+        'fill-lime-600': 'fill="#65a30d"',
+        'font-bold': 'font-weight="bold"',
+        'font-extrabold': 'font-weight="800"',
+        'font-black': 'font-weight="950"'
+      };
+
+      processedSvgString = processedSvgString.replace(/class="([^"]+)"/g, (match, classValues) => {
+        const classes = classValues.split(/\s+/);
+        let attributes: string[] = [];
+        let otherClasses: string[] = [];
+        
+        classes.forEach((cls: string) => {
+          if (classMap[cls]) {
+            attributes.push(classMap[cls]);
+          } else {
+            otherClasses.push(cls);
+          }
+        });
+        
+        if (otherClasses.length > 0) {
+          attributes.push(`class="${otherClasses.join(' ')}"`);
+        }
+        
+        return attributes.join(' ');
+      });
+
+      // Standardize fonts on text tags inside the drawing using a CSS style override inside the SVG to avoid duplicate 'font-family' XML attribute syntax errors
+      if (processedSvgString.includes('</svg>')) {
+        processedSvgString = processedSvgString.replace('</svg>', '<style>text { font-family: system-ui, -apple-system, sans-serif !important; }</style></svg>');
+      }
+
+      // Create Blob URL for better Unicode/Arabic character support and high performance
+      const svgBlob = new Blob([processedSvgString], { type: 'image/svg+xml;charset=utf-8' });
+      const svgUrl = URL.createObjectURL(svgBlob);
+
+      const image = new Image();
+      image.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const originalWidth = parseFloat(viewWidth);
+          const originalHeight = parseFloat(viewHeight);
+          
+          const headerHeight = 100; // Shorter header height for perfectly aligned patient details
+          const scale = 2; // double size for crisp printing / sharing
+          
+          canvas.width = originalWidth * scale;
+          canvas.height = (originalHeight + headerHeight) * scale;
+          
+          const context = canvas.getContext('2d');
+          if (context) {
+            // Fill background white
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw header background block
+            context.fillStyle = '#f8fafc';
+            context.fillRect(0, 0, canvas.width, headerHeight * scale);
+            
+            // Blue thin bar at top
+            context.fillStyle = '#3b82f6';
+            context.fillRect(0, 0, canvas.width, 6 * scale);
+            
+            // Header divider line (low light-gray accent)
+            context.strokeStyle = '#e2e8f0';
+            context.lineWidth = 1 * scale;
+            context.beginPath();
+            context.moveTo(0, headerHeight * scale);
+            context.lineTo(canvas.width, headerHeight * scale);
+            context.stroke();
+            
+            // Draw Patient Details in Left region
+            context.fillStyle = '#1e293b';
+            context.font = "bold 24px system-ui, -apple-system, sans-serif";
+            const patientNameStr = patient.name ? patient.name.trim() : 'N/A';
+            context.fillText(`👤 Patient / مریض: ${patientNameStr}`, 24 * scale, 35 * scale);
+            
+            context.fillStyle = '#475569';
+            context.font = "bold 18px system-ui, -apple-system, sans-serif";
+            const hospitalNameStr = patient.hospitalName ? patient.hospitalName.trim() : 'N/A';
+            context.fillText(`🏥 Hospital / ہسپتال: ${hospitalNameStr}`, 24 * scale, 70 * scale);
+            
+            // Draw Date on Right region
+            context.fillStyle = '#2563eb';
+            context.textAlign = 'right';
+            context.font = "bold 18px system-ui, -apple-system, sans-serif";
+            const dateStr = `📅 Date / تاریخ: ${new Date(patient.date || Date.now()).toLocaleDateString()}`;
+            context.fillText(dateStr, canvas.width - (24 * scale), 53 * scale);
+            
+            // Reset text alignment for rendering standard drawing
+            context.textAlign = 'left';
+            
+            // Draw the actual drawing SVG starting below the header
+            context.drawImage(image, 0, headerHeight * scale, originalWidth * scale, originalHeight * scale);
+            
+            canvas.toBlob((blob) => {
+              triggerDownloadDrawing(blob);
+              URL.revokeObjectURL(svgUrl);
+            }, 'image/png');
+          } else {
+            triggerDownloadDrawing(null);
+            URL.revokeObjectURL(svgUrl);
+          }
+        } catch (err) {
+          console.error("Canvas error", err);
+          triggerDownloadDrawing(null);
+          URL.revokeObjectURL(svgUrl);
+        }
+      };
+      
+      image.onerror = (err) => {
+        console.warn("SVG loaded via Blob failed (falling back to Data URL Base64)...", err);
+        try {
+          // Robust Unicode-safe Base64 conversion
+          const svgBase64 = btoa(
+            encodeURIComponent(processedSvgString).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+              return String.fromCharCode(parseInt(p1, 16));
+            })
+          );
+          const fallbackUrl = `data:image/svg+xml;base64,${svgBase64}`;
+          
+          const fallbackImage = new Image();
+          fallbackImage.onload = () => {
+            try {
+              const canvas = document.createElement('canvas');
+              const originalWidth = parseFloat(viewWidth);
+              const originalHeight = parseFloat(viewHeight);
+              const headerHeight = 100;
+              const scale = 2;
+              
+              canvas.width = originalWidth * scale;
+              canvas.height = (originalHeight + headerHeight) * scale;
+              
+              const context = canvas.getContext('2d');
+              if (context) {
+                context.fillStyle = '#ffffff';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                
+                context.fillStyle = '#f8fafc';
+                context.fillRect(0, 0, canvas.width, headerHeight * scale);
+                
+                context.fillStyle = '#3b82f6';
+                context.fillRect(0, 0, canvas.width, 6 * scale);
+                
+                context.strokeStyle = '#e2e8f0';
+                context.lineWidth = 1 * scale;
+                context.beginPath();
+                context.moveTo(0, headerHeight * scale);
+                context.lineTo(canvas.width, headerHeight * scale);
+                context.stroke();
+                
+                context.fillStyle = '#1e293b';
+                context.font = "bold 24px system-ui, -apple-system, sans-serif";
+                const patientNameStr = patient.name ? patient.name.trim() : 'N/A';
+                context.fillText(`👤 Patient / مریض: ${patientNameStr}`, 24 * scale, 35 * scale);
+                
+                context.fillStyle = '#475569';
+                context.font = "bold 18px system-ui, -apple-system, sans-serif";
+                const hospitalNameStr = patient.hospitalName ? patient.hospitalName.trim() : 'N/A';
+                context.fillText(`🏥 Hospital / ہسپتال: ${hospitalNameStr}`, 24 * scale, 70 * scale);
+                
+                context.fillStyle = '#2563eb';
+                context.textAlign = 'right';
+                context.font = "bold 18px system-ui, -apple-system, sans-serif";
+                const dateStr = `📅 Date / تاریخ: ${new Date(patient.date || Date.now()).toLocaleDateString()}`;
+                context.fillText(dateStr, canvas.width - (24 * scale), 53 * scale);
+                
+                context.textAlign = 'left';
+                context.drawImage(fallbackImage, 0, headerHeight * scale, originalWidth * scale, originalHeight * scale);
+                
+                canvas.toBlob((blob) => {
+                  triggerDownloadDrawing(blob);
+                }, 'image/png');
+              } else {
+                triggerDownloadDrawing(null);
+              }
+            } catch (canvasErr) {
+              console.error("Fallback canvas processing error", canvasErr);
+              triggerDownloadDrawing(null);
+            }
+          };
+          
+          fallbackImage.onerror = (fbErr) => {
+            console.error("All SVG image loading methods failed.", fbErr);
+            triggerDownloadDrawing(null);
+          };
+          
+          fallbackImage.src = fallbackUrl;
+        } catch (fallBackCreateError) {
+          console.error("Failed to construct fallback data URL content", fallBackCreateError);
+          triggerDownloadDrawing(null);
+        }
+        URL.revokeObjectURL(svgUrl);
+      };
+      
+      image.src = svgUrl;
+    } catch (err) {
+      console.error("Download drawing failure", err);
+      triggerDownloadDrawing(null);
+    }
+  };
 
   const handleAIAnalysis = async () => {
     if (photos.length === 0) {
@@ -1841,6 +2128,268 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
     }
   };
 
+  const downloadImageSecurely = async (url: string, filename: string) => {
+    try {
+      let blob: Blob;
+      if (url.startsWith('data:')) {
+        const arr = url.split(',');
+        const mimeMatch = arr[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        blob = new Blob([u8arr], { type: mime });
+      } else {
+        const response = await fetch(url, { referrerPolicy: 'no-referrer' });
+        blob = await response.blob();
+      }
+      const blobUrl = URL.createObjectURL(blob);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = blobUrl;
+      downloadLink.download = filename;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+    } catch (err) {
+      console.warn("Secure download helper failed, falling back to traditional download:", err);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = url;
+      downloadLink.download = filename;
+      downloadLink.target = '_blank';
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    }
+  };
+
+  const handleWhatsAppShare = async () => {
+    if (!patient.name) {
+      alert("Please ensure patient name is completed before sharing.");
+      return;
+    }
+
+    let messageText = `🩺 *CLINICAL ASSESSMENT SUMMARY / خلاصہ طبی معائنہ*\n\n`;
+    messageText += `*👤 PATIENT DETAILS / معلومات مریض*\n`;
+    messageText += `• File ID: *${patient.patientId || 'N/A'}*\n`;
+    messageText += `• Name / نام: *${patient.name || 'N/A'}*\n`;
+    messageText += `• Age / Gender: *${patient.age > 0 ? `${patient.age} Yrs` : 'N/A'} / ${patient.gender || 'N/A'}*\n`;
+    messageText += `• Contact Phone: *${patient.phone || 'N/A'}*\n`;
+    messageText += `• City / Location: *${patient.city || 'N/A'}*\n`;
+    messageText += `• Date / تاریخ: *${patient.date || new Date().toLocaleDateString()}*\n`;
+    messageText += `• Institution / Hospital: *${patient.hospitalName || 'N/A'}*\n`;
+    messageText += `• Referring Surgeon: *${patient.doctorRef || 'N/A'}*\n`;
+    if (patient.address) {
+      messageText += `• Home Address: *${patient.address}*\n`;
+    }
+    messageText += `\n`;
+
+    messageText += `*📦 GARMENT CONFIGURATION / گارمنٹ کنفیگریشن*\n`;
+    messageText += `• Garment Type: *${garment.type || 'N/A'}*\n`;
+    messageText += `• Silicone Option: *${garment.siliconePasting || 'N/A'}*\n`;
+    messageText += `• Compression Force: *${garment.compression || 'N/A'}*\n`;
+    messageText += `\n`;
+
+    // Add normal measurements if they exist and are filled
+    const activeMeasurements = measurements.filter(m => m.value && m.value.trim() !== '');
+    if (activeMeasurements.length > 0) {
+      messageText += `*📐 CORE MEASUREMENTS / پیمائش*\n`;
+      activeMeasurements.forEach(m => {
+        messageText += `• ${m.label}: *${m.value}*\n`;
+      });
+      messageText += `\n`;
+    }
+
+    // Add sub-options / hand measurements if they exist
+    if (garment.subOptions) {
+      const activeSubOptions = Object.entries(garment.subOptions).filter(([_, val]) => typeof val === 'string' && val.trim() !== '');
+      if (activeSubOptions.length > 0) {
+        messageText += `*✍️ CUSTOM DESIGN OPTIONS / اضافی تفصیلات*\n`;
+        activeSubOptions.forEach(([key, val]) => {
+          messageText += `• ${key}: *${val}*\n`;
+        });
+        messageText += `\n`;
+      }
+    }
+
+    if (patient.notes) {
+      messageText += `*📝 SURGEON CLINICAL NOTES / ڈاکٹر کے نوٹس*\n`;
+      messageText += `"${patient.notes}"\n\n`;
+    }
+
+    messageText += `*Generated via Overplast Live Calibration Portal*`;
+
+    // Try sharing via Web Share API with files if image is available, supported and allowed
+    const photoUrl = photos && photos.length > 0 ? photos[photos.length - 1] : null;
+
+    if (photoUrl) {
+      // Download photo
+      await downloadImageSecurely(photoUrl, `Patient_${(patient.name || 'Photo').replace(/\s+/g, '_')}_details.jpg`);
+
+      // Try to copy summary text to clipboard for convenience
+      try {
+        await navigator.clipboard.writeText(messageText);
+      } catch (cErr) {
+        console.warn("Clipboard text write blocked:", cErr);
+      }
+
+      alert(
+        "📱 WHATSAPP SHARING / واٹس ایپ شیئرنگ\n\n" +
+        "✅ Patient assessment text has been copied to your clipboard!\n" +
+        "✅ Patient photo has been downloaded to your device!\n\n" +
+        "👉 We are opening WhatsApp. Simply select a contact, paste (Ctrl+V or Long-Press) the text summary, and attach the patient photo from your device gallery!\n\n" +
+        "معلومات مینیو کاپی ہو چکی ہیں اور تصویر ڈاؤن لوڈ ہو گئی ہے۔ واٹس ایپ اوپن ہونے کے بعد معلومات پیسٹ کریں اور گیلری سے مریض کی تصویر اٹیچ کر لیں۔"
+      );
+    } else {
+      // Try to copy summary text to clipboard
+      try {
+        await navigator.clipboard.writeText(messageText);
+        alert(
+          "📱 SUMMARY COPIED / معلومات کاپی ہو گئیں\n\n" +
+          "✅ Patient assessment text has been copied to your clipboard!\n" +
+          "👉 Open WhatsApp and paste (Ctrl+V) the text summary into your chat!\n\n" +
+          "معلومات مینیو کاپی ہو چکی ہیں۔ واٹس ایپ میں جا کر پیسٹ کر کے سینڈ کر دیں۔"
+        );
+      } catch (cErr) {
+        console.warn("Clipboard text write blocked:", cErr);
+      }
+    }
+
+    const encodedText = encodeURIComponent(messageText);
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const handleSharePhotoOnly = async () => {
+    const photoUrl = photos && photos.length > 0 ? photos[photos.length - 1] : null;
+    if (!photoUrl) {
+      alert("No patient photo found to share.");
+      return;
+    }
+
+    let isCopied = false;
+
+    try {
+      let blob: Blob;
+      if (photoUrl.startsWith('data:')) {
+        const arr = photoUrl.split(',');
+        const mimeMatch = arr[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+        const bstr = atob(arr[arr.length - 1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        blob = new Blob([u8arr], { type: mime });
+      } else {
+        const response = await fetch(photoUrl, { referrerPolicy: 'no-referrer' });
+        blob = await response.blob();
+      }
+
+      // Convert to png if it isn't png, as Clipboard API generally only allows 'image/png'
+      if (blob.type !== 'image/png') {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = URL.createObjectURL(blob);
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+        });
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          const pngBlob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+          if (pngBlob) {
+            blob = pngBlob;
+          }
+        }
+      }
+
+      const item = new ClipboardItem({ [blob.type]: blob });
+      await navigator.clipboard.write([item]);
+      isCopied = true;
+    } catch (err) {
+      console.error("Clipboard copy failed directly, trying canvas fallback:", err);
+      // Fallback with Image canvas
+      try {
+        isCopied = await new Promise<boolean>((resolve) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.src = photoUrl;
+          img.onload = () => {
+            try {
+              const canvas = document.createElement("canvas");
+              canvas.width = img.naturalWidth || img.width;
+              canvas.height = img.naturalHeight || img.height;
+              const ctx = canvas.getContext("2d");
+              if (ctx) {
+                ctx.drawImage(img, 0, 0);
+                canvas.toBlob(async (blob) => {
+                  if (blob) {
+                    try {
+                      const item = new ClipboardItem({ [blob.type]: blob });
+                      await navigator.clipboard.write([item]);
+                      resolve(true);
+                    } catch (clipErr) {
+                      console.warn("Canvas Clipboard write failed:", clipErr);
+                      resolve(false);
+                    }
+                  } else {
+                    resolve(false);
+                  }
+                }, "image/png");
+              } else {
+                resolve(false);
+              }
+            } catch (canvasErr) {
+              console.warn("Canvas failed:", canvasErr);
+              resolve(false);
+            }
+          };
+          img.onerror = () => resolve(false);
+        });
+      } catch (innerErr) {
+        console.error("Canvas outer fallback failed:", innerErr);
+      }
+    }
+
+    // Always attempt auto-download so they definitely have a file copy as well
+    try {
+      await downloadImageSecurely(photoUrl, `Patient_${(patient.name || 'Photo').replace(/\s+/g, '_')}_photo.jpg`);
+    } catch (dErr) {
+      console.warn("Auto-download failed:", dErr);
+    }
+
+    if (isCopied) {
+      alert(
+        "📋 IMAGE COPIED / تصویر کاپی ہوگئی\n\n" +
+        "✅ Patient clinical photo has been successfully COPIED to your clipboard!\n" +
+        "✅ Image has also been downloaded to your device as backup!\n\n" +
+        "👉 Now, we are opening WhatsApp. Simply select a chat and paste (Ctrl+V or Long-Press -> Paste) to share the picture instantly!\n\n" +
+        "تصویر کامیابی سے کاپی ہو گئی ہے۔ اب واٹس ایپ اوپن ہو رہا ہے، وہاں جا کر گیلری سے تصویر اٹیچ کر لیں یا براہ راست پیسٹ (Paste) کر کے بھیج دیں۔"
+      );
+    } else {
+      alert(
+        "📸 PHOTO READY / تصویر تیار ہے\n\n" +
+        "✅ Patient clinical photo has been downloaded to your device!\n\n" +
+        "👉 We are opening WhatsApp. Simply select a contact, click attach (Clip icon), and choose the downloaded picture from your device gallery!\n\n" +
+        "مریض کی تصویر ڈاؤن لوڈ ہو گئی ہے۔ اب واٹس ایپ اوپن ہو رہا ہے، گیلری میں جا کر ڈاؤن لوڈ کی گئی تصویر کو اٹیچ کر کے بھیج دیں۔"
+      );
+    }
+
+    const imageText = `📸 *PATIENT OPTICAL REPORT SUMMARY / رپورٹ خلاصہ*\n• Patient / مریض: *${patient.name || 'N/A'}*\n• File ID: *${patient.patientId || 'N/A'}*\n\n👉 *Please paste (Ctrl+V or Long Press and Paste) the copied patient photo into the chat, or select the downloaded photo from your device's gallery!*\n\n*Generated via Overplast Live Calibration Portal*`;
+    const encodedText = encodeURIComponent(imageText);
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   const [isSaving, setIsSaving] = useState(false);
   const [isOrdering, setIsOrdering] = useState(false);
   const [isSavingAssessment, setIsSavingAssessment] = useState(false);
@@ -2213,6 +2762,57 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                       </div>
                     </div>
 
+                    {/* Additional Garment Config: Color & Notes */}
+                    <div className="bg-white p-6 rounded-3xl border-2 border-slate-100 shadow-lg space-y-6">
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest text-blue-600 font-sans">
+                          Additional Garment Options
+                        </h4>
+                        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mt-0.5">
+                          Specify custom apparel details & remarks
+                        </p>
+                      </div>
+
+                      {/* Garment Color Selection */}
+                      <div className="space-y-3">
+                        <label className="text-[11px] font-black text-slate-900 uppercase tracking-widest leading-relaxed block font-sans">
+                          GARMENT COLOR / لباس کا رنگ
+                        </label>
+                        <textarea
+                          placeholder="Type custom color here (e.g., Beige Skin, Light Pink, Custom Black...)"
+                          value={garment.subOptions?.['Color'] || ''}
+                          onChange={(e) => setGarment(prev => ({
+                            ...prev,
+                            subOptions: {
+                              ...prev.subOptions,
+                              'Color': e.target.value
+                            }
+                          }))}
+                          rows={2}
+                          className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm font-bold text-slate-900 focus:bg-white focus:border-blue-500 outline-none resize-none placeholder:text-slate-300 transition-all font-sans"
+                        />
+                      </div>
+
+                      {/* Measurement Notes Input */}
+                      <div className="space-y-3 pt-4 border-t border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-black text-slate-900 uppercase tracking-widest leading-relaxed block font-sans">
+                            MEASUREMENT NOTES / پیمائش کے نوٹ
+                          </label>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase font-sans">
+                            ({countWords(patient.notes || '')}/500 words)
+                          </span>
+                        </div>
+                        <textarea
+                          placeholder="Write down any special measurements instructions, scar particulars, or physical condition details here..."
+                          value={patient.notes || ''}
+                          onChange={(e) => handleNotesChange(e.target.value)}
+                          rows={4}
+                          className="w-full text-sm font-semibold p-4 rounded-2xl border border-slate-100 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none bg-slate-50/50 text-slate-800 placeholder:text-slate-300 transition-all font-sans"
+                        />
+                      </div>
+                    </div>
+
 
 
                     <div className="p-6 bg-slate-50 rounded-3xl border border-slate-200 border-dashed">
@@ -2375,6 +2975,8 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                         </div>
                       );
                     })()}
+
+
                   </div>
                 </div>
               )}
@@ -2387,67 +2989,60 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1 text-blue-600 font-black">Interactive Vector Blueprint Calibration</p>
                   </div>
 
-                  <div className="max-w-5xl mx-auto space-y-8">
+                  <div className="max-w-6xl mx-auto space-y-8">
                     {/* Centered Large Vector Illustration Panel */}
-                    <div className="bg-white border-2 border-slate-100 rounded-[3rem] p-8 md:p-12 shadow-xl flex flex-col items-center justify-center relative min-h-[580px] md:min-h-[720px] animate-in zoom-in-95 duration-500">
-                      <div className="absolute top-6 left-6 flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-2xl">
-                        <Activity className="w-4 h-4 text-blue-600 animate-pulse" />
-                        <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">LIVE BLUEPRINT CALIBRATION</span>
+                    <div className="bg-white border-2 border-slate-100 rounded-[2rem] sm:rounded-[3rem] p-4 sm:p-8 md:p-12 shadow-xl flex flex-col items-center justify-center relative min-h-[440px] sm:min-h-[580px] md:min-h-[720px] animate-in zoom-in-95 duration-500">
+                      
+                      {/* Top responsive banner with Patient info, Hospital and calibration indicator */}
+                      <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-dashed border-slate-200 pb-5 mb-6 max-w-[950px]">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-blue-50 px-4 py-2 rounded-2xl flex items-center gap-2 border border-blue-100">
+                            <Activity className="w-4 h-4 text-blue-600 animate-pulse" />
+                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest font-mono">LIVE BLUEPRINT CALIBRATION</span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <div className="bg-slate-50 border border-slate-100 px-4 py-2 rounded-2xl flex items-center gap-2.5 shadow-sm">
+                            <div className="w-1.5 h-1.5 rounded-full bg-teal-500"></div>
+                            <div>
+                              <span className="text-[8px] font-black text-slate-400 block uppercase tracking-wider leading-none">PATIENT / مریض</span>
+                              <span className="text-xs sm:text-sm font-black text-slate-900 block mt-0.5">{patient.name || 'N/A'}</span>
+                            </div>
+                          </div>
+
+                          <div className="bg-slate-50 border border-slate-100 px-4 py-2 rounded-2xl flex items-center gap-2.5 shadow-sm">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                            <div>
+                              <span className="text-[8px] font-black text-slate-400 block uppercase tracking-wider leading-none">HOSPITAL / ہسپتال</span>
+                              <span className="text-xs sm:text-sm font-black text-slate-900 block mt-0.5">{patient.hospitalName || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="w-full max-w-[760px] aspect-square flex items-center justify-center p-6 transform hover:scale-101 transition-transform duration-300">
+                      <div id="measurement-drawing-container" className="w-full max-w-[950px] aspect-square flex items-center justify-center p-1 sm:p-4 md:p-6 transform hover:scale-101 transition-transform duration-350">
                         {renderMeasurementDrawingSvg()}
                       </div>
 
-                      <div className="mt-6 text-center">
-                        <p className="text-sm font-black text-slate-950 uppercase tracking-wider">
+                      <div className="mt-4 sm:mt-6 text-center flex flex-col items-center">
+                        <p className="text-sm sm:text-base font-black text-slate-950 uppercase tracking-wider">
                           Reactive Calibration Graph ({garment.type})
                         </p>
-                        <p className="text-xs font-bold text-slate-400 uppercase mt-1">
+                        <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase mt-1">
                           Calculated relative measurements mapping for production line
                         </p>
-                      </div>
-                    </div>
 
-                    {/* Options Row: Garment Color & Measurement Notes only */}
-                    <div className="bg-white p-8 rounded-[3rem] border-2 border-slate-100 shadow-xl space-y-8">
-                      {/* Garment Color Row */}
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                        <div className="w-full md:w-1/4">
-                          <span className="block text-[11px] font-black text-slate-900 uppercase tracking-widest leading-relaxed">GARMENT COLOR</span>
-                          <span className="text-[9px] text-slate-400 font-bold block mt-1 uppercase">Choose Custom Color</span>
-                        </div>
-                        <div className="w-full md:w-3/4">
-                          <textarea
-                            placeholder="Type custom color here (e.g., Beige Skin, Light Pink, Custom Black...)"
-                            value={garment.subOptions?.['Color'] || ''}
-                            onChange={(e) => setGarment(prev => ({
-                              ...prev,
-                              subOptions: {
-                                ...prev.subOptions,
-                                'Color': e.target.value
-                              }
-                            }))}
-                            rows={2}
-                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm font-bold text-slate-900 focus:bg-white focus:border-blue-500 outline-none resize-none placeholder:text-slate-300 transition-all font-sans"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Measurement Notes Row */}
-                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 pt-8 border-t border-slate-100">
-                        <div className="w-full md:w-1/4">
-                          <span className="block text-[11px] font-black text-slate-900 uppercase tracking-widest leading-relaxed">MEASUREMENT NOTES</span>
-                          <span className="text-[9px] text-slate-400 font-bold block mt-1 uppercase">({countWords(patient.notes || '')}/500 words)</span>
-                        </div>
-                        <div className="w-full md:w-3/4">
-                          <textarea
-                            placeholder="Write down any special measurements instructions, scar particulars, or physical condition details here..."
-                            value={patient.notes || ''}
-                            onChange={(e) => handleNotesChange(e.target.value)}
-                            rows={5}
-                            className="w-full text-sm font-semibold p-5 rounded-2xl border border-slate-100 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none bg-slate-50/50 text-slate-800 placeholder:text-slate-300 transition-all font-sans"
-                          />
+                        {/* Download Drawing Action Button */}
+                        <div className="mt-6">
+                          <button
+                            type="button"
+                            onClick={handleDownloadDrawing}
+                            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl shadow-lg shadow-blue-100 hover:scale-102 active:scale-98 transition-all duration-250 font-black text-xs uppercase tracking-wider select-none focus:outline-none focus:ring-4 focus:ring-blue-100"
+                          >
+                            <Download className="w-4 h-4 text-white inline-block align-middle" />
+                            <span>Download Drawing / نقشہ ڈاؤن لوڈ کریں</span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -2668,6 +3263,16 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                               referrerPolicy="no-referrer"
                             />
                           </div>
+
+                          <button
+                            onClick={handleSharePhotoOnly}
+                            className="w-full max-w-sm py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[11px] tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2 border border-transparent shadow-md hover:scale-[1.02] cursor-pointer"
+                          >
+                            <svg className="w-4 h-4 fill-current text-white" viewBox="0 0 24 24">
+                              <path d="M12.012 2c-5.506 0-9.988 4.475-9.988 9.977 0 1.764.46 3.42 1.258 4.876L2 22l5.3-1.383c1.4.764 2.99 1.192 4.697 1.192 5.508 0 9.99-4.476 9.99-9.982C22.012 6.477 17.525 2 12.012 2zm6.39 14.125c-.262.733-1.528 1.343-2.112 1.404-.567.06-1.12.23-3.626-.8-3.208-1.32-5.282-4.578-5.442-4.793-.16-.214-1.288-1.705-1.288-3.253 0-1.548.814-2.31 1.103-2.613.29-.304.633-.38.844-.38.21 0 .422.003.606.012.193.008.455-.074.71.554.264.65.903 2.192.98 2.348.08.156.133.338.028.544-.105.206-.16.333-.316.516-.156.182-.327.406-.467.545-.154.153-.314.32-.136.623.18.303.8 1.3 1.714 2.113.117.104.225.21.32.31.78.825 1.454 1.053 1.768 1.185.314.133.5.112.686-.098.187-.21.802-.93.1017-1.246.216-.317.433-.266.727-.156.294.11 1.86.877 2.177 1.033.317.156.527.23.605.367.078.136.078.79-.184 1.523z" />
+                            </svg>
+                            COPY IMAGE & SHARE / امیج کاپی کریں اور واٹس ایپ
+                          </button>
                         </div>
                       )}
                     </div>
@@ -2743,6 +3348,16 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                         <CheckCircle2 className="w-4 h-4 sm:w-6 sm:h-6" />
                       )}
                       {isSavingAssessment ? 'SAVING...' : 'SAVE ASSESSMENT'}
+                    </button>
+
+                    <button 
+                      onClick={handleWhatsAppShare}
+                      className="btn-primary px-5 py-4 sm:px-10 sm:py-6 text-xs sm:text-base flex items-center justify-center gap-2 sm:gap-4 bg-emerald-600 hover:bg-emerald-700 shadow-2xl hover:scale-105 transition-transform w-full sm:w-auto"
+                    >
+                      <svg className="w-4 h-4 sm:w-6 sm:h-6 fill-current text-white" viewBox="0 0 24 24">
+                        <path d="M12.012 2c-5.506 0-9.988 4.475-9.988 9.977 0 1.764.46 3.42 1.258 4.876L2 22l5.3-1.383c1.4.764 2.99 1.192 4.697 1.192 5.508 0 9.99-4.476 9.99-9.982C22.012 6.477 17.525 2 12.012 2zm6.39 14.125c-.262.733-1.528 1.343-2.112 1.404-.567.06-1.12.23-3.626-.8-3.208-1.32-5.282-4.578-5.442-4.793-.16-.214-1.288-1.705-1.288-3.253 0-1.548.814-2.31 1.103-2.613.29-.304.633-.38.844-.38.21 0 .422.003.606.012.193.008.455-.074.71.554.264.65.903 2.192.98 2.348.08.156.133.338.028.544-.105.206-.16.333-.316.516-.156.182-.327.406-.467.545-.154.153-.314.32-.136.623.18.303.8 1.3 1.714 2.113.117.104.225.21.32.31.78.825 1.454 1.053 1.768 1.185.314.133.5.112.686-.098.187-.21.802-.93.1017-1.246.216-.317.433-.266.727-.156.294.11 1.86.877 2.177 1.033.317.156.527.23.605.367.078.136.078.79-.184 1.523z" />
+                      </svg>
+                      SHARE ON WHATSAPP / واٹس ایپ
                     </button>
 
                     <button 
@@ -2914,10 +3529,18 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                   {/* Schematic Blueprint Drawing */}
                   <div className="col-span-5 rounded-3xl p-4 flex flex-col items-center justify-center" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Sizing Schematic Chart</span>
-                    <div className="w-full flex items-center justify-center bg-white rounded-2xl p-3 shadow-sm border border-slate-100" style={{ minHeight: '180px' }}>
-                      <div className="w-[150px] h-[150px] flex items-center justify-center">
+                    <div className="w-full flex flex-col items-center justify-center bg-white rounded-2xl p-3 shadow-sm border border-slate-100" style={{ minHeight: '180px' }}>
+                      <div id="measurement-drawing-container-review-photo" className="w-[150px] h-[150px] flex items-center justify-center">
                         {renderMeasurementDrawingSvg()}
                       </div>
+                      <button
+                        type="button"
+                        onClick={handleDownloadDrawing}
+                        className="mt-2 text-[10px] font-black text-blue-600 hover:text-blue-800 flex items-center gap-1 uppercase tracking-wider bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-all"
+                      >
+                        <Download className="w-3 h-3" />
+                        Download Chart
+                      </button>
                     </div>
                   </div>
 
@@ -2959,10 +3582,18 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                   {/* Blueprint Drawing */}
                   <div className="col-span-7 rounded-3xl p-5 flex flex-col items-center justify-center" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Live Sizing Schematic Chart</span>
-                    <div className="w-full flex justify-center bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-                      <div className="w-[200px] h-[200px] flex items-center justify-center">
+                    <div className="w-full flex flex-col items-center justify-center bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                      <div id="measurement-drawing-container-review-no-photo" className="w-[200px] h-[200px] flex items-center justify-center">
                         {renderMeasurementDrawingSvg()}
                       </div>
+                      <button
+                        type="button"
+                        onClick={handleDownloadDrawing}
+                        className="mt-3 text-xs font-black text-blue-600 hover:text-blue-800 flex items-center gap-1.5 uppercase tracking-wider bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-xl transition-all"
+                      >
+                        <Download className="w-4 h-4" />
+                        Download Sizing Chart / نقشہ ڈاؤن لوڈ کریں
+                      </button>
                     </div>
                   </div>
 
