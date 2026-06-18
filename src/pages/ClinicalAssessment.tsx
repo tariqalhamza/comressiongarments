@@ -135,6 +135,28 @@ export const GARMENT_FIELDS: Record<string, { id: string; label: string; placeho
     { id: 'close_end', label: 'Close end', placeholder: 'e.g., 20 cm' },
     { id: 'feet_length', label: 'Feet length', placeholder: 'e.g., 25 cm' },
     { id: 'len_heel_to_close_end', label: 'Length heel to close end', placeholder: 'e.g., 18 cm' }
+  ],
+  'Body Shaper': [
+    { id: 'neck_around', label: 'Neck around', placeholder: 'e.g., 36 cm' },
+    { id: 'neck_length', label: 'Neck length', placeholder: 'e.g., 8 cm' },
+    { id: 'shoulder', label: 'Shoulder', placeholder: 'e.g., 44 cm' },
+    { id: 'arm_pit', label: 'Arm pit', placeholder: 'e.g., 32 cm' },
+    { id: 'arm_open_end', label: 'Arm open end', placeholder: 'e.g., 20 cm' },
+    { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 26 cm' },
+    { id: 'arm_close_end', label: 'Arm close end', placeholder: 'e.g., 16 cm' },
+    { id: 'arm_total_length', label: 'Arm total length', placeholder: 'e.g., 62 cm' },
+    { id: 'chest', label: 'Chest', placeholder: 'e.g., 98 cm' },
+    { id: 'diapharm', label: 'Diapharm', placeholder: 'e.g., 85 cm' },
+    { id: 'belly', label: 'Belly', placeholder: 'e.g., 90 cm' },
+    { id: 'waist', label: 'Waist', placeholder: 'e.g., 88 cm' },
+    { id: 'hips', label: 'Hips', placeholder: 'e.g., 104 cm' },
+    { id: 'open_end_thigh', label: 'Open end thigh', placeholder: 'e.g., 56 cm' },
+    { id: 'close_end_thigh', label: 'Close end thigh', placeholder: 'e.g., 46 cm' },
+    { id: 'knee', label: 'Knee', placeholder: 'e.g., 42 cm' },
+    { id: 'ankle', label: 'Ankle', placeholder: 'e.g., 25 cm' },
+    { id: 'length_diaphragm_to_waist', label: 'length diaphragm to waist', placeholder: 'e.g., 20 cm' },
+    { id: 'length_waist_to_ankle', label: 'Length waist to ankle', placeholder: 'e.g., 86 cm' },
+    { id: 'total_length', label: 'Total Length', placeholder: 'e.g., 91 cm' }
   ]
 };
 
@@ -471,15 +493,15 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
     return cleanText.split(/\s+/).length;
   };
 
-  const handleNotesChange = (text: string) => {
+  const handleGarmentNotesChange = (text: string) => {
     const trimmed = text.trim();
     if (trimmed === "") {
-      setPatient(prev => ({ ...prev, notes: text }));
+      setGarmentNotes(text);
       return;
     }
     const wordCount = trimmed.split(/\s+/).length;
     if (wordCount <= 500) {
-      setPatient(prev => ({ ...prev, notes: text }));
+      setGarmentNotes(text);
     } else {
       const words = text.split(/(\s+)/);
       let wordCountSoFar = 0;
@@ -494,7 +516,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
         }
       }
       const truncated = words.slice(0, limitIndex).join('');
-      setPatient(prev => ({ ...prev, notes: truncated }));
+      setGarmentNotes(truncated);
     }
   };
 
@@ -551,6 +573,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
 
   // 3. Photos State
   const [photos, setPhotos] = useState<string[]>([]);
+  const [garmentNotes, setGarmentNotes] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 4. Measurements State - Updated based on garment type
@@ -574,6 +597,14 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
         { id: 'ankle', label: 'Ankle', value: '', x: 200, y: 450 },
         { id: 'calf', label: 'Calf', value: '', x: 200, y: 300 },
         { id: 'thigh', label: 'Thigh (Upper)', value: '', x: 200, y: 150 },
+      ];
+    }
+    if (type.includes('Body Shaper')) {
+      return [
+        { id: 'neck', label: 'Neck around', value: '', x: 150, y: 55 },
+        { id: 'chest', label: 'Chest', value: '', x: 150, y: 110 },
+        { id: 'waist', label: 'Waist', value: '', x: 150, y: 175 },
+        { id: 'hips', label: 'Hips', value: '', x: 150, y: 220 },
       ];
     }
     if (type.includes('Jacket') || type.includes('Vest') || type.includes('Binder')) {
@@ -1425,6 +1456,102 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
           </svg>
         );
 
+      case 'Body Shaper':
+        return (
+          <svg viewBox="0 0 320 340" className="w-full h-full max-h-[640px]" style={{ minHeight: '400px' }}>
+            {/* Outline of the Body Shaper */}
+            <path d="M 135,70 C 135,110 185,110 185,70 L 210,65 L 290,110 L 275,125 L 195,100 L 190,120 Q 180,165 175,190 Q 200,230 195,290 L 165,290 Q 163,245 160,235 Q 157,245 155,290 L 125,290 Q 120,230 145,190 Q 140,165 130,120 L 125,100 L 45,125 L 30,110 L 110,65 Z" fill="#eff6ff" stroke="#3b82f6" strokeWidth="2.5" opacity="0.7" />
+
+            {/* Zipper down the center */}
+            <line x1="160" y1="100" x2="160" y2="235" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="3 2" opacity="0.8" />
+            <circle cx="160" cy="100" r="3" fill="#2563eb" />
+
+            {/* Left Column (flanking the model) */}
+            <g transform="translate(60, 20)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Neck around: {formatVal('Neck around')}</text>
+            </g>
+            <g transform="translate(60, 50)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Neck length: {formatVal('Neck length')}</text>
+            </g>
+            <g transform="translate(60, 80)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Shoulder: {formatVal('Shoulder')}</text>
+            </g>
+            <g transform="translate(60, 110)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Arm pit: {formatVal('Arm pit')}</text>
+            </g>
+            <g transform="translate(60, 140)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Arm open end: {formatVal('Arm open end')}</text>
+            </g>
+            <g transform="translate(60, 170)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Elbow: {formatVal('Elbow')}</text>
+            </g>
+            <g transform="translate(60, 200)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Arm close end: {formatVal('Arm close end')}</text>
+            </g>
+            <g transform="translate(60, 230)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Arm total: {formatVal('Arm total length')}</text>
+            </g>
+            <g transform="translate(60, 260)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Chest: {formatVal('Chest')}</text>
+            </g>
+            <g transform="translate(60, 290)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Diapharm: {formatVal('Diapharm')}</text>
+            </g>
+
+            {/* Right Column (flanking the model) */}
+            <g transform="translate(260, 20)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Belly: {formatVal('Belly')}</text>
+            </g>
+            <g transform="translate(260, 50)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Waist: {formatVal('Waist')}</text>
+            </g>
+            <g transform="translate(260, 80)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Hips: {formatVal('Hips')}</text>
+            </g>
+            <g transform="translate(260, 110)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Open end thigh: {formatVal('Open end thigh')}</text>
+            </g>
+            <g transform="translate(260, 140)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Close end thigh: {formatVal('Close end thigh')}</text>
+            </g>
+            <g transform="translate(260, 170)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Knee: {formatVal('Knee')}</text>
+            </g>
+            <g transform="translate(260, 200)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Ankle: {formatVal('Ankle')}</text>
+            </g>
+            <g transform="translate(260, 230)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Diaph to waist: {formatVal('length diaphragm to waist')}</text>
+            </g>
+            <g transform="translate(260, 260)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Waist to ankle: {formatVal('Length waist to ankle')}</text>
+            </g>
+            <g transform="translate(260, 290)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Total Length: {formatVal('Total Length')}</text>
+            </g>
+          </svg>
+        );
+
       default:
         return (
           <div className="flex flex-col items-center justify-center p-12 bg-slate-50 rounded-3xl border border-slate-100 h-full text-slate-400 font-bold uppercase tracking-widest text-xs">
@@ -2177,13 +2304,9 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
     messageText += `• File ID: *${patient.patientId || 'N/A'}*\n`;
     messageText += `• Name / نام: *${patient.name || 'N/A'}*\n`;
     messageText += `• Age / Gender: *${patient.age > 0 ? `${patient.age} Yrs` : 'N/A'} / ${patient.gender || 'N/A'}*\n`;
-    messageText += `• Contact Phone: *${patient.phone || 'N/A'}*\n`;
-    messageText += `• City / Location: *${patient.city || 'N/A'}*\n`;
     messageText += `• Date / تاریخ: *${patient.date || new Date().toLocaleDateString()}*\n`;
-    messageText += `• Institution / Hospital: *${patient.hospitalName || 'N/A'}*\n`;
-    messageText += `• Referring Surgeon: *${patient.doctorRef || 'N/A'}*\n`;
     if (patient.address) {
-      messageText += `• Home Address: *${patient.address}*\n`;
+      messageText += `• Address / پتہ: *${patient.address}*\n`;
     }
     messageText += `\n`;
 
@@ -2205,7 +2328,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
 
     // Add sub-options / hand measurements if they exist
     if (garment.subOptions) {
-      const activeSubOptions = Object.entries(garment.subOptions).filter(([_, val]) => typeof val === 'string' && val.trim() !== '');
+      const activeSubOptions = Object.entries(garment.subOptions).filter(([key, val]) => key !== 'Custom Design Notes' && key !== 'doctorNotes' && typeof val === 'string' && val.trim() !== '');
       if (activeSubOptions.length > 0) {
         messageText += `*✍️ CUSTOM DESIGN OPTIONS / اضافی تفصیلات*\n`;
         activeSubOptions.forEach(([key, val]) => {
@@ -2215,9 +2338,23 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
       }
     }
 
+    // 1. Doctor's Notes & Case History
     if (patient.notes) {
-      messageText += `*📝 SURGEON CLINICAL NOTES / ڈاکٹر کے نوٹس*\n`;
+      messageText += `*🩺 DOCTOR'S NOTES & CASE HISTORY / ڈاکٹر کے نوٹس اور ہسٹری*\n`;
       messageText += `"${patient.notes}"\n\n`;
+    }
+
+    // 2. Garment Configuration Note
+    if (garmentNotes) {
+      messageText += `*📝 GARMENT CONFIGURATION NOTE / پیمائش کے نوٹ*\n`;
+      messageText += `"${garmentNotes}"\n\n`;
+    }
+
+    // 3. Custom Design Notes
+    const customDesignNotes = garment.subOptions?.['Custom Design Notes'];
+    if (customDesignNotes) {
+      messageText += `*✍️ CUSTOM DESIGN NOTES / اضافی ڈیزائن نوٹس*\n`;
+      messageText += `"${customDesignNotes}"\n\n`;
     }
 
     messageText += `*Generated via Overplast Live Calibration Portal*`;
@@ -2414,8 +2551,11 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
         silicone_pasting: garment.siliconePasting,
         compression: garment.compression,
         measurements: measurements,
-        notes: patient.notes || '',
-        sub_options: garment.subOptions || {},
+        notes: garmentNotes || '',
+        sub_options: {
+          ...(garment.subOptions || {}),
+          doctorNotes: patient.notes || ''
+        },
         age: patient.age ? Number(patient.age) : 0,
         gender: patient.gender || 'other',
         city: patient.city || '',
@@ -2797,16 +2937,16 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                       <div className="space-y-3 pt-4 border-t border-slate-100">
                         <div className="flex items-center justify-between">
                           <label className="text-[11px] font-black text-slate-900 uppercase tracking-widest leading-relaxed block font-sans">
-                            MEASUREMENT NOTES / پیمائش کے نوٹ
+                            GARMENT CONFIGURATION NOTE / پیمائش کے نوٹ
                           </label>
                           <span className="text-[9px] text-slate-400 font-bold uppercase font-sans">
-                            ({countWords(patient.notes || '')}/500 words)
+                            ({countWords(garmentNotes)}/500 words)
                           </span>
                         </div>
                         <textarea
                           placeholder="Write down any special measurements instructions, scar particulars, or physical condition details here..."
-                          value={patient.notes || ''}
-                          onChange={(e) => handleNotesChange(e.target.value)}
+                          value={garmentNotes}
+                          onChange={(e) => handleGarmentNotesChange(e.target.value)}
                           rows={4}
                           className="w-full text-sm font-semibold p-4 rounded-2xl border border-slate-100 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none bg-slate-50/50 text-slate-800 placeholder:text-slate-300 transition-all font-sans"
                         />
@@ -2869,6 +3009,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                         <option value="All Trouser">All Trouser</option>
                         <option value="All Leg Sleeves">All Leg Sleeves</option>
                         <option value="All Socks">All Socks</option>
+                        <option value="Body Shaper">Body Shaper</option>
                       </select>
                     </div>
 
@@ -2976,6 +3117,26 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                       );
                     })()}
 
+                    {/* Custom Design Notes Option */}
+                    <div className="space-y-4 pt-6 border-t border-slate-100">
+                      <label className="text-[12px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-blue-600" />
+                        Custom Design Notes (اضافی ڈیزائن نوٹس)
+                      </label>
+                      <textarea
+                        rows={4}
+                        placeholder="Enter custom styling details, zipper preferences, extra support straps specifications... (تفصیلی ڈیزائن اور گارمنٹ کی ہدایات یہاں درج کریں)"
+                        value={garment.subOptions?.['Custom Design Notes'] || ''}
+                        onChange={(e) => setGarment(prev => ({
+                          ...prev,
+                          subOptions: {
+                            ...(prev.subOptions || {}),
+                            'Custom Design Notes': e.target.value
+                          }
+                        }))}
+                        className="w-full px-5 py-4 bg-white border-2 border-slate-100/80 hover:border-slate-200 focus:border-blue-600 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-blue-50/50 outline-none transition-all shadow-sm resize-none"
+                      />
+                    </div>
 
                   </div>
                 </div>
@@ -3621,11 +3782,34 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
             </div>
 
             {/* Dr Notes Section */}
-            <div className="space-y-2">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">3. Medical Condition & Remarks / ضروری ہدایات</h3>
-              <p className="text-xs text-slate-700 font-bold leading-relaxed p-4 rounded-2xl whitespace-pre-wrap font-mono" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9', minHeight: '100px' }}>
-                {patient.notes || "No extra notes specified."}
-              </p>
+            <div className="space-y-4">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">3. Clinical & Configuration Notes / ضروری ہدایات</h3>
+              
+              {/* Patient's Doctor's Notes */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider block">Doctor's Notes & Case History / ڈاکٹر کے نوٹس</span>
+                <p className="text-xs text-slate-700 font-bold leading-relaxed p-3.5 rounded-xl whitespace-pre-wrap bg-slate-50 border border-slate-100 font-sans">
+                  {patient.notes || "No Case History Notes registered."}
+                </p>
+              </div>
+
+              {/* Garment Configuration Notes */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Garment Configuration Note / پیمائش کے نوٹ</span>
+                <p className="text-xs text-slate-700 font-bold leading-relaxed p-3.5 rounded-xl whitespace-pre-wrap bg-slate-50 border border-slate-100 font-sans">
+                  {garmentNotes || "No Garment Configuration Notes added."}
+                </p>
+              </div>
+
+              {/* Custom Design Notes */}
+              {garment.subOptions?.['Custom Design Notes'] && (
+                <div className="space-y-1">
+                  <span className="text-[10px] font-extrabold text-purple-600 uppercase tracking-wider block">Custom Design Notes / اضافی ڈیزائن نوٹس</span>
+                  <p className="text-xs text-slate-700 font-bold leading-relaxed p-3.5 rounded-xl whitespace-pre-wrap bg-slate-50 border border-slate-100 font-sans">
+                    {garment.subOptions['Custom Design Notes']}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

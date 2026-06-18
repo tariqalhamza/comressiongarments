@@ -22,6 +22,7 @@ import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.pn
 
 interface RegisteredAssessment {
   id: string;
+  patient_id?: string;
   patient_name: string;
   hospital_name: string;
   doctor_ref: string;
@@ -51,6 +52,23 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
   const [activeBothHandView, setActiveBothHandView] = useState<'Right' | 'Left'>('Right');
   const [assessmentToDelete, setAssessmentToDelete] = useState<RegisteredAssessment | null>(null);
   const [patientPhotos, setPatientPhotos] = useState<Record<string, string>>({});
+  const [patientAddresses, setPatientAddresses] = useState<Record<string, string>>({});
+  const [patientNotes, setPatientNotes] = useState<Record<string, string>>({});
+
+  const getAssessmentDoctorNotes = (assessment: RegisteredAssessment) => {
+    if (assessment.sub_options && (assessment.sub_options as any).doctorNotes) {
+      return (assessment.sub_options as any).doctorNotes;
+    }
+    const nameKey = assessment.patient_name?.toLowerCase().trim();
+    if (nameKey && patientNotes[nameKey]) {
+      return patientNotes[nameKey];
+    }
+    const idKey = assessment.patient_id;
+    if (idKey && patientNotes[idKey]) {
+      return patientNotes[idKey];
+    }
+    return '';
+  };
 
   useEffect(() => {
     fetchAssessments();
@@ -67,6 +85,8 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         const patientsData = await dbService.patients.getAll();
         if (patientsData && patientsData.length > 0) {
           const photoMap: Record<string, string> = {};
+          const addressMap: Record<string, string> = {};
+          const notesMap: Record<string, string> = {};
           patientsData.forEach(p => {
             if (p.photo_url) {
               photoMap[p.full_name?.toLowerCase().trim()] = p.photo_url;
@@ -74,8 +94,22 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
                 photoMap[p.id] = p.photo_url;
               }
             }
+            if (p.address) {
+              addressMap[p.full_name?.toLowerCase().trim()] = p.address;
+              if (p.id) {
+                addressMap[p.id] = p.address;
+              }
+            }
+            if (p.notes) {
+              notesMap[p.full_name?.toLowerCase().trim()] = p.notes;
+              if (p.id) {
+                notesMap[p.id] = p.notes;
+              }
+            }
           });
           setPatientPhotos(photoMap);
+          setPatientAddresses(addressMap);
+          setPatientNotes(notesMap);
         }
       } catch (pErr) {
         console.warn('Could not load patient list for photo map:', pErr);
@@ -603,6 +637,98 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
       </svg>`;
     }
 
+    if (garment === 'Body Shaper') {
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 340" width="320" height="340">
+        <path d="M 135,70 C 135,110 185,110 185,70 L 210,65 L 290,110 L 275,125 L 195,100 L 190,120 Q 180,165 175,190 Q 200,230 195,290 L 165,290 Q 163,245 160,235 Q 157,245 155,290 L 125,290 Q 120,230 145,190 Q 140,165 130,120 L 125,100 L 45,125 L 30,110 L 110,65 Z" fill="#eff6ff" stroke="#3b82f6" stroke-width="2.5" opacity="0.7" />
+
+        <!-- Zipper down the center -->
+        <line x1="160" y1="100" x2="160" y2="235" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.8" />
+        <circle cx="160" cy="100" r="3" fill="#2563eb" />
+
+        <g transform="translate(60, 20)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#2563eb" font-family="sans-serif" font-size="7.5" font-weight="bold">Neck around: ${formatVal('Neck around')}</text>
+        </g>
+        <g transform="translate(60, 50)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#2563eb" font-family="sans-serif" font-size="7.5" font-weight="bold">Neck length: ${formatVal('Neck length')}</text>
+        </g>
+        <g transform="translate(60, 80)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#2563eb" font-family="sans-serif" font-size="7.5" font-weight="bold">Shoulder: ${formatVal('Shoulder')}</text>
+        </g>
+        <g transform="translate(60, 110)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#2563eb" font-family="sans-serif" font-size="7.5" font-weight="bold">Arm pit: ${formatVal('Arm pit')}</text>
+        </g>
+        <g transform="translate(60, 140)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#2563eb" font-family="sans-serif" font-size="7.5" font-weight="bold">Arm open end: ${formatVal('Arm open end')}</text>
+        </g>
+        <g transform="translate(60, 170)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#2563eb" font-family="sans-serif" font-size="7.5" font-weight="bold">Elbow: ${formatVal('Elbow')}</text>
+        </g>
+        <g transform="translate(60, 200)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#2563eb" font-family="sans-serif" font-size="7.5" font-weight="bold">Arm close end: ${formatVal('Arm close end')}</text>
+        </g>
+        <g transform="translate(60, 230)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#2563eb" font-family="sans-serif" font-size="7.5" font-weight="bold">Arm total: ${formatVal('Arm total length')}</text>
+        </g>
+        <g transform="translate(60, 260)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#2563eb" font-family="sans-serif" font-size="7.5" font-weight="bold">Chest: ${formatVal('Chest')}</text>
+        </g>
+        <g transform="translate(60, 290)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#2563eb" font-family="sans-serif" font-size="7.5" font-weight="bold">Diapharm: ${formatVal('Diapharm')}</text>
+        </g>
+
+        <g transform="translate(260, 20)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#10b981" font-family="sans-serif" font-size="7.5" font-weight="bold">Belly: ${formatVal('Belly')}</text>
+        </g>
+        <g transform="translate(260, 50)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#10b981" font-family="sans-serif" font-size="7.5" font-weight="bold">Waist: ${formatVal('Waist')}</text>
+        </g>
+        <g transform="translate(260, 80)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#10b981" font-family="sans-serif" font-size="7.5" font-weight="bold">Hips: ${formatVal('Hips')}</text>
+        </g>
+        <g transform="translate(260, 110)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#10b981" font-family="sans-serif" font-size="7.5" font-weight="bold">Open end thigh: ${formatVal('Open end thigh')}</text>
+        </g>
+        <g transform="translate(260, 140)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#10b981" font-family="sans-serif" font-size="7.5" font-weight="bold">Close end thigh: ${formatVal('Close end thigh')}</text>
+        </g>
+        <g transform="translate(260, 170)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#10b981" font-family="sans-serif" font-size="7.5" font-weight="bold">Knee: ${formatVal('Knee')}</text>
+        </g>
+        <g transform="translate(260, 200)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#10b981" font-family="sans-serif" font-size="7.5" font-weight="bold">Ankle: ${formatVal('Ankle')}</text>
+        </g>
+        <g transform="translate(260, 230)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#10b981" font-family="sans-serif" font-size="7.5" font-weight="bold">Diaph to waist: ${formatVal('length diaphragm to waist')}</text>
+        </g>
+        <g transform="translate(260, 260)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#10b981" font-family="sans-serif" font-size="7.5" font-weight="bold">Waist to ankle: ${formatVal('Length waist to ankle')}</text>
+        </g>
+        <g transform="translate(260, 290)">
+          <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#10b981" font-family="sans-serif" font-size="7.5" font-weight="bold">Total Length: ${formatVal('Total Length')}</text>
+        </g>
+      </svg>`;
+    }
+
     return '';
   };
 
@@ -880,15 +1006,46 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
   };
 
   const handleWhatsAppShare = (assessment: RegisteredAssessment) => {
+    // Resolve patient address if available
+    const getAddress = () => {
+      const nameKey = assessment.patient_name?.toLowerCase().trim();
+      if (nameKey && patientAddresses[nameKey]) {
+        return patientAddresses[nameKey];
+      }
+      const idKey = (assessment as any).patient_id;
+      if (idKey && patientAddresses[idKey]) {
+        return patientAddresses[idKey];
+      }
+      return assessment.city || '';
+    };
+    const resolvedAddress = getAddress();
+
+    // Resolve patient doctor notes if available
+    const getDoctorNotes = () => {
+      if (assessment.sub_options && (assessment.sub_options as any).doctorNotes) {
+        return (assessment.sub_options as any).doctorNotes;
+      }
+      const nameKey = assessment.patient_name?.toLowerCase().trim();
+      if (nameKey && patientNotes[nameKey]) {
+        return patientNotes[nameKey];
+      }
+      const idKey = (assessment as any).patient_id;
+      if (idKey && patientNotes[idKey]) {
+        return patientNotes[idKey];
+      }
+      return '';
+    };
+    const resolvedDoctorNotes = getDoctorNotes();
+
     let messageText = `🩺 *CLINICAL ASSESSMENT SUMMARY / خلاصہ طبی معائنہ*\n\n`;
     messageText += `*👤 PATIENT DETAILS / معلومات مریض*\n`;
     messageText += `• File ID: *${assessment.id || 'N/A'}*\n`;
     messageText += `• Name / نام: *${assessment.patient_name || 'N/A'}*\n`;
     messageText += `• Age / Gender: *${assessment.age && assessment.age > 0 ? `${assessment.age} Yrs` : 'N/A'} / ${assessment.gender || 'N/A'}*\n`;
-    messageText += `• City / Location: *${assessment.city || 'N/A'}*\n`;
     messageText += `• Date / تاریخ: *${assessment.created_at ? new Date(assessment.created_at).toLocaleDateString() : new Date().toLocaleDateString()}*\n`;
-    messageText += `• Institution / Hospital: *${assessment.hospital_name || 'N/A'}*\n`;
-    messageText += `• Referring Surgeon: *${assessment.doctor_ref || 'N/A'}*\n`;
+    if (resolvedAddress) {
+      messageText += `• Address / پتہ: *${resolvedAddress}*\n`;
+    }
     messageText += `\n`;
 
     messageText += `*📦 GARMENT CONFIGURATION / گارمنٹ کنفیگریشن*\n`;
@@ -899,9 +1056,11 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
 
     // Add sub-options / hand measurements if they exist
     if (assessment.sub_options) {
-      const activeSubOptions = Object.entries(assessment.sub_options).filter(([_, val]) => val !== undefined && val !== null && String(val).trim() !== '');
+      const activeSubOptions = Object.entries(assessment.sub_options).filter(
+        ([key, val]) => key !== 'Custom Design Notes' && key !== 'doctorNotes' && val !== undefined && val !== null && String(val).trim() !== ''
+      );
       if (activeSubOptions.length > 0) {
-        messageText += `*📐 CORE MEASUREMENTS / پیمائش*\n`;
+        messageText += `*✍️ CUSTOM DESIGN OPTIONS / اضافی تفصیلات*\n`;
         activeSubOptions.forEach(([key, val]) => {
           messageText += `• ${key}: *${val}*\n`;
         });
@@ -909,9 +1068,23 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
       }
     }
 
+    // 1. Doctor's Notes & Case History
+    if (resolvedDoctorNotes) {
+      messageText += `*🩺 DOCTOR'S NOTES & CASE HISTORY / ڈاکٹر کے نوٹس اور ہسٹری*\n`;
+      messageText += `"${resolvedDoctorNotes}"\n\n`;
+    }
+
+    // 2. Garment Configuration Note
     if (assessment.notes) {
-      messageText += `*📝 SURGEON CLINICAL NOTES / ڈاکٹر کے نوٹس*\n`;
+      messageText += `*📝 GARMENT CONFIGURATION NOTE / پیمائش کے نوٹ*\n`;
       messageText += `"${assessment.notes}"\n\n`;
+    }
+
+    // 3. Custom Design Notes
+    const customDesignNotes = assessment.sub_options ? (assessment.sub_options as any)['Custom Design Notes'] : null;
+    if (customDesignNotes) {
+      messageText += `*✍️ CUSTOM DESIGN NOTES / اضافی ڈیزائن نوٹس*\n`;
+      messageText += `"${customDesignNotes}"\n\n`;
     }
 
     messageText += `*Generated via Overplast Live Calibration Portal*`;
@@ -1769,6 +1942,102 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
           </svg>
         );
 
+      case 'Body Shaper':
+        return (
+          <svg viewBox="0 0 320 340" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
+            {/* Outline of the Body Shaper */}
+            <path d="M 135,70 C 135,110 185,110 185,70 L 210,65 L 290,110 L 275,125 L 195,100 L 190,120 Q 180,165 175,190 Q 200,230 195,290 L 165,290 Q 163,245 160,235 Q 157,245 155,290 L 125,290 Q 120,230 145,190 Q 140,165 130,120 L 125,100 L 45,125 L 30,110 L 110,65 Z" fill="#eff6ff" stroke="#3b82f6" strokeWidth="2.5" opacity="0.7" />
+
+            {/* Zipper down the center */}
+            <line x1="160" y1="100" x2="160" y2="235" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="3 2" opacity="0.8" />
+            <circle cx="160" cy="100" r="3" fill="#2563eb" />
+
+            {/* Left Column (flanking the model) */}
+            <g transform="translate(60, 20)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Neck around: {formatVal('Neck around')}</text>
+            </g>
+            <g transform="translate(60, 50)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Neck length: {formatVal('Neck length')}</text>
+            </g>
+            <g transform="translate(60, 80)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Shoulder: {formatVal('Shoulder')}</text>
+            </g>
+            <g transform="translate(60, 110)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Arm pit: {formatVal('Arm pit')}</text>
+            </g>
+            <g transform="translate(60, 140)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Arm open end: {formatVal('Arm open end')}</text>
+            </g>
+            <g transform="translate(60, 170)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Elbow: {formatVal('Elbow')}</text>
+            </g>
+            <g transform="translate(60, 200)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Arm close end: {formatVal('Arm close end')}</text>
+            </g>
+            <g transform="translate(60, 230)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Arm total: {formatVal('Arm total length')}</text>
+            </g>
+            <g transform="translate(60, 260)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Chest: {formatVal('Chest')}</text>
+            </g>
+            <g transform="translate(60, 290)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Diapharm: {formatVal('Diapharm')}</text>
+            </g>
+
+            {/* Right Column (flanking the model) */}
+            <g transform="translate(260, 20)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Belly: {formatVal('Belly')}</text>
+            </g>
+            <g transform="translate(260, 50)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Waist: {formatVal('Waist')}</text>
+            </g>
+            <g transform="translate(260, 80)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Hips: {formatVal('Hips')}</text>
+            </g>
+            <g transform="translate(260, 110)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Open end thigh: {formatVal('Open end thigh')}</text>
+            </g>
+            <g transform="translate(260, 140)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Close end thigh: {formatVal('Close end thigh')}</text>
+            </g>
+            <g transform="translate(260, 170)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Knee: {formatVal('Knee')}</text>
+            </g>
+            <g transform="translate(260, 200)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Ankle: {formatVal('Ankle')}</text>
+            </g>
+            <g transform="translate(260, 230)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Diaph to waist: {formatVal('length diaphragm to waist')}</text>
+            </g>
+            <g transform="translate(260, 260)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Waist to ankle: {formatVal('Length waist to ankle')}</text>
+            </g>
+            <g transform="translate(260, 290)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Total Length: {formatVal('Total Length')}</text>
+            </g>
+          </svg>
+        );
+
       default:
         return (
           <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border border-slate-100 h-full text-slate-400 font-bold uppercase tracking-widest text-xs">
@@ -1988,11 +2257,31 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
                   )}
 
                   {/* Notes snippet */}
-                  <div className="space-y-2">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Medical Condition & Remarks</span>
-                    <p className="text-xs text-slate-650 font-bold leading-relaxed bg-slate-50/40 border border-slate-100/50 p-4 rounded-2xl max-h-[100px] overflow-y-auto whitespace-pre-wrap font-mono">
-                      {selectedAssessment.notes || "No standard notes recorded details."}
-                    </p>
+                  <div className="space-y-3">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Clinical & Configuration Notes / ضروری ہدایات</span>
+                    <div className="space-y-3 bg-slate-50/40 border border-slate-100/50 p-4 rounded-2xl max-h-[160px] overflow-y-auto">
+                      {getAssessmentDoctorNotes(selectedAssessment) && (
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-black text-blue-650 uppercase tracking-widest block">Doctor Notes / ڈاکٹر نوٹس</span>
+                          <p className="text-xs text-slate-700 font-bold whitespace-pre-wrap font-sans">{getAssessmentDoctorNotes(selectedAssessment)}</p>
+                        </div>
+                      )}
+                      {selectedAssessment.notes && (
+                        <div className={`space-y-1 ${getAssessmentDoctorNotes(selectedAssessment) ? 'pt-2.5 border-t border-slate-100' : ''}`}>
+                          <span className="text-[9px] font-black text-indigo-650 uppercase tracking-widest block">Garment Configuration Note / پیمائش کے نوٹ</span>
+                          <p className="text-xs text-slate-700 font-bold whitespace-pre-wrap font-sans">{selectedAssessment.notes}</p>
+                        </div>
+                      )}
+                      {selectedAssessment.sub_options?.['Custom Design Notes'] && (
+                        <div className={`space-y-1 ${(getAssessmentDoctorNotes(selectedAssessment) || selectedAssessment.notes) ? 'pt-2.5 border-t border-slate-100' : ''}`}>
+                          <span className="text-[9px] font-black text-purple-650 uppercase tracking-widest block">Custom Design Notes / ڈیزائن نوٹس</span>
+                          <p className="text-xs text-slate-700 font-bold whitespace-pre-wrap font-sans">{selectedAssessment.sub_options['Custom Design Notes']}</p>
+                        </div>
+                      )}
+                      {!getAssessmentDoctorNotes(selectedAssessment) && !selectedAssessment.notes && !selectedAssessment.sub_options?.['Custom Design Notes'] && (
+                        <p className="text-xs text-slate-400 italic">No notes recorded.</p>
+                      )}
+                    </div>
                   </div>
 
                   {/* Actions */}
@@ -2180,7 +2469,15 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block pl-1">Matrix Calibration Parameters</span>
                     <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4 space-y-2" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
                       {Object.entries(selectedAssessment.sub_options || {})
-                        .filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection')
+                        .filter(
+                          ([key, val]) =>
+                            val !== undefined &&
+                            val !== '' &&
+                            key.toLowerCase() !== 'color' &&
+                            key.toLowerCase() !== 'hand selection' &&
+                            key !== 'Custom Design Notes' &&
+                            key !== 'doctorNotes'
+                        )
                         .map(([key, val]) => (
                           <div key={key} className="flex justify-between items-center text-xs pb-1.5 border-b border-dashed border-slate-200 last:border-none last:pb-0">
                             <span className="text-slate-400 font-extrabold uppercase tracking-wider text-[9px]">{key}</span>
@@ -2189,7 +2486,15 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
                             </span>
                           </div>
                         ))}
-                      {Object.entries(selectedAssessment.sub_options || {}).filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection').length === 0 && (
+                      {Object.entries(selectedAssessment.sub_options || {}).filter(
+                        ([key, val]) =>
+                          val !== undefined &&
+                          val !== '' &&
+                          key.toLowerCase() !== 'color' &&
+                          key.toLowerCase() !== 'hand selection' &&
+                          key !== 'Custom Design Notes' &&
+                          key !== 'doctorNotes'
+                      ).length === 0 && (
                         <p className="text-xs text-slate-400 italic">No custom points registered.</p>
                       )}
                     </div>
@@ -2201,11 +2506,36 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
               {/* Notes & Uploaded Photo Section */}
               <div className="grid grid-cols-12 gap-6">
                 {/* Notes Column */}
-                <div className={getAssessmentPhoto(selectedAssessment) ? "col-span-7 space-y-2" : "col-span-12 space-y-2"}>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">3. Medical Condition & Remarks / ضروری ہدایات</h3>
-                  <p className="text-xs text-slate-700 font-bold leading-relaxed p-4 rounded-2xl whitespace-pre-wrap font-mono" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9', minHeight: '130px' }}>
-                    {selectedAssessment.notes || "No extra notes specified."}
-                  </p>
+                <div className={getAssessmentPhoto(selectedAssessment) ? "col-span-7 space-y-4" : "col-span-12 space-y-4"}>
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">3. Clinical & Configuration Notes / ضروری ہدایات</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Patient's Doctor's Notes */}
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider block">Doctor's Notes & Case History / ڈاکٹر کے نوٹس</span>
+                      <p className="text-xs text-slate-700 font-bold leading-relaxed p-3.5 rounded-2xl whitespace-pre-wrap bg-slate-50 border border-slate-100 font-sans min-h-[90px]">
+                        {getAssessmentDoctorNotes(selectedAssessment) || "No Case History Notes registered."}
+                      </p>
+                    </div>
+
+                    {/* Garment Configuration Notes */}
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Garment Configuration Note / پیمائش کے نوٹ</span>
+                      <p className="text-xs text-slate-700 font-bold leading-relaxed p-3.5 rounded-2xl whitespace-pre-wrap bg-slate-50 border border-slate-100 font-sans min-h-[90px]">
+                        {selectedAssessment.notes || "No Garment Configuration Notes added."}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Custom Design Notes */}
+                  {selectedAssessment.sub_options?.['Custom Design Notes'] && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-extrabold text-purple-600 uppercase tracking-wider block">Custom Design Notes / اضافی ڈیزائن نوٹس</span>
+                      <p className="text-xs text-slate-700 font-bold leading-relaxed p-3.5 rounded-2xl whitespace-pre-wrap bg-slate-50 border border-slate-100 font-sans min-h-[60px]">
+                        {selectedAssessment.sub_options['Custom Design Notes']}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Photo Column */}

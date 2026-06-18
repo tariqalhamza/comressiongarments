@@ -789,6 +789,102 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
           </svg>
         );
 
+      case 'Body Shaper':
+        return (
+          <svg viewBox="0 0 320 340" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
+            {/* Outline of the Body Shaper */}
+            <path d="M 135,70 C 135,110 185,110 185,70 L 210,65 L 290,110 L 275,125 L 195,100 L 190,120 Q 180,165 175,190 Q 200,230 195,290 L 165,290 Q 163,245 160,235 Q 157,245 155,290 L 125,290 Q 120,230 145,190 Q 140,165 130,120 L 125,100 L 45,125 L 30,110 L 110,65 Z" fill="#eff6ff" stroke="#3b82f6" strokeWidth="2.5" opacity="0.7" />
+
+            {/* Zipper down the center */}
+            <line x1="160" y1="100" x2="160" y2="235" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="3 2" opacity="0.8" />
+            <circle cx="160" cy="100" r="3" fill="#2563eb" />
+
+            {/* Left Column (flanking the model) */}
+            <g transform="translate(60, 20)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Neck around: {formatVal('Neck around')}</text>
+            </g>
+            <g transform="translate(60, 50)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Neck length: {formatVal('Neck length')}</text>
+            </g>
+            <g transform="translate(60, 80)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Shoulder: {formatVal('Shoulder')}</text>
+            </g>
+            <g transform="translate(60, 110)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Arm pit: {formatVal('Arm pit')}</text>
+            </g>
+            <g transform="translate(60, 140)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Arm open end: {formatVal('Arm open end')}</text>
+            </g>
+            <g transform="translate(60, 170)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Elbow: {formatVal('Elbow')}</text>
+            </g>
+            <g transform="translate(60, 200)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Arm close end: {formatVal('Arm close end')}</text>
+            </g>
+            <g transform="translate(60, 230)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Arm total: {formatVal('Arm total length')}</text>
+            </g>
+            <g transform="translate(60, 260)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Chest: {formatVal('Chest')}</text>
+            </g>
+            <g transform="translate(60, 290)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Diapharm: {formatVal('Diapharm')}</text>
+            </g>
+
+            {/* Right Column (flanking the model) */}
+            <g transform="translate(260, 20)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Belly: {formatVal('Belly')}</text>
+            </g>
+            <g transform="translate(260, 50)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Waist: {formatVal('Waist')}</text>
+            </g>
+            <g transform="translate(260, 80)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Hips: {formatVal('Hips')}</text>
+            </g>
+            <g transform="translate(260, 110)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Open end thigh: {formatVal('Open end thigh')}</text>
+            </g>
+            <g transform="translate(260, 140)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Close end thigh: {formatVal('Close end thigh')}</text>
+            </g>
+            <g transform="translate(260, 170)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Knee: {formatVal('Knee')}</text>
+            </g>
+            <g transform="translate(260, 200)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Ankle: {formatVal('Ankle')}</text>
+            </g>
+            <g transform="translate(260, 230)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Diaph to waist: {formatVal('length diaphragm to waist')}</text>
+            </g>
+            <g transform="translate(260, 260)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Waist to ankle: {formatVal('Length waist to ankle')}</text>
+            </g>
+            <g transform="translate(260, 290)" className="text-[7.5px] font-bold">
+              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Total Length: {formatVal('Total Length')}</text>
+            </g>
+          </svg>
+        );
+
       default:
         return (
           <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border border-slate-100 h-full text-slate-400 font-bold uppercase tracking-widest text-xs">

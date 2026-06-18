@@ -25,7 +25,9 @@ import {
   UploadCloud,
   AlertTriangle,
   Pencil,
-  RefreshCw
+  RefreshCw,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Patient } from '../types';
@@ -34,6 +36,7 @@ import { cn } from '../lib/utils';
 import { compressImage } from '../lib/imageUtils';
 import AssessmentSummaryModal from '../components/AssessmentSummaryModal';
 import { useAuthStore } from '../services/authStore';
+import { exportPatientToExcel, exportPatientToPDF } from '../utils/exportUtils';
 
 interface RegistrationProps {
   onStartAssessment: (patient: Patient) => void;
@@ -52,6 +55,7 @@ const Registration: React.FC<RegistrationProps> = ({
   const [savedAssessments, setSavedAssessments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedGarmentType, setSelectedGarmentType] = useState('All');
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -343,15 +347,28 @@ const Registration: React.FC<RegistrationProps> = ({
     }
   };
 
-  // Filter patients based on search
+  // Filter patients based on search and garment type
   const filteredPatients = patients.filter(p => {
     const search = searchTerm.toLowerCase();
-    return (
+    const matchesPatient = (
       (p.full_name || '').toLowerCase().includes(search) ||
       (p.phone || '').toLowerCase().includes(search) ||
       (p.doctor_name || '').toLowerCase().includes(search) ||
       (p.hospital || '').toLowerCase().includes(search)
     );
+
+    if (!matchesPatient) return false;
+
+    if (selectedGarmentType === 'All') return true;
+
+    // Find if patient has an assessment matching the selectedGarmentType
+    const hasMatchingAssessment = savedAssessments.some(asm => {
+      const isMatchId = asm.patient_id && asm.patient_id !== 'anonymous' && asm.patient_id === p.id;
+      const isMatchName = asm.patient_name && p.full_name && asm.patient_name.toLowerCase().trim() === p.full_name.toLowerCase().trim();
+      return (isMatchId || isMatchName) && asm.garment_type === selectedGarmentType;
+    });
+
+    return hasMatchingAssessment;
   });
 
   return (
@@ -708,26 +725,70 @@ const Registration: React.FC<RegistrationProps> = ({
         <div className="space-y-6">
         
         {/* List Header and Search Controls */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 border-t border-slate-200/80 pt-8">
-          <div className="border-l-4 border-slate-900 pl-4">
-            <h3 className="text-lg font-black text-slate-900 tracking-tight uppercase">
-              REGISTERED PATIENT DATABASE / رجسٹرڈ مریض
-            </h3>
-            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-0.5">
-              Live Enrollment Directory & Actions Launcher
-            </p>
-          </div>
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-6 border-t border-slate-200/80 pt-8">
+          <div className="border-l-4 border-slate-900 pl-4 space-y-3 w-full lg:w-auto">
+            <div>
+              <h3 className="text-lg font-black text-slate-900 tracking-tight uppercase">
+                REGISTERED PATIENT DATABASE / رجسٹرڈ مریض
+              </h3>
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-0.5">
+                Live Enrollment Directory & Actions Launcher
+              </p>
+            </div>
+            
+            {/* Search options precisely placed where marked in SS */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search by Patient Input */}
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input 
+                  type="text"
+                  placeholder="Search by Patient / مریض تلاش کریں..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
+                  id="search-by-patient-input-marked"
+                />
+              </div>
 
-          {/* Quick Search Widget */}
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input 
-              type="text"
-              placeholder="Search by patient name, phone, doctor or hospital..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="medical-input pl-12 text-xs font-bold" 
-            />
+              {/* Search by Garment Dropdown */}
+              <div className="relative w-full sm:w-56">
+                <select
+                  value={selectedGarmentType}
+                  onChange={(e) => setSelectedGarmentType(e.target.value)}
+                  className="w-full pl-3 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all appearance-none cursor-pointer shadow-sm"
+                  id="search-by-garment-select-marked"
+                >
+                  <option value="All">All Garments / تمام گارمنٹس</option>
+                  <option value="Upper Sleeve">Upper Sleeve / اوپر کی آستین</option>
+                  <option value="Glove">Glove / دستانہ</option>
+                  <option value="Face Mask">Face Mask / چہرے کا ماسک</option>
+                  <option value="Belly Binder">Belly Binder / پیٹ کی پٹی</option>
+                  <option value="All Trouser">All Trouser / پتلون</option>
+                  <option value="All Leg Sleeves">All Leg Sleeves / ٹانگوں کی آستین</option>
+                  <option value="All Socks">All Socks / جرابیں</option>
+                  <option value="Body Shaper">Body Shaper / باڈی شیپر</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-450">
+                  <ChevronDown className="w-4 h-4" />
+                </div>
+              </div>
+
+              {/* Reset Option (if filters are active) */}
+              {(searchTerm || selectedGarmentType !== 'All') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedGarmentType('All');
+                  }}
+                  className="text-slate-500 hover:text-blue-600 font-extrabold text-[10px] uppercase tracking-wider flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-slate-100 transition-all cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -932,6 +993,62 @@ const Registration: React.FC<RegistrationProps> = ({
                     )}
 
                   </div>
+
+                  {/* Excel and PDF Download Action Buttons */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-slate-100/70">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const matchedAssessment = savedAssessments.find(
+                          asm => {
+                            if (asm.patient_id && asm.patient_id !== 'anonymous') {
+                              return asm.patient_id === patientItem.id;
+                            }
+                            const asmTime = new Date(asm.created_at).getTime();
+                            const patientTime = new Date(patientItem.created_at).getTime();
+                            return (
+                              asm.patient_name.toLowerCase().trim() === patientItem.full_name.toLowerCase().trim() &&
+                              asmTime >= patientTime - 60000
+                            );
+                          }
+                        );
+                        exportPatientToPDF(patientItem, matchedAssessment || null);
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-50 hover:bg-slate-900 border border-slate-250 hover:border-slate-800 text-slate-800 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95 z-20"
+                      title="Download PDF clinical dossier / پی ڈی ایف رپورٹ حاصل کریں"
+                    >
+                      <Download className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                      <span>Download PDF / پی ڈی ایف</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const matchedAssessment = savedAssessments.find(
+                          asm => {
+                            if (asm.patient_id && asm.patient_id !== 'anonymous') {
+                              return asm.patient_id === patientItem.id;
+                            }
+                            const asmTime = new Date(asm.created_at).getTime();
+                            const patientTime = new Date(patientItem.created_at).getTime();
+                            return (
+                              asm.patient_name.toLowerCase().trim() === patientItem.full_name.toLowerCase().trim() &&
+                              asmTime >= patientTime - 60000
+                            );
+                          }
+                        );
+                        exportPatientToExcel(patientItem, matchedAssessment || null);
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-50 hover:bg-emerald-700 border border-slate-250 hover:border-emerald-600 text-slate-800 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95 z-20"
+                      title="Download Excel spreadsheet / ایکسل شیٹ حاصل کریں"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>Download Excel / ایکسل</span>
+                    </button>
+                  </div>
+
                 </div>
 
                 {/* Footer Clinical Assessment Launcher */}
