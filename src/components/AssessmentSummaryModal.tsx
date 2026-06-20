@@ -488,10 +488,11 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
                 <text y="3" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="8">Little: {formatVal('Little finger')}</text>
               </g>
 
-              <g transform="translate(35, 166)" className="text-[8px] font-bold">
-                <rect x="-24" y="-12" width="48" height="24" rx="4" fill="white" stroke="#d97706" strokeWidth="1.5" />
-                <text y="-2" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="8">To Wrist</text>
-                <text y="8" textAnchor="middle" className="fill-amber-700 font-black" fontSize="8">{formatVal('Total length middle finger to wrist')}</text>
+              {/* 8. Total Length (Finger to Wrist) Badge - positioned at top of vertical line */}
+              <g transform={`translate(${isLeftHand ? 285 : 35}, 30)`} className="text-[8px] font-bold">
+                <rect x="-46" y="-12" width="92" height="24" rx="4" fill="white" stroke="#d97706" strokeWidth="1.5" />
+                <text y="-2" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="6.5">Middle Finger to Wrist</text>
+                <text y="8" textAnchor="middle" className="fill-amber-700 font-black" fontSize="7">{formatVal('Total length middle finger to wrist')}</text>
               </g>
 
               <g transform="translate(285, 204)" className="text-[8px] font-bold">
@@ -606,7 +607,7 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
 
       case 'All Trouser':
         return (
-          <svg viewBox="0 0 300 320" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
+          <svg viewBox="0 0 300 320" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px', overflow: 'visible' }} overflow="visible">
             {/* Pants outline but shifted down to allow y=20 Diaphrarm */}
             <path d="M 90,50 L 210,50 L 215,100 L 235,270 L 185,270 L 150,120 L 115,270 L 65,270 L 85,100 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
 
@@ -640,9 +641,9 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
             <ellipse cx="222" cy="245" rx="17" ry="5" stroke="#84cc16" strokeWidth="1.5" fill="none" strokeDasharray="2 2" />
 
             {/* Height Rule: length diaphragm to waist (diaphrarm y=20 to waist y=70) */}
-            <line x1="140" y1="20" x2="140" y2="70" stroke="#4f46e5" strokeWidth="1.5" />
-            <path d="M 137,25 L 140,20 L 143,25" stroke="#4f46e5" strokeWidth="1.5" fill="none" />
-            <path d="M 137,65 L 140,70 L 143,65" stroke="#4f46e5" strokeWidth="1.5" fill="none" />
+            <line x1="62" y1="20" x2="62" y2="70" stroke="#4f46e5" strokeWidth="1.5" />
+            <path d="M 59,25 L 62,20 L 65,25" stroke="#4f46e5" strokeWidth="1.5" fill="none" />
+            <path d="M 59,65 L 62,70 L 65,65" stroke="#4f46e5" strokeWidth="1.5" fill="none" />
 
             {/* Height Rule: Length waist to ankle (waist y=70 to ankle y=245) */}
             <line x1="20" y1="70" x2="20" y2="245" stroke="#06b6d4" strokeWidth="1.5" />
@@ -665,10 +666,10 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
               <text y="6" textAnchor="middle" className="fill-blue-700 font-black" fontSize="7">{formatVal('Total Length')}</text>
             </g>
 
-            <g transform="translate(26, 155)" className="text-[7px] font-bold">
-              <rect x="-35" y="-14" width="70" height="24" rx="4" fill="white" stroke="#06b6d4" strokeWidth="1.2" />
-              <text y="-4" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="7">Wst-Ankle</text>
-              <text y="6" textAnchor="middle" className="fill-cyan-700 font-black" fontSize="7">{formatVal('Length waist to ankle')}</text>
+            <g transform="translate(20, 54)" className="text-[7px] font-bold">
+              <rect x="-42" y="-14" width="84" height="24" rx="4" fill="white" stroke="#06b6d4" strokeWidth="1.2" />
+              <text y="-4" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="6.5">Waist to Ankle</text>
+              <text y="6" textAnchor="middle" className="fill-cyan-700 font-black" fontSize="6.5">{formatVal('Length waist to ankle')}</text>
             </g>
 
             {/* Badges on the Top & Center */}
@@ -692,22 +693,22 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
               <text y="2.5" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="7">Hips: {formatVal('Hips')}</text>
             </g>
 
-            <g transform="translate(185, 62)" className="text-[7px] font-bold">
-              <rect x="-38" y="-6" width="76" height="12" rx="3" fill="white" stroke="#4f46e5" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-indigo-700 font-black" fontSize="6.5">Dia-Waist: {formatVal('length diaphragm to waist')}</text>
+            <g transform="translate(58, 10)" className="text-[7px] font-bold">
+              <rect x="-51" y="-6" width="102" height="12" rx="3" fill="white" stroke="#4f46e5" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-indigo-700 font-black" fontSize="6">Diaphragm to Waist: {formatVal('length diaphragm to waist')}</text>
             </g>
 
             {/* Circumference Badges on the Left Side pointing to guiding ellipses */}
             {/* Open end thigh */}
-            <g transform="translate(42, 125)" className="text-[7px] font-bold">
-              <rect x="-32" y="-6" width="64" height="12" rx="3" fill="white" stroke="#f59e0b" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="6.5">Op Thigh: {formatVal('Open end thigh')}</text>
+            <g transform="translate(56, 125)" className="text-[7px] font-bold">
+              <rect x="-48" y="-6" width="96" height="12" rx="3" fill="white" stroke="#f59e0b" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="6.5">Open end thigh: {formatVal('Open end thigh')}</text>
             </g>
 
             {/* Close end thigh */}
-            <g transform="translate(42, 170)" className="text-[7px] font-bold">
-              <rect x="-32" y="-6" width="64" height="12" rx="3" fill="white" stroke="#ec4899" strokeWidth="1" />
-              <text y="2.5" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="6.5">Cl Thigh: {formatVal('Close end thigh')}</text>
+            <g transform="translate(56, 170)" className="text-[7px] font-bold">
+              <rect x="-48" y="-6" width="96" height="12" rx="3" fill="white" stroke="#ec4899" strokeWidth="1" />
+              <text y="2.5" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="6.5">Close end thigh: {formatVal('Close end thigh')}</text>
             </g>
 
             {/* Knee */}
@@ -791,96 +792,176 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
 
       case 'Body Shaper':
         return (
-          <svg viewBox="0 0 320 340" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
+          <svg viewBox="0 0 320 395" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
+            <defs>
+              <marker id="arrow-blue" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb" />
+              </marker>
+              <marker id="arrow-red" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444" />
+              </marker>
+              <marker id="arrow-purple" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#a855f7" />
+              </marker>
+              <marker id="arrow-teal" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#06b6d4" />
+              </marker>
+              <marker id="arrow-orange" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#f97316" />
+              </marker>
+              <marker id="arrow-indigo" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#4f46e5" />
+              </marker>
+              <marker id="arrow-darkblue" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a" />
+              </marker>
+            </defs>
+
             {/* Outline of the Body Shaper */}
-            <path d="M 135,70 C 135,110 185,110 185,70 L 210,65 L 290,110 L 275,125 L 195,100 L 190,120 Q 180,165 175,190 Q 200,230 195,290 L 165,290 Q 163,245 160,235 Q 157,245 155,290 L 125,290 Q 120,230 145,190 Q 140,165 130,120 L 125,100 L 45,125 L 30,110 L 110,65 Z" fill="#eff6ff" stroke="#3b82f6" strokeWidth="2.5" opacity="0.7" />
+            <path d="M 140,65 L 95,65 L 25,160 L 40,166 L 122,95 L 122,190 L 110,355 L 138,355 L 160,230 L 182,355 L 210,355 L 198,190 L 198,95 L 280,166 L 295,160 L 225,65 Z" fill="#eff6ff" stroke="#2563eb" strokeWidth="1.8" strokeLinejoin="round" />
 
             {/* Zipper down the center */}
-            <line x1="160" y1="100" x2="160" y2="235" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="3 2" opacity="0.8" />
-            <circle cx="160" cy="100" r="3" fill="#2563eb" />
+            <line x1="160" y1="95" x2="160" y2="230" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="3 2" opacity="0.8" />
+            <circle cx="160" cy="95" r="3" fill="#2563eb" />
 
-            {/* Left Column (flanking the model) */}
-            <g transform="translate(60, 20)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Neck around: {formatVal('Neck around')}</text>
+            {/* Neck collar ellipse */}
+            <ellipse cx="160" cy="65" rx="20" ry="4" fill="#e0f2fe" stroke="#2563eb" strokeWidth="1.2" />
+
+            {/* Left Hand / Arm Measurement indicators on the actual drawing */}
+            <ellipse cx="104" cy="100" rx="6" ry="7" transform="rotate(-30, 104, 100)" fill="none" stroke="#2563eb" strokeWidth="1" strokeDasharray="2 1" />
+            <ellipse cx="81" cy="122" rx="6" ry="7" transform="rotate(-30, 81, 122)" fill="none" stroke="#06b6d4" strokeWidth="1" strokeDasharray="2 1" />
+            <ellipse cx="58" cy="140" rx="6" ry="7" transform="rotate(-30, 58, 140)" fill="none" stroke="#f97316" strokeWidth="1" strokeDasharray="2 1" />
+            <ellipse cx="33" cy="162" rx="6" ry="8" transform="rotate(-30, 33, 162)" fill="none" stroke="#ec4899" strokeWidth="1.2" />
+
+            {/* Right Sleeve Arm Length annotation */}
+            <path d="M 235,60 L 305,150" fill="none" stroke="#a855f7" strokeWidth="1.2" marker-start="url(#arrow-purple)" marker-end="url(#arrow-purple)" />
+
+            {/* Legs Measurement Indicator Loops */}
+            {/* Open end thigh (orange) */}
+            <ellipse cx="123" cy="255" rx="11" ry="2" fill="none" stroke="#f97316" strokeWidth="1" strokeDasharray="2 1" />
+            <ellipse cx="197" cy="255" rx="11" ry="2" fill="none" stroke="#f97316" strokeWidth="1" strokeDasharray="2 1" />
+
+            {/* Close end thigh (pink) */}
+            <ellipse cx="123" cy="285" rx="10" ry="2" fill="none" stroke="#ec4899" strokeWidth="1" strokeDasharray="2 1" />
+            <ellipse cx="197" cy="285" rx="10" ry="2" fill="none" stroke="#ec4899" strokeWidth="1" strokeDasharray="2 1" />
+
+            {/* Knee (cyan) */}
+            <ellipse cx="123" cy="315" rx="10" ry="1.8" fill="none" stroke="#06b6d4" strokeWidth="1" strokeDasharray="2 1" />
+            <ellipse cx="197" cy="315" rx="10" ry="1.8" fill="none" stroke="#06b6d4" strokeWidth="1" strokeDasharray="2 1" />
+
+            {/* Ankle (green) */}
+            <ellipse cx="124" cy="350" rx="9" ry="1.8" fill="none" stroke="#10b981" strokeWidth="1" strokeDasharray="2 1" />
+            <ellipse cx="196" cy="350" rx="9" ry="1.8" fill="none" stroke="#10b981" strokeWidth="1" strokeDasharray="2 1" />
+
+            {/* Left Body Total Length line from Waist to Ankle */}
+            <path d="M 92,190 L 92,350" fill="none" stroke="#06b6d4" strokeWidth="1.2" marker-start="url(#arrow-teal)" marker-end="url(#arrow-teal)" />
+
+            {/* Right Diaph to Waist vertical line (Y=130 to Y=180) */}
+            <path d="M 212,130 L 212,180" fill="none" stroke="#4f46e5" strokeWidth="1.2" marker-start="url(#arrow-indigo)" marker-end="url(#arrow-indigo)" />
+
+            {/* Right Body Total Length line from Underarm to Ankle */}
+            <path d="M 248,95 L 248,350" fill="none" stroke="#1e3a8a" strokeWidth="1.2" marker-start="url(#arrow-darkblue)" marker-end="url(#arrow-darkblue)" />
+
+            {/* Top Stack (Neck & Shoulder labels) */}
+            <g transform="translate(160, 10)" className="text-[7.5px] font-bold">
+              <rect x="-42" y="-6" width="84" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Neck Around: {formatVal('Neck around')}</text>
             </g>
-            <g transform="translate(60, 50)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Neck length: {formatVal('Neck length')}</text>
+            <g transform="translate(160, 24)" className="text-[7.5px] font-bold">
+              <rect x="-42" y="-6" width="84" height="12" rx="3" fill="white" stroke="#ef4444" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-red-500 font-bold">Neck Len: {formatVal('Neck length')}</text>
             </g>
-            <g transform="translate(60, 80)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Shoulder: {formatVal('Shoulder')}</text>
-            </g>
-            <g transform="translate(60, 110)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Arm pit: {formatVal('Arm pit')}</text>
-            </g>
-            <g transform="translate(60, 140)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Arm open end: {formatVal('Arm open end')}</text>
-            </g>
-            <g transform="translate(60, 170)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Elbow: {formatVal('Elbow')}</text>
-            </g>
-            <g transform="translate(60, 200)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Arm close end: {formatVal('Arm close end')}</text>
-            </g>
-            <g transform="translate(60, 230)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Arm total: {formatVal('Arm total length')}</text>
-            </g>
-            <g transform="translate(60, 260)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Chest: {formatVal('Chest')}</text>
-            </g>
-            <g transform="translate(60, 290)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold">Diapharm: {formatVal('Diapharm')}</text>
+            <g transform="translate(160, 38)" className="text-[7.5px] font-bold">
+              <rect x="-42" y="-6" width="84" height="12" rx="3" fill="white" stroke="#a855f7" strokeWidth="0.5" />
+              <text y="2.5" textAnchor="middle" className="fill-purple-600 font-bold">Shoulder: {formatVal('Shoulder')}</text>
+              <line x1="-30" y1="11" x2="30" y2="11" stroke="#a855f7" strokeWidth="0.8" marker-start="url(#arrow-purple)" marker-end="url(#arrow-purple)" />
             </g>
 
-            {/* Right Column (flanking the model) */}
-            <g transform="translate(260, 20)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Belly: {formatVal('Belly')}</text>
+            {/* Front Center Stack on Torso (Chest, Diapharm, Belly, Waist, Hips) */}
+            <g transform="translate(160, 105)" className="text-[7px] font-bold">
+              <rect x="-32" y="-6" width="64" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.6" />
+              <text y="2" textAnchor="middle" className="fill-emerald-600 font-black">Chest: {formatVal('Chest')}</text>
             </g>
-            <g transform="translate(260, 50)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Waist: {formatVal('Waist')}</text>
+            <g transform="translate(160, 130)" className="text-[7px] font-bold">
+              <rect x="-32" y="-6" width="64" height="12" rx="3" fill="white" stroke="#f97316" strokeWidth="0.6" />
+              <text y="2" textAnchor="middle" className="fill-orange-600 font-black">Diapharm: {formatVal('Diapharm')}</text>
             </g>
-            <g transform="translate(260, 80)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Hips: {formatVal('Hips')}</text>
+            <g transform="translate(160, 155)" className="text-[7px] font-bold">
+              <rect x="-32" y="-6" width="64" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.6" />
+              <text y="2" textAnchor="middle" className="fill-blue-600 font-black">Belly: {formatVal('Belly')}</text>
             </g>
-            <g transform="translate(260, 110)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Open end thigh: {formatVal('Open end thigh')}</text>
+            <g transform="translate(160, 180)" className="text-[7px] font-bold">
+              <rect x="-32" y="-6" width="64" height="12" rx="3" fill="white" stroke="#ef4444" strokeWidth="0.6" />
+              <text y="2" textAnchor="middle" className="fill-red-600 font-black">Waist: {formatVal('Waist')}</text>
             </g>
-            <g transform="translate(260, 140)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Close end thigh: {formatVal('Close end thigh')}</text>
+            <g transform="translate(160, 205)" className="text-[7px] font-bold">
+              <rect x="-32" y="-6" width="64" height="12" rx="3" fill="white" stroke="#06b6d4" strokeWidth="0.6" />
+              <text y="2" textAnchor="middle" className="fill-cyan-600 font-black">Hips: {formatVal('Hips')}</text>
+              <line x1="-20" y1="8" x2="20" y2="8" stroke="#06b6d4" strokeWidth="0.5" strokeDasharray="1.5 1" />
             </g>
-            <g transform="translate(260, 170)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Knee: {formatVal('Knee')}</text>
+
+            {/* Left Column Flanking Labels */}
+            <g transform="translate(36, 100)" className="text-[7px] font-bold">
+              <rect x="-40" y="-6" width="80" height="12" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
+              <text y="2" textAnchor="middle" className="fill-blue-600 font-bold">Arm Pit: {formatVal('Arm pit')}</text>
+              <path d="M 40,0 L 112,-5" stroke="#2563eb" strokeWidth="0.5" strokeDasharray="1.5 1" opacity="0.6" />
             </g>
-            <g transform="translate(260, 200)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Ankle: {formatVal('Ankle')}</text>
+            <g transform="translate(36, 120)" className="text-[7px] font-bold">
+              <rect x="-40" y="-6" width="80" height="12" rx="3" fill="white" stroke="#06b6d4" strokeWidth="0.5" />
+              <text y="2" textAnchor="middle" className="fill-cyan-600 font-bold">Arm Open: {formatVal('Arm open end')}</text>
+              <path d="M 40,0 L 45,2" stroke="#06b6d4" strokeWidth="0.5" strokeDasharray="1.5 1" opacity="0.6" />
             </g>
-            <g transform="translate(260, 230)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Diaph to waist: {formatVal('length diaphragm to waist')}</text>
+            <g transform="translate(36, 140)" className="text-[7px] font-bold">
+              <rect x="-40" y="-6" width="80" height="12" rx="3" fill="white" stroke="#f97316" strokeWidth="0.5" />
+              <text y="2" textAnchor="middle" className="fill-orange-600 font-bold">Elbow: {formatVal('Elbow')}</text>
+              <path d="M 40,0 L 22,0" stroke="#f97316" strokeWidth="0.5" strokeDasharray="1.5 1" opacity="0.6" />
             </g>
-            <g transform="translate(260, 260)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Waist to ankle: {formatVal('Length waist to ankle')}</text>
+            <g transform="translate(36, 165)" className="text-[7px] font-bold">
+              <rect x="-40" y="-6" width="80" height="12" rx="3" fill="white" stroke="#ec4899" strokeWidth="0.5" />
+              <text y="2" textAnchor="middle" className="fill-pink-600 font-bold">Close End: {formatVal('Arm close end')}</text>
+              <path d="M -40,0 L -3,-3" stroke="#ec4899" strokeWidth="0.5" strokeDasharray="1.5 1" opacity="0.6" />
             </g>
-            <g transform="translate(260, 290)" className="text-[7.5px] font-bold">
-              <rect x="-55" y="-6" width="110" height="12" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold">Total Length: {formatVal('Total Length')}</text>
+            <g transform="translate(36, 205)" className="text-[7px] font-bold">
+              <rect x="-40" y="-6" width="80" height="12" rx="3" fill="white" stroke="#06b6d4" strokeWidth="0.5" />
+              <text y="2" textAnchor="middle" className="fill-cyan-600 font-bold">Waist to Ankle: {formatVal('Length waist to ankle')}</text>
+              <path d="M 40,0 L 56,0" stroke="#06b6d4" strokeWidth="0.5" strokeDasharray="1.5 1" opacity="0.6" />
+            </g>
+
+            <g transform="translate(36, 255)" className="text-[7px] font-bold">
+              <rect x="-40" y="-6" width="80" height="12" rx="3" fill="white" stroke="#f97316" strokeWidth="0.5" />
+              <text y="2" textAnchor="middle" className="fill-orange-600 font-bold">Open end thigh: {formatVal('Open end thigh')}</text>
+              <path d="M 40,0 L 87,0" stroke="#f97316" strokeWidth="0.5" strokeDasharray="1.5 1" opacity="0.6" />
+            </g>
+            <g transform="translate(36, 285)" className="text-[7px] font-bold">
+              <rect x="-40" y="-6" width="80" height="12" rx="3" fill="white" stroke="#ec4899" strokeWidth="0.5" />
+              <text y="2" textAnchor="middle" className="fill-pink-600 font-bold">Close end thigh: {formatVal('Close end thigh')}</text>
+              <path d="M 40,0 L 87,0" stroke="#ec4899" strokeWidth="0.5" strokeDasharray="1.5 1" opacity="0.6" />
+            </g>
+            <g transform="translate(36, 315)" className="text-[7px] font-bold">
+              <rect x="-40" y="-6" width="80" height="12" rx="3" fill="white" stroke="#06b6d4" strokeWidth="0.5" />
+              <text y="2" textAnchor="middle" className="fill-cyan-600 font-bold">Knee: {formatVal('Knee')}</text>
+              <path d="M 40,0 L 87,0" stroke="#06b6d4" strokeWidth="0.5" strokeDasharray="1.5 1" opacity="0.6" />
+            </g>
+            <g transform="translate(36, 350)" className="text-[7px] font-bold">
+              <rect x="-40" y="-6" width="80" height="12" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="2" textAnchor="middle" className="fill-emerald-600 font-bold">Ankle: {formatVal('Ankle')}</text>
+              <path d="M 40,0 L 88,0" stroke="#10b981" strokeWidth="0.5" strokeDasharray="1.5 1" opacity="0.6" />
+            </g>
+
+            {/* Right Column Flanking Labels */}
+            <g transform="translate(288, 130)" className="text-[7px] font-bold">
+              <rect x="-40" y="-6" width="80" height="12" rx="3" fill="white" stroke="#a855f7" strokeWidth="0.5" />
+              <text y="2" textAnchor="middle" className="fill-purple-600 font-bold">Arm Length: {formatVal('Arm total length')}</text>
+              <path d="M -40,0 L -22,0" stroke="#a855f7" strokeWidth="0.5" strokeDasharray="1.5 1" opacity="0.6" />
+            </g>
+            <g transform="translate(288, 180)" className="text-[7px] font-bold">
+              <rect x="-48" y="-6" width="96" height="12" rx="3" fill="white" stroke="#4f46e5" strokeWidth="0.5" />
+              <text y="2" textAnchor="middle" className="fill-indigo-600 font-bold">Diaphragm to Waist: {formatVal('length diaphragm to waist')}</text>
+              <path d="M -48,0 L -76,0" stroke="#4f46e5" strokeWidth="0.5" strokeDasharray="1.5 1" opacity="0.6" />
+            </g>
+            <g transform="translate(288, 285)" className="text-[7px] font-bold">
+              <rect x="-40" y="-6" width="80" height="12" rx="3" fill="white" stroke="#1e3a8a" strokeWidth="0.5" />
+              <text y="2" textAnchor="middle" className="fill-blue-900 font-bold">Total Length: {formatVal('Total Length')}</text>
             </g>
           </svg>
         );
@@ -1521,24 +1602,18 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
                 </div>
                 <div className="space-y-3 pl-6 border-l border-slate-200">
                   <div>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">HOSPITAL OR CLINICAL UNIT</span>
-                    <span className="text-xs font-extrabold text-slate-900 block break-words leading-tight">{assessmentPayload.hospital_name || patient.hospital || 'N/A'}</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Doctor Reference / ریفرنس ڈاکٹر</span>
+                    <span className="text-sm font-extrabold text-slate-850 block break-words leading-tight">{assessmentPayload.doctor_ref || patient.doctor_name || 'N/A'}</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Doctor Reference</span>
-                      <span className="text-xs font-bold text-slate-800 block break-words leading-tight">{assessmentPayload.doctor_ref || patient.doctor_name || 'N/A'}</span>
-                    </div>
-                    <div>
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Created Date</span>
-                      <span className="text-xs font-bold text-slate-800 block">
-                        {new Date(assessmentPayload.created_at).toLocaleDateString('ur-PK', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </span>
-                    </div>
+                  <div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Created Date / تاریخ</span>
+                    <span className="text-sm font-extrabold text-slate-850 block">
+                      {new Date(assessmentPayload.created_at).toLocaleDateString('ur-PK', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </span>
                   </div>
                 </div>
               </div>

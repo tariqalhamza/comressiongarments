@@ -18,7 +18,6 @@ export function exportPatientToExcel(patient: any, matchedAssessment: any | null
   rows.push(["Age / عمر", `${patient.age || '—'} Yrs`]);
   rows.push(["Gender / جنس", patient.gender || '']);
   rows.push(["Referral Doctor / ڈاکٹر کا نام", patient.doctor_name || 'No referral']);
-  rows.push(["Hospital name / ہسپتال", patient.hospital || 'Not declared']);
   rows.push(["Registration Date / تاریخ", patient.created_at ? new Date(patient.created_at).toLocaleDateString() : '']);
   rows.push(["Physical Address / پتہ", patient.address || '']);
   rows.push(["Affected Area / متاثرہ جگہ", patient.medical_condition || 'General']);
@@ -154,7 +153,6 @@ export function exportPatientToPDF(patient: any, matchedAssessment: any | null) 
   
   const patientFieldsR = [
     { label: 'Ref Doctor:', val: patient.doctor_name || 'Self / Direct Referral' },
-    { label: 'Hospital:', val: patient.hospital || 'Not declared' },
     { label: 'Registered On:', val: patient.created_at ? new Date(patient.created_at).toLocaleDateString() : 'N/A' },
     { label: 'Clinical Condition:', val: patient.medical_condition || 'General Compression' }
   ];
