@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Patient } from '../types';
-import { dbService } from '../services/supabase';
+import { dbService, getIsPatientsTableMissing } from '../services/supabase';
 import { cn } from '../lib/utils';
 import { compressImage } from '../lib/imageUtils';
 import AssessmentSummaryModal from '../components/AssessmentSummaryModal';
@@ -373,6 +373,95 @@ const Registration: React.FC<RegistrationProps> = ({
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-300">
+      
+      {getIsPatientsTableMissing() && (
+        <div className="p-6 rounded-3xl bg-amber-500/10 border-2 border-amber-500/20 text-left space-y-4 animate-in fade-in slide-in-from-top-4 duration-300 select-none">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-600 flex items-center justify-center shrink-0 text-white shadow-lg shadow-amber-200">
+              <AlertTriangle className="w-6 h-6 animate-bounce" />
+            </div>
+            <div className="space-y-1 flex-1">
+              <h4 className="font-extrabold text-amber-900 text-base">
+                Patients Table Missing / ڈیٹا بیس ٹیبل غائب ہے
+              </h4>
+              <p className="text-xs text-amber-850 leading-relaxed font-bold">
+                Bhai, live database (Supabase) men "patients" ka table abhi tak nahi bana hua, jis ki wajah se alag alag browsers aur mobiles ke registered patients aapas men sync nahi ho rahe aur sirf local storage men save ho rahe hain! Isay theek karna buhat aasan hai.
+              </p>
+              <p className="text-[11px] text-slate-700 leading-relaxed font-semibold mt-1">
+                Aap apne <strong>Supabase Dashboard</strong> par jaein, <strong>SQL Editor</strong> open karein, aur neeche diye gaye SQL code ko paste kar ke <strong>Run</strong> par click kar dein. Is se aap ka patients table ban jaye ga aur tamam devices par patients foran sync hone lagen gi!
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 relative group">
+            <pre className="text-[10px] md:text-xs text-slate-300 font-mono overflow-x-auto whitespace-pre leading-relaxed select-all max-h-60">
+{`-- Create Patients Table for multiple devices syncing
+CREATE TABLE IF NOT EXISTS patients (
+  id TEXT PRIMARY KEY,
+  clinic_id TEXT,
+  full_name TEXT NOT NULL,
+  age INTEGER,
+  gender TEXT,
+  height DECIMAL,
+  weight DECIMAL,
+  phone TEXT,
+  email TEXT,
+  address TEXT,
+  diagnosis TEXT,
+  medical_condition TEXT,
+  doctor_name TEXT,
+  notes TEXT,
+  photo_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_by TEXT
+);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
+
+-- Create policy to allow public read/write access
+CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL USING (true);`}
+            </pre>
+            <div className="absolute right-4 top-4">
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(`-- Create Patients Table for multiple devices syncing
+CREATE TABLE IF NOT EXISTS patients (
+  id TEXT PRIMARY KEY,
+  clinic_id TEXT,
+  full_name TEXT NOT NULL,
+  age INTEGER,
+  gender TEXT,
+  height DECIMAL,
+  weight DECIMAL,
+  phone TEXT,
+  email TEXT,
+  address TEXT,
+  diagnosis TEXT,
+  medical_condition TEXT,
+  doctor_name TEXT,
+  notes TEXT,
+  photo_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_by TEXT
+);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
+
+-- Create policy to allow public read/write access on patients" ON patients FOR ALL USING (true);`);
+                  alert("SQL code copied to clipboard! / ایس کیو ایل کوڈ کاپی ہو گیا!");
+                }}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-bold rounded-lg border border-slate-700 transition-all active:scale-95 shadow-md"
+              >
+                Copy SQL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Top Title Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-r from-slate-900 via-slate-800 to-blue-950 p-6 sm:p-8 rounded-[2rem] text-white shadow-xl">

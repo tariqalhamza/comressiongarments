@@ -47,6 +47,22 @@ export const setIsAssessmentsTableMissing = (val: boolean) => {
   isAssessmentsTableMissingState = val;
 };
 
+// Helper for checking if patients table is missing in Supabase
+let isPatientsTableMissingState = false;
+export const getIsPatientsTableMissing = () => isPatientsTableMissingState;
+export const setIsPatientsTableMissing = (val: boolean) => {
+  isPatientsTableMissingState = val;
+};
+
+// RFC4122 standard UUID v4 generator for flawless local-remote syncing on UUID/TEXT databases
+export const generateUUID = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export const setForceDemo = (val: boolean) => {
   if (val) {
     localStorage.setItem('supabase_force_demo', 'true');
@@ -286,11 +302,18 @@ export const dbService = {
       } else {
         try {
           const { data, error } = await promiseWithTimeout(supabase.from('patients').select('*').order('created_at', { ascending: false }));
-          if (error) throw error;
+          if (error) {
+            if (error.code === '42P01' || error.message?.includes('does not exist')) {
+              isPatientsTableMissingState = true;
+            }
+            throw error;
+          }
+          isPatientsTableMissingState = false;
           isSupabaseOfflineState = false;
           lastSupabaseError = null;
           
-          const localPatients = getLocalStoragePatients();
+          // In live mode, exclude mock/demo profiles with IDs '1' and '2' so they don't block deletion or clutter databases
+          const localPatients = getLocalStoragePatients().filter(p => p.id !== '1' && p.id !== '2');
           const remotePatients = (data || []) as Patient[];
           const patientMap = new Map<string, Patient>();
           
@@ -313,10 +336,11 @@ export const dbService = {
           saveToLocal(mergedList);
           result = mergedList;
         } catch (err: any) {
-          console.warn('Supabase Offline. Falling back to LocalStorage:', err);
+          console.warn('Supabase Offline or Error. Falling back to LocalStorage:', err);
           isSupabaseOfflineState = true;
           lastSupabaseError = err;
-          result = getLocalStoragePatients();
+          // Filter out mock patients in live fallback too
+          result = getLocalStoragePatients().filter(p => p.id !== '1' && p.id !== '2');
         }
       }
 
@@ -332,7 +356,8 @@ export const dbService = {
         created_by: currentUserId || undefined
       };
 
-      const generatedId = 'pat-' + Math.random().toString(36).substr(2, 9);
+      // Generate a valid UUID so it satisfies UUID primary keys in Supabase while preserving identity
+      const generatedId = generateUUID();
       const newPatientLocalObj = { 
         ...fullPatientPayload, 
         id: generatedId,
@@ -341,7 +366,9 @@ export const dbService = {
 
       try {
         const localList = getLocalStoragePatients();
-        saveToLocal([newPatientLocalObj, ...localList]);
+        // Filter out mock patients from saving in live mode to avoid re-pollution
+        const filteredLocalList = isDemo ? localList : localList.filter(p => p.id !== '1' && p.id !== '2');
+        saveToLocal([newPatientLocalObj, ...filteredLocalList]);
       } catch (localWriteErr) {
         console.warn("Failed immediate local patient caching:", localWriteErr);
       }
@@ -351,8 +378,8 @@ export const dbService = {
       }
 
       try {
-        const cleanPayload = { ...fullPatientPayload };
-        delete (cleanPayload as any).id;
+        // Keep the generated ID so local and remote are 100% in sync! This avoids duplicates.
+        const cleanPayload = { id: generatedId, ...fullPatientPayload };
         
         if (cleanPayload.clinic_id && !isValidUUID(cleanPayload.clinic_id)) {
           try {
@@ -377,18 +404,33 @@ export const dbService = {
           }
         }
 
-        const { data, error } = await supabase.from('patients').insert(cleanPayload).select().single();
-        if (error) throw error;
+        let { data, error } = await supabase.from('patients').insert(cleanPayload).select().single();
+        if (error) {
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            isPatientsTableMissingState = true;
+          }
+          // Dynamic schema fallback: if the 'created_by' column does not exist, strip it and retry
+          if (error.message?.includes('created_by') || error.code === '42703') {
+            const retryPayload = { ...cleanPayload };
+            delete (retryPayload as any).created_by;
+            const retryResult = await supabase.from('patients').insert(retryPayload).select().single();
+            if (retryResult.error) throw retryResult.error;
+            data = retryResult.data;
+            error = null;
+          } else {
+            throw error;
+          }
+        }
+        isPatientsTableMissingState = false;
         
         const insertedPatient = data as Patient;
-        const localList = getLocalStoragePatients();
+        const localList = getLocalStoragePatients().filter(p => p.id !== '1' && p.id !== '2');
         const filteredList = localList.filter(p => p.id !== generatedId && p.id !== insertedPatient.id);
         saveToLocal([insertedPatient, ...filteredList]);
         
         return insertedPatient;
-      } catch (err) {
+      } catch (err: any) {
         console.warn('Could not save to Supabase. Fallback is already safely active in LocalStorage:', err);
-        isSupabaseOfflineState = true;
         return newPatientLocalObj;
       }
     },
@@ -420,10 +462,16 @@ export const dbService = {
         }
 
         const { data, error } = await supabase.from('patients').update(cleanPayload).eq('id', id).select().single();
-        if (error) throw error;
+        if (error) {
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            isPatientsTableMissingState = true;
+          }
+          throw error;
+        }
+        isPatientsTableMissingState = false;
         
         const updatedPatient = data as Patient;
-        const list = getLocalStoragePatients();
+        const list = getLocalStoragePatients().filter(p => p.id !== '1' && p.id !== '2');
         const index = list.findIndex(p => p.id === id);
         if (index !== -1) {
           const updatedList = [...list];
@@ -431,9 +479,8 @@ export const dbService = {
           saveToLocal(updatedList);
         }
         return updatedPatient;
-      } catch (err) {
+      } catch (err: any) {
         console.warn('Could not update in Supabase. Falling back to LocalStorage backup:', err);
-        isSupabaseOfflineState = true;
         const list = getLocalStoragePatients();
         return list.find(p => p.id === id) || { ...updates, id } as Patient;
       }
@@ -449,15 +496,20 @@ export const dbService = {
       }
       try {
         const { data, error } = await supabase.from('patients').select('*').eq('id', id).single();
-        if (error) throw error;
+        if (error) {
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            isPatientsTableMissingState = true;
+          }
+          throw error;
+        }
+        isPatientsTableMissingState = false;
         const found = data as Patient;
         if (found && !isCurrentUserAdmin() && currentUserId && found.created_by !== currentUserId) {
           return null;
         }
         return found;
-      } catch (err) {
+      } catch (err: any) {
         console.warn('Could not fetch from Supabase. Sourcing from LocalStorage:', err);
-        isSupabaseOfflineState = true;
         const list = getLocalStoragePatients();
         const found = list.find(p => p.id === id) || null;
         if (found && !isCurrentUserAdmin() && currentUserId && found.created_by !== currentUserId) {
@@ -479,11 +531,16 @@ export const dbService = {
       }
       try {
         const { error } = await supabase.from('patients').delete().eq('id', id);
-        if (error) throw error;
+        if (error) {
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            isPatientsTableMissingState = true;
+          }
+          throw error;
+        }
+        isPatientsTableMissingState = false;
         return true;
-      } catch (err) {
+      } catch (err: any) {
         console.warn('Could not delete in Supabase. Already removed from LocalStorage backup:', err);
-        isSupabaseOfflineState = true;
         return true;
       }
     }
