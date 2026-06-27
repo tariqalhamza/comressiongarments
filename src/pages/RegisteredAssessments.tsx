@@ -13,7 +13,7 @@ import {
   FileText,
   BadgeAlert
 } from 'lucide-react';
-import { dbService } from '../services/supabase';
+import { dbService, getIsAssessmentsTableMissing } from '../services/supabase';
 import { motion, AnimatePresence } from 'motion/react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -2129,6 +2129,96 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
 
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6 sm:space-y-8 select-none">
+      
+      {getIsAssessmentsTableMissing() && (
+        <div className="p-6 rounded-3xl bg-amber-500/10 border-2 border-amber-500/20 text-left space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-600 flex items-center justify-center shrink-0 text-white shadow-lg shadow-amber-200">
+              <BadgeAlert className="w-6 h-6 animate-bounce" />
+            </div>
+            <div className="space-y-1 flex-1">
+              <h4 className="font-extrabold text-amber-900 text-base">
+                Database Table Missing / ڈیٹا بیس سنکرونائزیشن ادھوری ہے
+              </h4>
+              <p className="text-xs text-amber-850 leading-relaxed font-bold">
+                Bhai, live database (Supabase) men "assessments" ka table abhi tak nahi bana hua, jis ki wajah se alag alag browsers ke assessments aapas men sync nahi ho rahe aur sirf local storage men save ho rahe hain! Isay theek karna buhat aasan hai.
+              </p>
+              <p className="text-[11px] text-slate-700 leading-relaxed font-semibold mt-1">
+                Aap apne <strong>Supabase Dashboard</strong> par jaein, <strong>SQL Editor</strong> open karein, aur neeche diye gaye SQL code ko paste kar ke <strong>Run</strong> par click kar dein. Is se aap ka assessments table ban jaye ga aur tamam devices par assessments foran sync hone lagen gi!
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 relative group">
+            <pre className="text-[10px] md:text-xs text-slate-300 font-mono overflow-x-auto whitespace-pre leading-relaxed select-all max-h-60">
+{`-- Create Assessments Table for multiple garments syncing
+CREATE TABLE IF NOT EXISTS assessments (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT,
+  patient_name TEXT,
+  hospital_name TEXT,
+  doctor_ref TEXT,
+  garment_type TEXT,
+  silicone_pasting TEXT,
+  compression TEXT,
+  measurements JSONB,
+  notes TEXT,
+  sub_options JSONB,
+  age INTEGER,
+  gender TEXT,
+  city TEXT,
+  photos JSONB,
+  photo_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_by TEXT
+);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE assessments ENABLE ROW LEVEL SECURITY;
+
+-- Create policy to allow public read/write access
+CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (true);`}
+            </pre>
+            <div className="absolute right-4 top-4">
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(`-- Create Assessments Table for multiple garments syncing
+CREATE TABLE IF NOT EXISTS assessments (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT,
+  patient_name TEXT,
+  hospital_name TEXT,
+  doctor_ref TEXT,
+  garment_type TEXT,
+  silicone_pasting TEXT,
+  compression TEXT,
+  measurements JSONB,
+  notes TEXT,
+  sub_options JSONB,
+  age INTEGER,
+  gender TEXT,
+  city TEXT,
+  photos JSONB,
+  photo_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_by TEXT
+);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE assessments ENABLE ROW LEVEL SECURITY;
+
+-- Create policy to allow public read/write access
+CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (true);`);
+                  alert("SQL code copied to clipboard! / ایس کیو ایل کوڈ کاپی ہو گیا!");
+                }}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-bold rounded-lg border border-slate-700 transition-all active:scale-95 shadow-md"
+              >
+                Copy SQL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Search and Action Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

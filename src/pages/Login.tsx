@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Loader2, ArrowRight, Database } from 'lucide-react';
-import { supabase, isDemo, supabaseUrl } from '../services/supabase';
+import { supabase, isDemo, supabaseUrl, setForceDemo } from '../services/supabase';
 import { useAuthStore } from '../services/authStore';
 import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.png';
 
@@ -23,15 +23,22 @@ const Login: React.FC = () => {
     setLoading(true);
     setError(null);
 
+    const isKeysMissing = !supabaseUrl || 
+      supabaseUrl.includes('placeholder') || 
+      supabaseUrl.includes('your_supabase_project_url');
+
+    const enteredEmail = email.toLowerCase().trim();
+    const isDemoEmail = enteredEmail === 'demo@overplast.com';
+
     // Dynamic bypass for demo/default clinic emails to prevent auth lockout on live project environments
-    if (email.toLowerCase().trim() === 'demo@overplast.com' || isDemo) {
-      localStorage.setItem('supabase_force_demo', 'true');
-      const enteredEmail = email.toLowerCase().trim() || 'demo@overplast.com';
-      const isSuperAdminEmail = ['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com'].includes(enteredEmail);
+    if (isDemoEmail || isKeysMissing) {
+      setForceDemo(true);
+      const emailForProfile = enteredEmail || 'demo@overplast.com';
+      const isSuperAdminEmail = ['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com'].includes(emailForProfile);
       
       const storedProfiles = localStorage.getItem('demo_profiles');
       const profiles = storedProfiles ? JSON.parse(storedProfiles) : [];
-      const foundProfile = profiles.find((p: any) => p.email?.toLowerCase().trim() === enteredEmail);
+      const foundProfile = profiles.find((p: any) => p.email?.toLowerCase().trim() === emailForProfile);
 
       const resolvedRole = isSuperAdminEmail ? 'admin' : (foundProfile?.role || 'therapist');
       const resolvedName = foundProfile?.full_name || (isSuperAdminEmail ? 'Mahmood Admin' : 'Clinic Staff');
@@ -39,7 +46,7 @@ const Login: React.FC = () => {
 
       const userObj = {
         id: resolvedId,
-        email: enteredEmail,
+        email: emailForProfile,
         created_at: foundProfile?.created_at || new Date().toISOString(),
         app_metadata: {},
         user_metadata: { full_name: resolvedName },
@@ -51,7 +58,7 @@ const Login: React.FC = () => {
         id: resolvedId,
         full_name: resolvedName,
         role: resolvedRole,
-        email: enteredEmail
+        email: emailForProfile
       };
 
       localStorage.setItem('demo_user_logged_in', JSON.stringify({
@@ -65,6 +72,9 @@ const Login: React.FC = () => {
       }, 600);
       return;
     }
+
+    // Since we are logging in with a live/professional account, disable force demo mode!
+    setForceDemo(false);
 
     const authWithTimeout = async (promise: Promise<any>, timeoutMs: number = 7500): Promise<any> => {
       let timeoutId: any;

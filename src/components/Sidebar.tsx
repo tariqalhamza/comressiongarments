@@ -92,10 +92,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onNavigate, isOpen, on
               
               <button 
                 onClick={() => signOut()}
-                className="flex items-center gap-3 w-full px-4 py-3 text-slate-500 hover:text-red-500 transition-colors font-bold text-sm"
+                className="flex items-center justify-center gap-2.5 w-full px-4 py-3.5 bg-red-50 hover:bg-red-100 text-red-650 hover:text-red-700 rounded-2xl border border-red-100/60 transition-all font-black text-xs shadow-sm hover:shadow active:scale-[0.98]"
               >
-                <LogOut className="w-5 h-5" />
-                Sign Out
+                <LogOut className="w-4 h-4 text-red-500 shrink-0" />
+                <span>Sign Out / لاگ آؤٹ</span>
               </button>
             </div>
           </div>

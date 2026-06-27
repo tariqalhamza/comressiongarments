@@ -33,24 +33,34 @@ const config = getSupabaseConfig();
 export const supabaseUrl = config.url;
 export const supabaseAnonKey = config.key;
 
-// Determine if we should run in local/demo mode
-export const isDemo = !supabaseUrl || !supabaseAnonKey || 
-  supabaseUrl.includes('placeholder') || 
-  supabaseUrl.includes('your_supabase_project_url') ||
-  localStorage.getItem('supabase_force_demo') === 'true';
+const hasRealCredentials = !!supabaseUrl && !!supabaseAnonKey && 
+  !supabaseUrl.includes('placeholder') && 
+  !supabaseUrl.includes('your_supabase_project_url');
+
+// Let's make isDemo a mutable exported let variable so ES Module bindings can update dynamically!
+export let isDemo = !hasRealCredentials || localStorage.getItem('supabase_force_demo') === 'true';
+
+// Helper for checking if assessments table is missing in Supabase
+let isAssessmentsTableMissingState = false;
+export const getIsAssessmentsTableMissing = () => isAssessmentsTableMissingState;
+export const setIsAssessmentsTableMissing = (val: boolean) => {
+  isAssessmentsTableMissingState = val;
+};
 
 export const setForceDemo = (val: boolean) => {
   if (val) {
     localStorage.setItem('supabase_force_demo', 'true');
+    isDemo = true;
   } else {
     localStorage.removeItem('supabase_force_demo');
+    isDemo = !hasRealCredentials;
   }
 };
 
-// Create the Supabase client
+// Create the Supabase client - Always use real credentials if available, so it's fully functional on dynamic logins
 export const supabase = createClient(
-  isDemo ? 'https://placeholder.supabase.co' : supabaseUrl,
-  isDemo ? 'placeholder' : supabaseAnonKey,
+  hasRealCredentials ? supabaseUrl : 'https://placeholder.supabase.co',
+  hasRealCredentials ? supabaseAnonKey : 'placeholder',
   {
     auth: {
       persistSession: true,
@@ -631,27 +641,123 @@ export const dbService = {
   },
   assessments: {
     async getAll() {
-      let result = getLocalStorageAssessments();
-      if (!isCurrentUserAdmin() && currentUserId) {
-        result = result.filter(a => a.created_by === currentUserId);
+      if (isDemo) {
+        let result = getLocalStorageAssessments();
+        if (!isCurrentUserAdmin() && currentUserId) {
+          result = result.filter(a => a.created_by === currentUserId);
+        }
+        return result;
       }
-      return result;
+      try {
+        const { data, error } = await promiseWithTimeout(
+          supabase.from('assessments').select('*').order('created_at', { ascending: false })
+        );
+        if (error) {
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            isAssessmentsTableMissingState = true;
+          }
+          throw error;
+        }
+        isAssessmentsTableMissingState = false;
+        
+        const remoteAssessments = data || [];
+        
+        // Merge with local storage assessments so no client work is lost
+        const localAssessments = getLocalStorageAssessments();
+        const assessmentMap = new Map<string, any>();
+        
+        localAssessments.forEach(a => {
+          if (a && a.id) {
+            assessmentMap.set(a.id, a);
+          }
+        });
+        
+        remoteAssessments.forEach(a => {
+          if (a && a.id) {
+            assessmentMap.set(a.id, a);
+          }
+        });
+        
+        const mergedList = Array.from(assessmentMap.values()).sort((a, b) => {
+          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+        });
+        
+        saveAssessmentsToLocal(mergedList);
+        
+        let result = mergedList;
+        if (!isCurrentUserAdmin() && currentUserId) {
+          result = result.filter(a => a.created_by === currentUserId);
+        }
+        return result;
+      } catch (err: any) {
+        console.warn('Could not fetch assessments from Supabase. Sourcing from LocalStorage:', err);
+        let result = getLocalStorageAssessments();
+        if (!isCurrentUserAdmin() && currentUserId) {
+          result = result.filter(a => a.created_by === currentUserId);
+        }
+        return result;
+      }
     },
     async create(assessment: any) {
-      const list = getLocalStorageAssessments();
-      const newAssessment = {
+      const generatedId = assessment.id || 'asm-' + Math.random().toString(36).substr(2, 9);
+      const fullAssessmentPayload = {
         ...assessment,
+        id: generatedId,
         created_by: currentUserId || undefined,
-        id: 'asm-' + Math.random().toString(36).substr(2, 9),
-        created_at: new Date().toISOString()
+        created_at: assessment.created_at || new Date().toISOString()
       };
-      saveAssessmentsToLocal([newAssessment, ...list]);
-      return newAssessment;
+
+      try {
+        const localList = getLocalStorageAssessments();
+        saveAssessmentsToLocal([fullAssessmentPayload, ...localList]);
+      } catch (localWriteErr) {
+        console.warn("Failed immediate local assessment caching:", localWriteErr);
+      }
+
+      if (isDemo) {
+        return fullAssessmentPayload;
+      }
+
+      try {
+        const { data, error } = await supabase.from('assessments').insert(fullAssessmentPayload).select().single();
+        if (error) {
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            isAssessmentsTableMissingState = true;
+          }
+          throw error;
+        }
+        isAssessmentsTableMissingState = false;
+        
+        const insertedAssessment = data || fullAssessmentPayload;
+        const localList = getLocalStorageAssessments();
+        const filteredList = localList.filter(a => a.id !== generatedId && a.id !== insertedAssessment.id);
+        saveAssessmentsToLocal([insertedAssessment, ...filteredList]);
+        
+        return insertedAssessment;
+      } catch (err) {
+        console.warn('Could not save to Supabase. Fallback is already safely active in LocalStorage:', err);
+        return fullAssessmentPayload;
+      }
     },
     async delete(id: string) {
-      const list = getLocalStorageAssessments();
-      saveAssessmentsToLocal(list.filter(a => a.id !== id));
-      return true;
+      try {
+        const list = getLocalStorageAssessments();
+        saveAssessmentsToLocal(list.filter(a => a.id !== id));
+      } catch (e) {
+        console.warn("Failed immediate local assessment delete:", e);
+      }
+
+      if (isDemo) {
+        return true;
+      }
+      try {
+        const { error } = await supabase.from('assessments').delete().eq('id', id);
+        if (error) throw error;
+        return true;
+      } catch (err) {
+        console.warn('Could not delete from Supabase. Already removed from LocalStorage backup:', err);
+        return true;
+      }
     }
   },
   profiles: {

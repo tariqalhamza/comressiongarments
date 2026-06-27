@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Search, User, Plus, Menu, ChevronRight, Shield, Database } from 'lucide-react';
+import { Bell, Search, User, Plus, Menu, ChevronRight, Shield, Database, LogOut } from 'lucide-react';
 import { useAuthStore } from '../services/authStore';
 import { motion } from 'motion/react';
 import { isDemo } from '../services/supabase';
@@ -11,7 +11,7 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ title, onToggleSidebar, isSidebarOpen }) => {
-  const { user, profile } = useAuthStore();
+  const { user, profile, signOut } = useAuthStore();
   const isSuperEmail = ['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com'].includes(user?.email?.toLowerCase().trim() || '');
   const isAdmin = profile?.role === 'admin' || isSuperEmail;
   const displayRole = isAdmin ? 'Administrator' : profile?.role === 'technician' ? 'Technician' : 'Therapist';
@@ -73,6 +73,22 @@ const Navbar: React.FC<NavbarProps> = ({ title, onToggleSidebar, isSidebarOpen }
                 <User className="w-5 h-5 text-blue-400" />
               </div>
             </div>
+
+            {/* Prominent High Visibility Sign Out Button */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                if (window.confirm("Bhai, kya aap waqai Sign Out (Log Out) karna chahte hain?")) {
+                  signOut();
+                }
+              }}
+              className="px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 hover:border-red-200 transition-all font-black text-xs flex items-center gap-1.5 shadow-sm shrink-0"
+              title="Sign Out / لاگ آؤٹ"
+            >
+              <LogOut className="w-3.5 h-3.5 text-red-500 shrink-0" />
+              <span className="inline">Sign Out</span>
+            </motion.button>
           </div>
         </div>
       </div>
