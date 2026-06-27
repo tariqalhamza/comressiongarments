@@ -27,7 +27,8 @@ import {
   Pencil,
   RefreshCw,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Database
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Patient } from '../types';
@@ -53,6 +54,8 @@ const Registration: React.FC<RegistrationProps> = ({
   const [profiles, setProfiles] = useState<any[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [savedAssessments, setSavedAssessments] = useState<any[]>([]);
+  const [isPatientsTableMissing, setIsPatientsTableMissing] = useState(false);
+  const [showSyncDiagnostics, setShowSyncDiagnostics] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGarmentType, setSelectedGarmentType] = useState('All');
@@ -219,10 +222,13 @@ const Registration: React.FC<RegistrationProps> = ({
       if (isUserAdmin && results[2]) {
         setProfiles(results[2] || []);
       }
+      setIsPatientsTableMissing(getIsPatientsTableMissing());
     } catch (err) {
       console.error('Failed to load patients list or assessments:', err);
+      setIsPatientsTableMissing(getIsPatientsTableMissing());
     } finally {
       setLoading(false);
+      setIsPatientsTableMissing(getIsPatientsTableMissing());
     }
   };
 
@@ -374,28 +380,32 @@ const Registration: React.FC<RegistrationProps> = ({
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-300">
       
-      {getIsPatientsTableMissing() && (
-        <div className="p-6 rounded-3xl bg-amber-500/10 border-2 border-amber-500/20 text-left space-y-4 animate-in fade-in slide-in-from-top-4 duration-300 select-none">
+      {(isPatientsTableMissing || showSyncDiagnostics) && (
+        <div className="p-6 rounded-3xl bg-amber-500/10 border-2 border-amber-500/20 text-left space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-2xl bg-amber-600 flex items-center justify-center shrink-0 text-white shadow-lg shadow-amber-200">
-              <AlertTriangle className="w-6 h-6 animate-bounce" />
+              <AlertTriangle className="w-6 h-6 animate-pulse" />
             </div>
             <div className="space-y-1 flex-1">
               <h4 className="font-extrabold text-amber-900 text-base">
-                Patients Table Missing / ڈیٹا بیس ٹیبل غائب ہے
+                Supabase Patients Database Synchronization Helper / ڈیٹا بیس سنکرونائزیشن گائیڈ
               </h4>
               <p className="text-xs text-amber-850 leading-relaxed font-bold">
-                Bhai, live database (Supabase) men "patients" ka table abhi tak nahi bana hua, jis ki wajah se alag alag browsers aur mobiles ke registered patients aapas men sync nahi ho rahe aur sirf local storage men save ho rahe hain! Isay theek karna buhat aasan hai.
+                Bhai, agar alag alag mobile, laptop ya browsers par registered patients aapas men sync nahi ho rahe (jaise assessments ho rahi hain), to iski 2 bari wajoohat ho sakti hain:
               </p>
-              <p className="text-[11px] text-slate-700 leading-relaxed font-semibold mt-1">
-                Aap apne <strong>Supabase Dashboard</strong> par jaein, <strong>SQL Editor</strong> open karein, aur neeche diye gaye SQL code ko paste kar ke <strong>Run</strong> par click kar dein. Is se aap ka patients table ban jaye ga aur tamam devices par patients foran sync hone lagen gi!
+              <ul className="list-disc pl-5 text-[11px] text-slate-800 space-y-1 font-semibold">
+                <li><strong>Patients Table Missing:</strong> Ho sakta hai live Supabase database men patients ka table abhi tak bana hi na ho, jis ki wajah se data sirf local browser memory men save ho raha hai.</li>
+                <li><strong>RLS (Row Level Security) Policy Issue:</strong> Agar table mojood hai lekin policies restrict kar rahi hain, to alag alag accounts ya devices ko patient records select karne ki ijazat nahi milti (khaas tor par jab clinic_id khali/null ho).</li>
+              </ul>
+              <p className="text-xs text-slate-705 leading-relaxed font-bold mt-2">
+                <strong>Theek karne ka aasan tareeqa:</strong> Apne <strong>Supabase Dashboard</strong> par jaein, <strong>SQL Editor</strong> open karein (New Query par click karein), neeche diya SQL paste kar ke <strong>Run</strong> par click kar dein. Is se table bhi ban jaye ga aur RLS restrictions bhi bypass ho jaein gi!
               </p>
             </div>
           </div>
 
           <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 relative group">
             <pre className="text-[10px] md:text-xs text-slate-300 font-mono overflow-x-auto whitespace-pre leading-relaxed select-all max-h-60">
-{`-- Create Patients Table for multiple devices syncing
+{`-- 1. Create Patients Table (if missing)
 CREATE TABLE IF NOT EXISTS patients (
   id TEXT PRIMARY KEY,
   clinic_id TEXT,
@@ -417,16 +427,20 @@ CREATE TABLE IF NOT EXISTS patients (
   created_by TEXT
 );
 
--- Enable Row Level Security (RLS)
+-- 2. Enable Row Level Security (RLS)
 ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
 
--- Create policy to allow public read/write access
+-- 3. Drop any restrictive policies that block multi-device syncing
+DROP POLICY IF EXISTS clinic_isolation ON patients;
+DROP POLICY IF EXISTS "Allow public read/write access on patients" ON patients;
+
+-- 4. Create robust public read/write policy so all devices sync instantly
 CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL USING (true);`}
             </pre>
             <div className="absolute right-4 top-4">
               <button 
                 onClick={() => {
-                  navigator.clipboard.writeText(`-- Create Patients Table for multiple devices syncing
+                  navigator.clipboard.writeText(`-- 1. Create Patients Table (if missing)
 CREATE TABLE IF NOT EXISTS patients (
   id TEXT PRIMARY KEY,
   clinic_id TEXT,
@@ -448,13 +462,18 @@ CREATE TABLE IF NOT EXISTS patients (
   created_by TEXT
 );
 
--- Enable Row Level Security (RLS)
+-- 2. Enable Row Level Security (RLS)
 ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
 
--- Create policy to allow public read/write access on patients" ON patients FOR ALL USING (true);`);
+-- 3. Drop any restrictive policies that block multi-device syncing
+DROP POLICY IF EXISTS clinic_isolation ON patients;
+DROP POLICY IF EXISTS "Allow public read/write access on patients" ON patients;
+
+-- 4. Create robust public read/write policy so all devices sync instantly
+CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL USING (true);`);
                   alert("SQL code copied to clipboard! / ایس کیو ایل کوڈ کاپی ہو گیا!");
                 }}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-bold rounded-lg border border-slate-700 transition-all active:scale-95 shadow-md"
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-bold rounded-lg border border-slate-700 transition-all active:scale-95 shadow-md cursor-pointer"
               >
                 Copy SQL
               </button>
@@ -466,8 +485,17 @@ ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
       {/* Top Title Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-r from-slate-900 via-slate-800 to-blue-950 p-6 sm:p-8 rounded-[2rem] text-white shadow-xl">
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[10px] font-black tracking-widest uppercase mb-1">
-            Intake Enrollment Center
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[10px] font-black tracking-widest uppercase">
+              Intake Enrollment Center
+            </div>
+            <button
+              onClick={() => setShowSyncDiagnostics(prev => !prev)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/30 text-amber-300 hover:text-amber-200 text-[10px] font-black tracking-widest uppercase transition-all cursor-pointer shadow-sm active:scale-95"
+            >
+              <Database className="w-3 h-3" />
+              {showSyncDiagnostics ? "Hide Sync Guide" : "Database Sync / سنک چیک"}
+            </button>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight leading-none">
             PATIENT REGISTRATION PORTAL
