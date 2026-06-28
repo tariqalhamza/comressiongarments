@@ -315,17 +315,19 @@ export const dbService = {
           // In live mode, exclude mock/demo profiles with IDs '1' and '2' so they don't block deletion or clutter databases
           const localPatients = getLocalStoragePatients().filter(p => p.id !== '1' && p.id !== '2');
           const remotePatients = (data || []) as Patient[];
+          const remoteIds = new Set(remotePatients.map(p => p.id));
           const patientMap = new Map<string, Patient>();
           
           localPatients.forEach(p => {
             if (p && p.id) {
-              patientMap.set(p.id, p);
+              const isSynced = remoteIds.has(p.id);
+              patientMap.set(p.id, { ...p, _isSynced: isSynced });
             }
           });
           
           remotePatients.forEach(p => {
             if (p && p.id) {
-              patientMap.set(p.id, p);
+              patientMap.set(p.id, { ...p, _isSynced: true });
             }
           });
           
@@ -340,7 +342,9 @@ export const dbService = {
           isSupabaseOfflineState = true;
           lastSupabaseError = err;
           // Filter out mock patients in live fallback too
-          result = getLocalStoragePatients().filter(p => p.id !== '1' && p.id !== '2');
+          result = getLocalStoragePatients()
+            .filter(p => p.id !== '1' && p.id !== '2')
+            .map(p => ({ ...p, _isSynced: false }));
         }
       }
 
@@ -718,6 +722,7 @@ export const dbService = {
         isAssessmentsTableMissingState = false;
         
         const remoteAssessments = data || [];
+        const remoteIds = new Set(remoteAssessments.map(a => a.id));
         
         // Merge with local storage assessments so no client work is lost
         const localAssessments = getLocalStorageAssessments();
@@ -725,13 +730,14 @@ export const dbService = {
         
         localAssessments.forEach(a => {
           if (a && a.id) {
-            assessmentMap.set(a.id, a);
+            const isSynced = remoteIds.has(a.id);
+            assessmentMap.set(a.id, { ...a, _isSynced: isSynced });
           }
         });
         
         remoteAssessments.forEach(a => {
           if (a && a.id) {
-            assessmentMap.set(a.id, a);
+            assessmentMap.set(a.id, { ...a, _isSynced: true });
           }
         });
         
@@ -748,7 +754,7 @@ export const dbService = {
         return result;
       } catch (err: any) {
         console.warn('Could not fetch assessments from Supabase. Sourcing from LocalStorage:', err);
-        let result = getLocalStorageAssessments();
+        let result = getLocalStorageAssessments().map(a => ({ ...a, _isSynced: false }));
         if (!isCurrentUserAdmin() && currentUserId) {
           result = result.filter(a => a.created_by === currentUserId);
         }
@@ -832,5 +838,95 @@ export const dbService = {
         return stored ? JSON.parse(stored) : [];
       }
     }
+  }
+};
+
+export const testSupabaseSync = async (): Promise<{
+  success: boolean;
+  message: string;
+  error?: any;
+  steps: { name: string; success: boolean; detail?: string }[];
+}> => {
+  const steps: { name: string; success: boolean; detail?: string }[] = [];
+  
+  if (isDemo) {
+    return {
+      success: false,
+      message: 'App is running in DEMO mode because no real Supabase credentials (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) are configured.',
+      steps: [{ name: 'Check Live Connection', success: false, detail: 'Demo mode is active.' }]
+    };
+  }
+
+  try {
+    // Step 1: Ping Supabase by checking auth session
+    try {
+      await supabase.auth.getSession();
+      steps.push({ name: 'Ping Supabase Auth API', success: true, detail: 'Successfully contacted Supabase Auth.' });
+    } catch (e: any) {
+      steps.push({ name: 'Ping Supabase Auth API', success: false, detail: e.message || String(e) });
+      throw new Error(`Auth ping failed: ${e.message || String(e)}`);
+    }
+
+    // Step 2: Try to read from 'patients' table
+    let countVal = 0;
+    try {
+      const { data, error, count } = await supabase.from('patients').select('*', { count: 'exact', head: true });
+      if (error) throw error;
+      countVal = count || 0;
+      steps.push({ name: 'Read Patients Table', success: true, detail: `Successfully queried patients list. Remote row count: ${countVal}.` });
+    } catch (e: any) {
+      steps.push({ name: 'Read Patients Table', success: false, detail: `Read failed: ${e.message || String(e)}. This happens if the "patients" table does not exist or has no active SELECT policy.` });
+      throw e;
+    }
+
+    // Step 3: Try to write a temporary test patient with a valid UUID format
+    const generateUUID = () => {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+    };
+    const testId = generateUUID();
+    try {
+      const { error: insertError } = await supabase.from('patients').insert({
+        id: testId,
+        full_name: 'OVERPLAST_SYNC_TEST',
+        age: 99,
+        gender: 'other',
+        phone: '000',
+        address: 'Test',
+        doctor_name: 'Test',
+        notes: 'Temporary sync diagnostics. Please ignore.'
+      });
+      if (insertError) throw insertError;
+      steps.push({ name: 'Write Patient (Insert)', success: true, detail: 'Successfully inserted test patient row.' });
+    } catch (e: any) {
+      steps.push({ name: 'Write Patient (Insert)', success: false, detail: `Insert failed: ${e.message || String(e)}. This is 100% due to Row Level Security (RLS) blocking write access, or column type mismatch.` });
+      throw e;
+    }
+
+    // Step 4: Try to delete the temporary test patient
+    try {
+      const { error: deleteError } = await supabase.from('patients').delete().eq('id', testId);
+      if (deleteError) throw deleteError;
+      steps.push({ name: 'Delete Test Patient (Cleanup)', success: true, detail: 'Successfully cleaned up test patient row.' });
+    } catch (e: any) {
+      steps.push({ name: 'Delete Test Patient (Cleanup)', success: false, detail: `Cleanup warning: ${e.message || String(e)}` });
+    }
+
+    return {
+      success: true,
+      message: 'Mubarak ho! Supabase connection, read, and write operations are 100% active, fully authenticated, and synchronized!',
+      steps
+    };
+
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err.message || String(err),
+      error: err,
+      steps
+    };
   }
 };

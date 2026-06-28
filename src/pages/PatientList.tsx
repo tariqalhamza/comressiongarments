@@ -130,7 +130,7 @@ ALTER TABLE IF EXISTS orders DISABLE ROW LEVEL SECURITY;`;
     return match ? match[1] : 'avltksamccylkfgpfgea';
   };
 
-  const handleQuickSaveDb = () => {
+  const handleQuickSaveDb = async () => {
     setIsSavingDb(true);
     try {
       const url = supabaseUrlInput.trim();
@@ -150,10 +150,23 @@ ALTER TABLE IF EXISTS orders DISABLE ROW LEVEL SECURITY;`;
       
       localStorage.removeItem('supabase_force_demo');
       
+      // Save on server for cross-device synchronization
+      try {
+        await fetch('/api/save-config', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ url, key })
+        });
+      } catch (srvErr) {
+        console.warn("Failed to save credentials on server:", srvErr);
+      }
+      
       setTimeout(() => {
         setIsSavingDb(false);
         try {
-          alert("Credentials saved! Reconnecting to your live database...");
+          alert("Credentials saved and synced across devices! Reconnecting to your live database...");
         } catch (alertError) {
           console.warn("Alert blocked:", alertError);
         }

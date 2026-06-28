@@ -24,6 +24,35 @@ const App: React.FC = () => {
   const { user, profile, loading } = useAuthStore();
   const isSuperEmail = ['mehmood@gmail.com', 'detox16277@gmail.com'].includes(user?.email?.toLowerCase().trim() || '');
   const isAdmin = profile?.role === 'admin' || isSuperEmail;
+  const [configSyncing, setConfigSyncing] = useState(true);
+
+  useEffect(() => {
+    const syncDbConfig = async () => {
+      try {
+        const res = await fetch('/api/get-config');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.url && data.key) {
+            const currentUrl = localStorage.getItem('VITE_SUPABASE_URL');
+            const currentKey = localStorage.getItem('VITE_SUPABASE_ANON_KEY');
+            
+            if (currentUrl !== data.url || currentKey !== data.key) {
+              localStorage.setItem('VITE_SUPABASE_URL', data.url);
+              localStorage.setItem('VITE_SUPABASE_ANON_KEY', data.key);
+              localStorage.removeItem('supabase_force_demo');
+              window.location.reload();
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error syncing Supabase config with backend:', err);
+      } finally {
+        setConfigSyncing(false);
+      }
+    };
+    syncDbConfig();
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -47,6 +76,17 @@ const App: React.FC = () => {
       setIsSidebarOpen(false);
     }
   };
+
+  if (configSyncing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin" />
+          <p className="text-xs font-black text-slate-500 tracking-wider uppercase animate-pulse">Checking Shared Database Connection...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

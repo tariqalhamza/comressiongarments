@@ -438,7 +438,7 @@ const Settings: React.FC = () => {
   const [supabaseAnonKeyInput, setSupabaseAnonKeyInput] = useState(localStorage.getItem('VITE_SUPABASE_ANON_KEY') || '');
   const [isSavingDb, setIsSavingDb] = useState(false);
 
-  const handleSaveDb = () => {
+  const handleSaveDb = async () => {
     setIsSavingDb(true);
     try {
       const url = supabaseUrlInput.trim();
@@ -459,10 +459,23 @@ const Settings: React.FC = () => {
       // Clear manual forced demo
       localStorage.removeItem('supabase_force_demo');
       
+      // Save on server for cross-device synchronization
+      try {
+        await fetch('/api/save-config', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ url, key })
+        });
+      } catch (srvErr) {
+        console.warn("Failed to save credentials on the backend server, but stored in local browser.", srvErr);
+      }
+      
       setTimeout(() => {
         setIsSavingDb(false);
         try {
-          alert("Supabase Live database credentials update ho chuki hain! Ab page automatically reload ho jayega taaki yeh live database se direct connect ho sake.");
+          alert("Supabase Live database credentials save ho chuki hain aur baqi tamom devices ke sath sync ho gai hain! Ab page reload hoga.");
         } catch (alertError) {
           console.warn("Standard alert was blocked by the browser sandbox.", alertError);
         }

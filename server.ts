@@ -3,6 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import fs from "fs";
 
 dotenv.config();
 
@@ -12,6 +13,50 @@ async function startServer() {
 
   // Middleware for parsing large payloads (images)
   app.use(express.json({ limit: '10mb' }));
+
+  // Shared Database config read/write endpoints to sync credentials across all devices
+  const CONFIG_FILE_PATH = path.join(process.cwd(), "supabase-config.json");
+
+  app.get("/api/get-config", (req, res) => {
+    try {
+      let config = { url: "", key: "" };
+      if (fs.existsSync(CONFIG_FILE_PATH)) {
+        const fileContent = fs.readFileSync(CONFIG_FILE_PATH, "utf-8");
+        config = JSON.parse(fileContent);
+      }
+      
+      // Fallback to server-side env vars if config file is empty
+      const url = config.url || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
+      const key = config.key || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
+      
+      res.json({ url, key });
+    } catch (error) {
+      console.error("Failed to read shared Supabase config:", error);
+      res.json({ url: "", key: "" }); // Return empty rather than crashing
+    }
+  });
+
+  app.post("/api/save-config", (req, res) => {
+    try {
+      const { url, key } = req.body;
+      const config = { url: url?.trim() || "", key: key?.trim() || "" };
+      
+      fs.writeFileSync(CONFIG_FILE_PATH, JSON.stringify(config, null, 2), "utf-8");
+      
+      // Also update environment variables in-memory
+      if (config.url) {
+        process.env.VITE_SUPABASE_URL = config.url;
+      }
+      if (config.key) {
+        process.env.VITE_SUPABASE_ANON_KEY = config.key;
+      }
+      
+      res.json({ success: true, message: "Configuration saved successfully on server." });
+    } catch (error) {
+      console.error("Failed to save shared Supabase config:", error);
+      res.status(500).json({ error: "Failed to save configuration on server" });
+    }
+  });
 
   // Gemini Initialization
   const ai = new GoogleGenAI({

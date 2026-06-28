@@ -28,6 +28,7 @@ export interface Patient {
   photo_url?: string;
   created_at: string;
   measurements?: any;
+  _isSynced?: boolean;
 }
 
 export interface MeasurementPoint {
