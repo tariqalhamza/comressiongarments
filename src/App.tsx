@@ -29,6 +29,38 @@ const App: React.FC = () => {
   useEffect(() => {
     const syncDbConfig = async () => {
       try {
+        // 1. Check if URL contains connection sharing parameters (extremely useful for static deployments like Netlify/Vercel/GitHub Pages)
+        const params = new URLSearchParams(window.location.search);
+        const urlParam = params.get('supabase_url');
+        const keyParam = params.get('supabase_key');
+        
+        if (urlParam && keyParam) {
+          const cleanUrl = decodeURIComponent(urlParam).trim();
+          const cleanKey = decodeURIComponent(keyParam).trim();
+          
+          if (cleanUrl && cleanKey) {
+            localStorage.setItem('VITE_SUPABASE_URL', cleanUrl);
+            localStorage.setItem('VITE_SUPABASE_ANON_KEY', cleanKey);
+            localStorage.removeItem('supabase_force_demo');
+            
+            // Try to sync with server backend too if it is present
+            try {
+              await fetch('/api/save-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: cleanUrl, key: cleanKey })
+              });
+            } catch (backendErr) {
+              console.warn("Backend save-config skipped on static deployment.", backendErr);
+            }
+            
+            // Instantly reload to a clean URL without credentials visible in address bar
+            window.location.replace(window.location.pathname);
+            return;
+          }
+        }
+
+        // 2. Fetch from backend if available (for fullstack container environments)
         const res = await fetch('/api/get-config');
         if (res.ok) {
           const data = await res.json();
@@ -46,7 +78,7 @@ const App: React.FC = () => {
           }
         }
       } catch (err) {
-        console.warn('Error syncing Supabase config with backend:', err);
+        console.warn('Error syncing Supabase config:', err);
       } finally {
         setConfigSyncing(false);
       }
