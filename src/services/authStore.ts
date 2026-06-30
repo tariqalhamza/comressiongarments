@@ -46,6 +46,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.warn('Sign out call to Supabase timed out or failed, clearing local state anyway.', e);
     }
     set({ user: null, profile: null });
+    // Reload the page to ensure fresh, clean state and clean redirect to Login
+    window.location.reload();
   },
   fetchProfile: async (uid: string) => {
     const user = get().user;

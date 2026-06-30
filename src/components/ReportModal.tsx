@@ -515,11 +515,6 @@ const SmartDiagram: React.FC<{
               </g>
 
               {/* vertical side measurement rulers */}
-              {/* Height Line 1: Finger-to-wrist (Left Margin) */}
-              <line x1="35" y1="48" x2="148" y2="48" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
-              <line x1="35" y1="275" x2="111" y2="275" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
-              <line x1="35" y1="48" x2="35" y2="275" stroke="#d97706" strokeWidth="1.5" markerStart="url(#arrow-amber-rep)" markerEnd="url(#arrow-amber-rep)" />
-
               {/* Height Line 2: Finger-to-scar-end (Right Margin) */}
               <line x1="180" y1="48" x2="285" y2="48" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
               <line x1="195" y1="360" x2="285" y2="360" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
@@ -566,13 +561,6 @@ const SmartDiagram: React.FC<{
               <g transform={`translate(${xSmallFinger}, 145)`} className="text-[8px] font-bold">
                 <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#db2777" strokeWidth="1" />
                 <text y="3" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="8">Little: {formatVal('Little finger')}</text>
-              </g>
-
-              {/* 8. Total Length (Finger to Wrist) Badge - positioned at top of vertical line */}
-              <g transform={`translate(${isLeftHand ? 285 : 35}, 30)`} className="text-[8px] font-bold">
-                <rect x="-46" y="-12" width="92" height="24" rx="4" fill="white" stroke="#d97706" strokeWidth="1.5" />
-                <text y="-2" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="6.5">Middle Finger to Wrist</text>
-                <text y="8" textAnchor="middle" className="fill-amber-700 font-black" fontSize="7">{formatVal('Total length middle finger to wrist')}</text>
               </g>
 
               {/* 9. Total Length (Finger to Scar) Right Margin Badge */}
@@ -1636,7 +1624,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, patient }) =
                   <div className="p-8 bg-blue-600 rounded-[2.5rem] shadow-2xl shadow-blue-100 space-y-6">
                     <div className="space-y-1">
                       <p className="text-[9px] font-black text-blue-200 uppercase tracking-widest">Prescribed Garment</p>
-                      <p className="text-2xl font-black text-white uppercase tracking-tight">{patient.diagnosis || 'Gloves'}</p>
+                      <p className="text-2xl font-black text-white uppercase tracking-tight">{(patient.diagnosis || 'Gloves').replace(/All Gloves\/Glove With Sleeve/gi, 'Gloves')}</p>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="px-4 py-2 bg-white/20 rounded-xl backdrop-blur-md">

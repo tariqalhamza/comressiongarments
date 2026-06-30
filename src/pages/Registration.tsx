@@ -28,11 +28,14 @@ import {
   RefreshCw,
   Download,
   FileSpreadsheet,
-  Database
+  Database,
+  Terminal,
+  Copy,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Patient } from '../types';
-import { dbService, getIsPatientsTableMissing, testSupabaseSync } from '../services/supabase';
+import { dbService, getIsPatientsTableMissing, testSupabaseSync, getIsSupabaseOffline } from '../services/supabase';
 import { cn } from '../lib/utils';
 import { compressImage } from '../lib/imageUtils';
 import AssessmentSummaryModal from '../components/AssessmentSummaryModal';
@@ -69,6 +72,15 @@ const Registration: React.FC<RegistrationProps> = ({
   const [dbKey, setDbKey] = useState(localStorage.getItem('VITE_SUPABASE_ANON_KEY') || '');
   const [savingDbConfig, setSavingDbConfig] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
+
+  const handleCopySql = () => {
+    const sql = `-- RLS (Row Level Security) ko completely disable karein taake sync masla foran hal ho jaye!\nALTER TABLE patients DISABLE ROW LEVEL SECURITY;\nALTER TABLE profiles DISABLE ROW LEVEL SECURITY;\nALTER TABLE measurements DISABLE ROW LEVEL SECURITY;\nALTER TABLE orders DISABLE ROW LEVEL SECURITY;\nALTER TABLE clinics DISABLE ROW LEVEL SECURITY;`;
+    navigator.clipboard.writeText(sql);
+    setCopiedSql(true);
+    setTimeout(() => setCopiedSql(false), 3000);
+    alert("SQL commands copy ho chuke hain! Inhein Supabase -> SQL Editor men paste kar ke Run kar dein!");
+  };
 
   const handleSaveDbConfig = async () => {
     setSavingDbConfig(true);
@@ -471,7 +483,7 @@ const Registration: React.FC<RegistrationProps> = ({
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-300">
       
-      {isSuperEmail && (isPatientsTableMissing || showSyncDiagnostics) && (
+      {isSuperEmail && (isPatientsTableMissing || showSyncDiagnostics || getIsSupabaseOffline()) && (
         <div className="p-6 rounded-3xl bg-amber-500/10 border-2 border-amber-500/20 text-left space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-2xl bg-amber-600 flex items-center justify-center shrink-0 text-white shadow-lg shadow-amber-200">
@@ -488,6 +500,42 @@ const Registration: React.FC<RegistrationProps> = ({
                 <li><strong>Patients Table Missing:</strong> Ho sakta hai live Supabase database men patients ka table abhi tak bana hi na ho, jis ki wajah se data sirf local browser memory (LocalStorage) men save ho raha hai.</li>
                 <li><strong>RLS (Row Level Security) Policy Issue:</strong> Agar table mojood hai lekin policies restrict kar rahi hain, to alag alag devices ko patients select karne ya insert karne ki ijazat nahi milti.</li>
               </ul>
+
+              <div className="mt-4 p-4 bg-red-500/5 rounded-2xl border border-red-500/10 space-y-3">
+                <p className="text-xs text-red-900 font-extrabold flex items-center gap-1.5">
+                  <Terminal className="w-4 h-4 text-red-500" />
+                  RLS Blocking Fix (Instant Sync) / ڈیٹا بیس سنک ٹھیک کرنے کا آسان طریقہ:
+                </p>
+                <p className="text-[11px] text-slate-700 leading-relaxed font-bold">
+                  Bhai, Supabase men by default database security (RLS) enabled hoti hai, jis ki wajah se doosri devices data read/write nahi kar sakein gi aur aap ko <strong>"Local Only"</strong> likha nazar aaye ga. Is ko solve karne ke liye niche diya SQL script copy karein aur apne <strong>Supabase Dashboard &rarr; SQL Editor</strong> men paste kar ke <strong>Run</strong> daba dein:
+                </p>
+                <div className="relative">
+                  <pre className="p-3 bg-slate-950 text-slate-200 text-[10px] font-mono rounded-xl overflow-x-auto select-all leading-relaxed pr-24">
+{`ALTER TABLE patients DISABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE measurements DISABLE ROW LEVEL SECURITY;
+ALTER TABLE orders DISABLE ROW LEVEL SECURITY;
+ALTER TABLE clinics DISABLE ROW LEVEL SECURITY;`}
+                  </pre>
+                  <button
+                    type="button"
+                    onClick={handleCopySql}
+                    className="absolute top-2 right-2 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 cursor-pointer shadow-sm flex items-center gap-1 shrink-0"
+                  >
+                    {copiedSql ? (
+                      <>
+                        <Check className="w-3 h-3" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" />
+                        Copy SQL
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -783,15 +831,7 @@ CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL U
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[10px] font-black tracking-widest uppercase">
               Intake Enrollment Center
             </div>
-            {isSuperEmail && (
-              <button
-                onClick={() => setShowSyncDiagnostics(prev => !prev)}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/30 text-amber-300 hover:text-amber-200 text-[10px] font-black tracking-widest uppercase transition-all cursor-pointer shadow-sm active:scale-95"
-              >
-                <Database className="w-3 h-3" />
-                {showSyncDiagnostics ? "Hide Sync Guide" : "Database Sync / سنک چیک"}
-              </button>
-            )}
+            {/* Removed database sync helper button as requested */}
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight leading-none">
             PATIENT REGISTRATION PORTAL

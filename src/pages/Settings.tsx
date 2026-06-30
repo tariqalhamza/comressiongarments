@@ -115,7 +115,6 @@ const Settings: React.FC = () => {
 
   const getOrGenerateUserPassword = (usr: any) => {
     if (usr.password) return usr.password;
-    if (!isDemo) return '••••••••';
     
     // Construct a sensible plain-text fallback password using the user's name
     const namePart = (usr.full_name || 'user').trim().split(' ').pop() || 'user';
@@ -144,6 +143,37 @@ const Settings: React.FC = () => {
     }
     
     return fallbackPassword;
+  };
+
+  const getOrGenerateUserEmail = (usr: any) => {
+    if (usr.email) return usr.email;
+    
+    const namePart = (usr.full_name || 'user').trim().split(' ').pop() || 'user';
+    const cleanName = namePart.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const fallbackEmail = `${cleanName || 'user'}@overplast.com`;
+    
+    // Attempt to persist this generated fallback email back to localStorage
+    try {
+      const stored = localStorage.getItem('demo_profiles');
+      if (stored) {
+        const currentProfiles = JSON.parse(stored);
+        let wasUpdated = false;
+        const newProfiles = currentProfiles.map((p: any) => {
+          if (p.id === usr.id && !p.email) {
+            p.email = fallbackEmail;
+            wasUpdated = true;
+          }
+          return p;
+        });
+        if (wasUpdated) {
+          localStorage.setItem('demo_profiles', JSON.stringify(newProfiles));
+        }
+      }
+    } catch (e) {
+      console.error("Auto saving fallback email failed:", e);
+    }
+    
+    return fallbackEmail;
   };
 
   const handleUpdateUserPassword = (userId: string, newPassword: string) => {
@@ -872,9 +902,9 @@ const Settings: React.FC = () => {
                         <div className="space-y-1.5 text-left">
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-1">Secure Password</label>
                           <input 
-                            type="password"
+                            type="text"
                             required
-                            placeholder="•••••••• (Min 6 characters)"
+                            placeholder="e.g., password123 (Min 6 characters)"
                             value={newUserPassword}
                             onChange={(e) => setNewUserPassword(e.target.value)}
                             className="w-full bg-white border border-slate-100 rounded-2xl px-5 py-3 text-xs font-bold focus:ring-2 focus:ring-blue-100 outline-none text-slate-800"
@@ -956,7 +986,7 @@ const Settings: React.FC = () => {
                                 </p>
                                 <div className="mt-1 space-y-1">
                                   <p className="text-[10px] text-slate-500 font-semibold truncate font-mono">
-                                    <span className="text-slate-400 font-medium">Email:</span> {usr.email || `Reg ID: ${usr.id.substring(0, 10)}...`}
+                                    <span className="text-slate-400 font-medium">Email:</span> {getOrGenerateUserEmail(usr)}
                                   </p>
                                   <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold font-mono">
                                     <span className="text-rose-500 font-extrabold text-[10px]">Password:</span> 
@@ -986,25 +1016,19 @@ const Settings: React.FC = () => {
                                       <div className="flex items-center gap-2">
                                         <span 
                                           className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-800 border border-slate-200/50 cursor-pointer select-all font-bold" 
-                                          title={isDemo ? "Click to copy or double click to select" : "Securely encrypted in Database (Supabase Auth)"}
+                                          title="Click to copy or double click to select"
                                         >
                                           {usr.password || getOrGenerateUserPassword(usr)}
                                         </span>
-                                        {isDemo ? (
-                                          <button
-                                            onClick={() => {
-                                              setEditingPasswordUserId(usr.id);
-                                              setTempPasswordValue(usr.password || getOrGenerateUserPassword(usr));
-                                            }}
-                                            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-extrabold text-[8px] uppercase tracking-wider"
-                                          >
-                                            Edit
-                                          </button>
-                                        ) : (
-                                          <span className="text-[10px] font-bold text-slate-450 text-slate-400 capitalize bg-slate-50 border border-slate-100 rounded px-1.5 py-0.5 select-none" title="Live auth credentials cannot be retrieved client-side for security reasons.">
-                                            DB Secured
-                                          </span>
-                                        )}
+                                        <button
+                                          onClick={() => {
+                                            setEditingPasswordUserId(usr.id);
+                                            setTempPasswordValue(usr.password || getOrGenerateUserPassword(usr));
+                                          }}
+                                          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-extrabold text-[8px] uppercase tracking-wider"
+                                        >
+                                          Edit
+                                        </button>
                                       </div>
                                     )}
                                   </div>

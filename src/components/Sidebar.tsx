@@ -12,6 +12,8 @@ import { useAuthStore } from '../services/authStore';
 import { motion, AnimatePresence } from 'motion/react';
 import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.png';
 
+import { isDemo, getIsSupabaseOffline } from '../services/supabase';
+
 interface SidebarProps {
   activeSection: string;
   onNavigate: (section: string) => void;
@@ -21,7 +23,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ activeSection, onNavigate, isOpen, onToggle }) => {
   const { profile, user, signOut } = useAuthStore();
-  const isSuperEmail = ['mehmood@gmail.com', 'detox16277@gmail.com'].includes(user?.email?.toLowerCase().trim() || '');
+  const isSuperEmail = ['mehmood@gmail.com', 'detox16277@gmail.com', 'mahmood@gmail.com', 'demo@overplast.com'].includes(user?.email?.toLowerCase().trim() || profile?.email?.toLowerCase().trim() || '');
   const isAdmin = profile?.role === 'admin' || isSuperEmail;
 
   const menuItems = [
@@ -30,6 +32,34 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onNavigate, isOpen, on
     { id: 'registered-assessments', label: 'Registered Assessments', icon: ClipboardCheck },
     ...(isAdmin ? [{ id: 'settings', label: 'Settings & Accounts', icon: Settings }] : []),
   ];
+
+  // Dynamic system connection status
+  const getStatusDisplay = () => {
+    if (isDemo) {
+      return {
+        label: 'Local Storage Mode / ڈیمو موڈ',
+        color: 'bg-amber-500',
+        textClass: 'text-amber-700 font-extrabold',
+        tooltip: 'Database credentials not set or running in local fallback.'
+      };
+    }
+    if (getIsSupabaseOffline()) {
+      return {
+        label: 'Offline (Local Cache) / آف لائن',
+        color: 'bg-rose-500',
+        textClass: 'text-rose-700 font-extrabold',
+        tooltip: 'Supabase is configured but currently offline/unreachable.'
+      };
+    }
+    return {
+      label: 'Live DB Connected / کلاؤڈ سنک',
+      color: 'bg-emerald-500',
+      textClass: 'text-emerald-700 font-extrabold',
+      tooltip: 'Connected and syncing successfully with Supabase!'
+    };
+  };
+
+  const status = getStatusDisplay();
 
   return (
     <AnimatePresence mode="wait">
@@ -82,11 +112,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onNavigate, isOpen, on
             </nav>
 
             <div className="mt-auto pt-6 border-t border-slate-100">
-              <div className="p-4 bg-slate-50 rounded-3xl mb-6">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Current System Status</p>
+              <div className="p-4 bg-slate-50 rounded-3xl mb-6" title={status.tooltip}>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Current System Status / سسٹم سٹیٹس</p>
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  <span className="text-xs font-bold text-slate-700">Cloud Connected</span>
+                  <div className={cn("w-2 h-2 rounded-full animate-pulse", status.color)} />
+                  <span className={cn("text-xs font-bold", status.textClass)}>{status.label}</span>
                 </div>
               </div>
               

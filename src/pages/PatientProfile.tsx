@@ -40,6 +40,7 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patient, onBack, onStar
   const [loadingAssessments, setLoadingAssessments] = useState(true);
   const [selectedAsm, setSelectedAsm] = useState<any | null>(null);
   const [isAsmSummaryOpen, setIsAsmSummaryOpen] = useState(false);
+  const [deletingAsmId, setDeletingAsmId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -70,15 +71,15 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patient, onBack, onStar
     fetchData();
   }, [patient.id, patient.full_name]);
 
-  const handleDeleteAssessment = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (window.confirm("Are you sure you want to delete this garment assessment? / کیا آپ اس گارمنٹ اسیسمنٹ کو حذف کرنا چاہتے ہیں؟")) {
-      try {
-        await dbService.assessments.delete(id);
-        setAssessments(prev => prev.filter(a => a.id !== id));
-      } catch (err) {
-        console.error('Delete assessment failed:', err);
+  const handleDeleteAssessment = async (id: string) => {
+    try {
+      await dbService.assessments.delete(id);
+      setAssessments(prev => prev.filter(a => a.id !== id));
+      if (deletingAsmId === id) {
+        setDeletingAsmId(null);
       }
+    } catch (err) {
+      console.error('Delete assessment failed:', err);
     }
   };
 
@@ -255,57 +256,89 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patient, onBack, onStar
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4">
-                  {assessments.map((asm: any) => (
-                    <div 
-                      key={asm.id}
-                      onClick={() => {
-                        setSelectedAsm(asm);
-                        setIsAsmSummaryOpen(true);
-                      }}
-                      className="p-5 rounded-2xl border border-slate-200/80 bg-white hover:border-blue-300 hover:shadow-md cursor-pointer transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
-                    >
-                      <div className="flex items-start gap-3.5">
-                        <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center font-black">
-                          {asm.garment_type ? asm.garment_type[0] : 'G'}
-                        </div>
-                        <div>
-                          <p className="font-extrabold text-slate-900 text-sm group-hover:text-blue-700 transition-colors">{asm.garment_type}</p>
-                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 font-medium mt-1">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                              {new Date(asm.created_at).toLocaleDateString()}
-                            </span>
-                            <span>•</span>
-                            <span>Compr: <strong className="text-slate-700 font-semibold">{asm.compression || 'None'}</strong></span>
-                            <span>•</span>
-                            <span>Silicone: <strong className="text-slate-700 font-semibold">{asm.silicone_pasting || 'None'}</strong></span>
+                <div className="bg-white rounded-[2rem] border border-slate-200/80 p-6 shadow-sm space-y-4">
+                  <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Garments Details / تفصیلات</span>
+                    <span className="text-xs font-extrabold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">{assessments.length} Active Garments</span>
+                  </div>
+                  
+                  <div className="divide-y divide-slate-100">
+                    {assessments.map((asm: any) => (
+                      <div 
+                        key={asm.id}
+                        onClick={() => {
+                          setSelectedAsm(asm);
+                          setIsAsmSummaryOpen(true);
+                        }}
+                        className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 -mx-6 px-6 transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center font-black text-xs shrink-0">
+                            {asm.garment_type ? asm.garment_type[0] : 'G'}
+                          </div>
+                          <div>
+                            <p className="font-extrabold text-slate-900 text-sm group-hover:text-blue-700 transition-colors">
+                              {asm.garment_type}
+                            </p>
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500 font-medium mt-0.5">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                {new Date(asm.created_at).toLocaleDateString()}
+                              </span>
+                              <span>•</span>
+                              <span>Compr: <strong className="text-slate-700 font-semibold">{asm.compression || 'None'}</strong></span>
+                              <span>•</span>
+                              <span>Silicone: <strong className="text-slate-700 font-semibold">{asm.silicone_pasting || 'None'}</strong></span>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-2 self-end sm:self-auto">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedAsm(asm);
-                            setIsAsmSummaryOpen(true);
-                          }}
-                          className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg border border-slate-200/60 transition-colors flex items-center gap-1.5"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>View Blueprint</span>
-                        </button>
-                        <button
-                          onClick={(e) => handleDeleteAssessment(asm.id, e)}
-                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete Assessment"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-2 self-end sm:self-auto" onClick={(e) => e.stopPropagation()}>
+                          {deletingAsmId === asm.id ? (
+                            <div className="flex items-center gap-2 bg-rose-50 border border-rose-100 px-3 py-1 rounded-xl">
+                              <span className="text-[10px] font-black text-rose-700">Delete / حذف؟</span>
+                              <button
+                                onClick={() => handleDeleteAssessment(asm.id)}
+                                className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black rounded-lg transition-colors cursor-pointer"
+                              >
+                                Yes
+                              </button>
+                              <button
+                                onClick={() => setDeletingAsmId(null)}
+                                className="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-black rounded-lg transition-colors cursor-pointer"
+                              >
+                                No
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedAsm(asm);
+                                  setIsAsmSummaryOpen(true);
+                                }}
+                                className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg border border-slate-200/60 transition-colors flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>View Blueprint</span>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeletingAsmId(asm.id);
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                title="Delete Assessment"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

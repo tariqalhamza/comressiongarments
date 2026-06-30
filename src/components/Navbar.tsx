@@ -79,9 +79,7 @@ const Navbar: React.FC<NavbarProps> = ({ title, onToggleSidebar, isSidebarOpen }
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => {
-                if (window.confirm("Bhai, kya aap waqai Sign Out (Log Out) karna chahte hain?")) {
-                  signOut();
-                }
+                signOut();
               }}
               className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 hover:border-red-200 transition-all font-black text-[11px] sm:text-xs flex items-center gap-1.5 shadow-sm shrink-0"
               title="Sign Out / لاگ آؤٹ"

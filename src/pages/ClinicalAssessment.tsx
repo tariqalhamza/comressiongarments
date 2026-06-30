@@ -34,6 +34,7 @@ import { dbService } from '../services/supabase';
 import { compressImage } from '../lib/imageUtils';
 import { Patient } from '../types';
 import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.png';
+import { useAuthStore } from '../services/authStore';
 
 // --- Types ---
 type StepId = 'garment-select' | 'garment-type' | 'measurement-drawing' | 'review';
@@ -91,7 +92,6 @@ export const GARMENT_FIELDS: Record<string, { id: string; label: string; placeho
   'All Gloves/Glove With Sleeve': [
     { id: 'palm', label: 'Palm', placeholder: 'e.g., 20 cm' },
     { id: 'wrist', label: 'Wrist', placeholder: 'e.g., 16 cm' },
-    { id: 'total_len_medal_to_wrist', label: 'Total length middle finger to wrist', placeholder: 'e.g., 18 cm' },
     { id: 'thumb', label: 'Thumb', placeholder: 'e.g., 5.5 cm' },
     { id: 'index_finger', label: 'Index finger', placeholder: 'e.g., 7.5 cm' },
     { id: 'middle_finger', label: 'Middle finger', placeholder: 'e.g., 8 cm' },
@@ -480,6 +480,10 @@ interface ClinicalAssessmentProps {
 }
 
 const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, onComplete }) => {
+  const { user, profile } = useAuthStore();
+  const isSuperEmail = ['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com'].includes(user?.email?.toLowerCase().trim() || '');
+  const isAdmin = profile?.role === 'admin' || isSuperEmail;
+
   const [activeStep, setActiveStep] = useState<StepId>('garment-select');
   const [providedPhotos, setProvidedPhotos] = useState<'yes' | 'no'>('no');
   const [providedPhotosError, setProvidedPhotosError] = useState<string | null>(null);
@@ -1068,11 +1072,6 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
               <path d="M 33,171 Q 41,176 52,154" stroke="#ea580c" strokeWidth="1.2" strokeDasharray="2 1.5" fill="none" opacity="0.6" />
 
               {/* vertical side measurement rulers (Moved inside flipped group for perfect coordinates alignment on both views) */}
-              {/* Height Line 1: Finger-to-wrist (Left Margin in Right View, Right Margin in Left View) */}
-              <line x1="35" y1="48" x2="148" y2="48" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
-              <line x1="35" y1="275" x2="111" y2="275" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
-              <line x1="35" y1="48" x2="35" y2="275" stroke="#d97706" strokeWidth="1.5" markerStart="url(#arrow-amber-cl)" markerEnd="url(#arrow-amber-cl)" />
-
               {/* Height Line 2: Finger-to-scar-end (Right Margin in Right View, Left Margin in Left View) */}
               <line x1="180" y1="48" x2="285" y2="48" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
               <line x1="195" y1="360" x2="285" y2="360" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
@@ -1120,13 +1119,6 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
             <g transform={`translate(${xSmallFinger}, 145)`} className="text-[8px] font-bold">
               <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#db2777" strokeWidth="1" />
               <text y="3" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="8">Little: {formatVal('Little finger')}</text>
-            </g>
-
-            {/* 8. Total Length (Finger to Wrist) Badge - positioned at top of vertical line */}
-            <g transform={`translate(${isLeftHand ? 285 : 35}, 30)`} className="text-[8px] font-bold">
-              <rect x="-46" y="-12" width="92" height="24" rx="4" fill="white" stroke="#d97706" strokeWidth="1.5" />
-              <text y="-2" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="6.5">Middle Finger to Wrist</text>
-              <text y="8" textAnchor="middle" className="fill-amber-700 font-black" fontSize="7">{formatVal('Total length middle finger to wrist')}</text>
             </g>
 
             {/* 9. Total Length (Finger to Scar) Badge - dynamically positioned left/right margins based on view */}
@@ -2530,7 +2522,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
     messageText += `\n`;
 
     messageText += `*📦 GARMENT CONFIGURATION / گارمنٹ کنفیگریشن*\n`;
-    messageText += `• Garment Type: *${garment.type || 'N/A'}*\n`;
+    messageText += `• Garment Type: *${garment.type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (garment.type || 'N/A')}*\n`;
     messageText += `• Silicone Option: *${garment.siliconePasting || 'N/A'}*\n`;
     messageText += `• Compression Force: *${garment.compression || 'N/A'}*\n`;
     messageText += `\n`;
@@ -3223,7 +3215,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                         <option value="Arm sleeve Right Hand">Arm sleeve Right Hand</option>
                         <option value="Arm sleeve Left Hand">Arm sleeve Left Hand</option>
                         <option value="All Jacket">All Jacket</option>
-                        <option value="All Gloves/Glove With Sleeve">All Gloves/Glove With Sleeve</option>
+                        <option value="All Gloves/Glove With Sleeve">Gloves</option>
                         <option value="Belly Binder">Belly Binder</option>
                         <option value="All Trouser">All Trouser</option>
                         <option value="All Leg Sleeves">All Leg Sleeves</option>
@@ -3285,8 +3277,6 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                             { id: 'lh_palm', label: 'Left Hand Palm', placeholder: 'e.g., 20 cm' },
                             { id: 'rh_wrist', label: 'Right Hand Wrist', placeholder: 'e.g., 16 cm' },
                             { id: 'lh_wrist', label: 'Left Hand Wrist', placeholder: 'e.g., 16 cm' },
-                            { id: 'rh_total_len_medal_to_wrist', label: 'Right Hand Total length middle finger to wrist', placeholder: 'e.g., 18 cm' },
-                            { id: 'lh_total_len_medal_to_wrist', label: 'Left Hand Total length middle finger to wrist', placeholder: 'e.g., 18 cm' },
                             { id: 'rh_thumb', label: 'Right Hand Thumb', placeholder: 'e.g., 5.5 cm' },
                             { id: 'lh_thumb', label: 'Left Hand Thumb', placeholder: 'e.g., 5.5 cm' },
                             { id: 'rh_index_finger', label: 'Right Hand Index finger', placeholder: 'e.g., 7.5 cm' },
@@ -3306,7 +3296,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                         <div className="mt-8 space-y-6 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
                           <div>
                             <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 text-blue-600">
-                              {garment.type} Specifications
+                              {garment.type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : garment.type} Specifications
                             </h4>
                             <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mt-1">
                               Provide precise custom measurements/details for the following parameters
@@ -3434,7 +3424,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
 
                       <div className="mt-4 sm:mt-6 text-center flex flex-col items-center">
                         <p className="text-sm sm:text-base font-black text-slate-950 uppercase tracking-wider">
-                          Reactive Calibration Graph ({garment.type})
+                          Reactive Calibration Graph ({garment.type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : garment.type})
                         </p>
                         <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase mt-1">
                           Calculated relative measurements mapping for production line
@@ -3685,15 +3675,17 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                             />
                           </div>
 
-                          <button
-                            onClick={handleSharePhotoOnly}
-                            className="w-full max-w-sm py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[11px] tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2 border border-transparent shadow-md hover:scale-[1.02] cursor-pointer"
-                          >
-                            <svg className="w-4 h-4 fill-current text-white" viewBox="0 0 24 24">
-                              <path d="M12.012 2c-5.506 0-9.988 4.475-9.988 9.977 0 1.764.46 3.42 1.258 4.876L2 22l5.3-1.383c1.4.764 2.99 1.192 4.697 1.192 5.508 0 9.99-4.476 9.99-9.982C22.012 6.477 17.525 2 12.012 2zm6.39 14.125c-.262.733-1.528 1.343-2.112 1.404-.567.06-1.12.23-3.626-.8-3.208-1.32-5.282-4.578-5.442-4.793-.16-.214-1.288-1.705-1.288-3.253 0-1.548.814-2.31 1.103-2.613.29-.304.633-.38.844-.38.21 0 .422.003.606.012.193.008.455-.074.71.554.264.65.903 2.192.98 2.348.08.156.133.338.028.544-.105.206-.16.333-.316.516-.156.182-.327.406-.467.545-.154.153-.314.32-.136.623.18.303.8 1.3 1.714 2.113.117.104.225.21.32.31.78.825 1.454 1.053 1.768 1.185.314.133.5.112.686-.098.187-.21.802-.93.1017-1.246.216-.317.433-.266.727-.156.294.11 1.86.877 2.177 1.033.317.156.527.23.605.367.078.136.078.79-.184 1.523z" />
-                            </svg>
-                            COPY IMAGE & SHARE / امیج کاپی کریں اور واٹس ایپ
-                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={handleSharePhotoOnly}
+                              className="w-full max-w-sm py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[11px] tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2 border border-transparent shadow-md hover:scale-[1.02] cursor-pointer"
+                            >
+                              <svg className="w-4 h-4 fill-current text-white" viewBox="0 0 24 24">
+                                <path d="M12.012 2c-5.506 0-9.988 4.475-9.988 9.977 0 1.764.46 3.42 1.258 4.876L2 22l5.3-1.383c1.4.764 2.99 1.192 4.697 1.192 5.508 0 9.99-4.476 9.99-9.982C22.012 6.477 17.525 2 12.012 2zm6.39 14.125c-.262.733-1.528 1.343-2.112 1.404-.567.06-1.12.23-3.626-.8-3.208-1.32-5.282-4.578-5.442-4.793-.16-.214-1.288-1.705-1.288-3.253 0-1.548.814-2.31 1.103-2.613.29-.304.633-.38.844-.38.21 0 .422.003.606.012.193.008.455-.074.71.554.264.65.903 2.192.98 2.348.08.156.133.338.028.544-.105.206-.16.333-.316.516-.156.182-.327.406-.467.545-.154.153-.314.32-.136.623.18.303.8 1.3 1.714 2.113.117.104.225.21.32.31.78.825 1.454 1.053 1.768 1.185.314.133.5.112.686-.098.187-.21.802-.93.1017-1.246.216-.317.433-.266.727-.156.294.11 1.86.877 2.177 1.033.317.156.527.23.605.367.078.136.078.79-.184 1.523z" />
+                              </svg>
+                              COPY IMAGE & SHARE / امیج کاپی کریں اور واٹس ایپ
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -3707,7 +3699,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                         <div className="space-y-4">
                           <div>
                             <p className="text-[8px] font-black text-purple-300 uppercase">Garment Type</p>
-                            <p className="text-sm font-black text-slate-900 mt-0.5">{garment.type}</p>
+                            <p className="text-sm font-black text-slate-900 mt-0.5">{garment.type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : garment.type}</p>
                           </div>
                           <div>
                             <p className="text-[8px] font-black text-purple-300 uppercase">Silicone Option</p>
@@ -3771,15 +3763,17 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                       {isSavingAssessment ? 'SAVING...' : 'SAVE ASSESSMENT'}
                     </button>
 
-                    <button 
-                      onClick={handleWhatsAppShare}
-                      className="btn-primary px-5 py-4 sm:px-10 sm:py-6 text-xs sm:text-base flex items-center justify-center gap-2 sm:gap-4 bg-emerald-600 hover:bg-emerald-700 shadow-2xl hover:scale-105 transition-transform w-full sm:w-auto"
-                    >
-                      <svg className="w-4 h-4 sm:w-6 sm:h-6 fill-current text-white" viewBox="0 0 24 24">
-                        <path d="M12.012 2c-5.506 0-9.988 4.475-9.988 9.977 0 1.764.46 3.42 1.258 4.876L2 22l5.3-1.383c1.4.764 2.99 1.192 4.697 1.192 5.508 0 9.99-4.476 9.99-9.982C22.012 6.477 17.525 2 12.012 2zm6.39 14.125c-.262.733-1.528 1.343-2.112 1.404-.567.06-1.12.23-3.626-.8-3.208-1.32-5.282-4.578-5.442-4.793-.16-.214-1.288-1.705-1.288-3.253 0-1.548.814-2.31 1.103-2.613.29-.304.633-.38.844-.38.21 0 .422.003.606.012.193.008.455-.074.71.554.264.65.903 2.192.98 2.348.08.156.133.338.028.544-.105.206-.16.333-.316.516-.156.182-.327.406-.467.545-.154.153-.314.32-.136.623.18.303.8 1.3 1.714 2.113.117.104.225.21.32.31.78.825 1.454 1.053 1.768 1.185.314.133.5.112.686-.098.187-.21.802-.93.1017-1.246.216-.317.433-.266.727-.156.294.11 1.86.877 2.177 1.033.317.156.527.23.605.367.078.136.078.79-.184 1.523z" />
-                      </svg>
-                      SHARE ON WHATSAPP / واٹس ایپ
-                    </button>
+                    {isAdmin && (
+                      <button 
+                        onClick={handleWhatsAppShare}
+                        className="btn-primary px-5 py-4 sm:px-10 sm:py-6 text-xs sm:text-base flex items-center justify-center gap-2 sm:gap-4 bg-emerald-600 hover:bg-emerald-700 shadow-2xl hover:scale-105 transition-transform w-full sm:w-auto"
+                      >
+                        <svg className="w-4 h-4 sm:w-6 sm:h-6 fill-current text-white" viewBox="0 0 24 24">
+                          <path d="M12.012 2c-5.506 0-9.988 4.475-9.988 9.977 0 1.764.46 3.42 1.258 4.876L2 22l5.3-1.383c1.4.764 2.99 1.192 4.697 1.192 5.508 0 9.99-4.476 9.99-9.982C22.012 6.477 17.525 2 12.012 2zm6.39 14.125c-.262.733-1.528 1.343-2.112 1.404-.567.06-1.12.23-3.626-.8-3.208-1.32-5.282-4.578-5.442-4.793-.16-.214-1.288-1.705-1.288-3.253 0-1.548.814-2.31 1.103-2.613.29-.304.633-.38.844-.38.21 0 .422.003.606.012.193.008.455-.074.71.554.264.65.903 2.192.98 2.348.08.156.133.338.028.544-.105.206-.16.333-.316.516-.156.182-.327.406-.467.545-.154.153-.314.32-.136.623.18.303.8 1.3 1.714 2.113.117.104.225.21.32.31.78.825 1.454 1.053 1.768 1.185.314.133.5.112.686-.098.187-.21.802-.93.1017-1.246.216-.317.433-.266.727-.156.294.11 1.86.877 2.177 1.033.317.156.527.23.605.367.078.136.078.79-.184 1.523z" />
+                        </svg>
+                        SHARE ON WHATSAPP / واٹس ایپ
+                      </button>
+                    )}
 
                     <button 
                       onClick={handleSavePatient}
@@ -3918,7 +3912,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
               <div className="grid grid-cols-4 gap-4">
                 <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
                   <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Garment Unit</span>
-                  <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{garment.type || 'N/A'}</span>
+                  <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{garment.type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (garment.type || 'N/A')}</span>
                 </div>
                 <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
                   <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Compression</span>

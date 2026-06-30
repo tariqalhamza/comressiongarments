@@ -445,10 +445,6 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
                 <path d="M 33,171 Q 41,176 52,154" stroke="#ea580c" strokeWidth="1.2" strokeDasharray="2 1.5" fill="none" opacity="0.6" />
               </g>
 
-              <line x1="35" y1="48" x2="148" y2="48" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
-              <line x1="35" y1="275" x2="111" y2="275" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
-              <line x1="35" y1="48" x2="35" y2="275" stroke="#d97706" strokeWidth="1.5" markerStart="url(#asm-glove-arrow-amber-reg)" markerEnd="url(#asm-glove-arrow-amber-reg)" />
-
               <line x1="180" y1="48" x2="285" y2="48" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
               <line x1="195" y1="360" x2="285" y2="360" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
               <line x1="285" y1="48" x2="285" y2="360" stroke="#7c3aed" strokeWidth="1.5" markerStart="url(#asm-glove-arrow-purple-reg)" markerEnd="url(#asm-glove-arrow-purple-reg)" />
@@ -486,13 +482,6 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
               <g transform={`translate(${xSmallFinger}, 145)`} className="text-[8px] font-bold">
                 <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#db2777" strokeWidth="1" />
                 <text y="3" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="8">Little: {formatVal('Little finger')}</text>
-              </g>
-
-              {/* 8. Total Length (Finger to Wrist) Badge - positioned at top of vertical line */}
-              <g transform={`translate(${isLeftHand ? 285 : 35}, 30)`} className="text-[8px] font-bold">
-                <rect x="-46" y="-12" width="92" height="24" rx="4" fill="white" stroke="#d97706" strokeWidth="1.5" />
-                <text y="-2" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="6.5">Middle Finger to Wrist</text>
-                <text y="8" textAnchor="middle" className="fill-amber-700 font-black" fontSize="7">{formatVal('Total length middle finger to wrist')}</text>
               </g>
 
               <g transform="translate(285, 204)" className="text-[8px] font-bold">
@@ -1337,7 +1326,7 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
                       {patient.full_name}
                     </h4>
                     <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 text-blue-800 text-[9px] font-black uppercase rounded-lg">
-                      {assessmentPayload.garment_type}
+                      {assessmentPayload.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : assessmentPayload.garment_type}
                     </span>
 
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pt-3 text-[11px] text-slate-500 font-bold border-t border-slate-200/60">
@@ -1386,7 +1375,7 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
                   <div className="space-y-1">
                     <span className="text-[8px] font-black text-slate-450 uppercase block tracking-wider">Garment Config / لباس کی قسم</span>
                     <div className="text-slate-900 text-xs font-black uppercase">
-                      {assessmentPayload.garment_type}
+                      {assessmentPayload.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : assessmentPayload.garment_type}
                     </div>
                   </div>
                   <div className="space-y-1">
@@ -1624,7 +1613,7 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
                 <div className="grid grid-cols-4 gap-4">
                   <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
                     <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Garment Unit</span>
-                    <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{assessmentPayload.garment_type}</span>
+                    <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{assessmentPayload.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : assessmentPayload.garment_type}</span>
                   </div>
                   <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
                     <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Compression</span>

@@ -19,6 +19,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { cn } from '../lib/utils';
 import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.png';
+import { useAuthStore } from '../services/authStore';
 
 interface RegisteredAssessment {
   id: string;
@@ -45,6 +46,10 @@ interface RegisteredAssessmentsProps {
 }
 
 const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSearchPatientName = '' }) => {
+  const { user, profile } = useAuthStore();
+  const isSuperEmail = ['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com'].includes(user?.email?.toLowerCase().trim() || '');
+  const isAdmin = profile?.role === 'admin' || isSuperEmail;
+
   const [assessments, setAssessments] = useState<RegisteredAssessment[]>([]);
   const [isAssessmentsTableMissing, setIsAssessmentsTableMissing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -451,7 +456,6 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         <path d="M120,280 L120,220 C110,210 90,190 90,150 L90,90 C90,80 110,80 110,95 L110,140 L130,140 L130,70 C130,60 150,60 150,75 L150,130 L170,130 L170,60 C170,50 190,50 190,65 L190,130 L210,130 L210,80 C210,70 230,70 230,85 L230,135 L250,150 L250,280 Z" fill="#eff6ff" stroke="#93c5fd" stroke-width="2" />
         <line x1="90" y1="165" x2="250" y2="165" stroke="#2563eb" stroke-width="2" stroke-dasharray="3,3"/>
         <line x1="120" y1="210" x2="250" y2="210" stroke="#10b981" stroke-width="2" stroke-dasharray="3,3"/>
-        <line x1="185" y1="210" x2="185" y2="280" stroke="#f59e0b" stroke-width="2" />
         <line x1="90" y1="140" x2="250" y2="140" stroke="#ec4899" stroke-width="2" stroke-dasharray="3,3" />
         
         <g transform="translate(170, 155)">
@@ -461,10 +465,6 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         <g transform="translate(185, 195)">
           <rect x="-40" y="-7" width="80" height="13" rx="3" fill="white" stroke="#10b981" stroke-width="0.5" />
           <text y="2.5" text-anchor="middle" fill="#10b981" font-family="sans-serif" font-size="8" font-weight="bold">Wrist: ${formatVal('Wrist')}</text>
-        </g>
-        <g transform="translate(185, 230)">
-          <rect x="-65" y="-7" width="130" height="13" rx="3" fill="white" stroke="#f59e0b" stroke-width="0.5" />
-          <text y="2.5" text-anchor="middle" fill="#f59e0b" font-family="sans-serif" font-size="8" font-weight="bold">Finger to Wrist: ${formatVal('Total length middle finger to wrist')}</text>
         </g>
         <g transform="translate(185, 265)">
           <rect x="-65" y="-7" width="130" height="13" rx="3" fill="white" stroke="#7c3aed" stroke-width="0.5" />
@@ -1053,7 +1053,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
     messageText += `\n`;
 
     messageText += `*📦 GARMENT CONFIGURATION / گارمنٹ کنفیگریشن*\n`;
-    messageText += `• Garment Type: *${assessment.garment_type || 'N/A'}*\n`;
+    messageText += `• Garment Type: *${assessment.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (assessment.garment_type || 'N/A')}*\n`;
     messageText += `• Silicone Option: *${assessment.silicone_pasting || 'N/A'}*\n`;
     messageText += `• Compression Force: *${assessment.compression || 'N/A'}*\n`;
     messageText += `\n`;
@@ -1103,6 +1103,42 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
     (a.id && a.id.toLowerCase().includes(searchTerm.toLowerCase())) ||
     a.garment_type.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const groupedPatients = React.useMemo(() => {
+    const map = new Map<string, { patientName: string; assessments: RegisteredAssessment[] }>();
+    filtered.forEach(asm => {
+      const key = asm.patient_id || asm.patient_name.trim().toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, { patientName: asm.patient_name, assessments: [] });
+      }
+      map.get(key)!.assessments.push(asm);
+    });
+    
+    return Array.from(map.values()).map(group => {
+      const sortedAsms = [...group.assessments].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      return {
+        patientName: group.patientName,
+        patientId: sortedAsms[0].patient_id,
+        assessments: sortedAsms,
+        latestCreatedAt: sortedAsms[0].created_at
+      };
+    }).sort(
+      (a, b) => new Date(b.latestCreatedAt).getTime() - new Date(a.latestCreatedAt).getTime()
+    );
+  }, [filtered]);
+
+  useEffect(() => {
+    if (groupedPatients.length > 0) {
+      const isSelectedStillValid = filtered.some(a => a.id === selectedAssessment?.id);
+      if (!isSelectedStillValid) {
+        setSelectedAssessment(groupedPatients[0].assessments[0]);
+      }
+    } else {
+      setSelectedAssessment(null);
+    }
+  }, [groupedPatients, filtered, selectedAssessment]);
 
   const renderAssessmentDrawingSvg = (assessment: RegisteredAssessment) => {
     const handSelectionVal = assessment.sub_options?.['Hand Selection'] || 'Right Hand Glove';
@@ -1558,11 +1594,6 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
               </g>
 
               {/* vertical side measurement rulers */}
-              {/* Height Line 1: Finger-to-wrist (Left Margin) */}
-              <line x1="35" y1="48" x2="148" y2="48" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
-              <line x1="35" y1="275" x2="111" y2="275" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
-              <line x1="35" y1="48" x2="35" y2="275" stroke="#d97706" strokeWidth="1.5" markerStart="url(#arrow-amber-reg)" markerEnd="url(#arrow-amber-reg)" />
-
               {/* Height Line 2: Finger-to-scar-end (Right Margin) */}
               <line x1="180" y1="48" x2="285" y2="48" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
               <line x1="195" y1="360" x2="285" y2="360" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
@@ -1609,13 +1640,6 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
               <g transform={`translate(${xSmallFinger}, 145)`} className="text-[8px] font-bold">
                 <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#db2777" strokeWidth="1" />
                 <text y="3" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="8">Little: {formatVal('Little finger')}</text>
-              </g>
-
-              {/* 8. Total Length (Finger to Wrist) Badge - positioned at top of vertical line */}
-              <g transform={`translate(${isLeftHand ? 285 : 35}, 30)`} className="text-[8px] font-bold">
-                <rect x="-46" y="-12" width="92" height="24" rx="4" fill="white" stroke="#d97706" strokeWidth="1.5" />
-                <text y="-2" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="6.5">Middle Finger to Wrist</text>
-                <text y="8" textAnchor="middle" className="fill-amber-700 font-black" fontSize="7">{formatVal('Total length middle finger to wrist')}</text>
               </g>
 
               {/* 9. Total Length (Finger to Scar) Right Margin Badge */}
@@ -2238,7 +2262,7 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
         </div>
         
         <div className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-100/50 px-4 py-3 rounded-2xl border border-slate-50/20">
-          Total Base Records: <span className="text-slate-900 font-extrabold">{filtered.length} Assessments</span>
+          Total Base Records: <span className="text-slate-900 font-extrabold">{groupedPatients.length} Patients ({filtered.length} Garments)</span>
         </div>
       </div>
 
@@ -2262,12 +2286,16 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
           
           {/* List of Assessments (col-span-7) */}
           <div className="lg:col-span-7 space-y-4">
-            <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1 ml-1">Assessments Stream</h4>
+            <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1 ml-1">Patient Stream / مریضوں کی لسٹ</h4>
             
             <div className="space-y-4 max-h-[640px] overflow-y-auto pr-2">
-              {filtered.map((assessment) => {
-                const isActive = selectedAssessment?.id === assessment.id;
-                const dateString = new Date(assessment.created_at).toLocaleDateString('ur-PK', {
+              {groupedPatients.map((group) => {
+                const isGroupActive = selectedAssessment && (
+                  (group.patientId && selectedAssessment.patient_id === group.patientId) || 
+                  selectedAssessment.patient_name.toLowerCase().trim() === group.patientName.toLowerCase().trim()
+                );
+                
+                const dateString = new Date(group.latestCreatedAt).toLocaleDateString('ur-PK', {
                   year: 'numeric',
                   month: 'short',
                   day: 'numeric'
@@ -2275,43 +2303,54 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
 
                 return (
                   <div 
-                    key={assessment.id}
-                    onClick={() => setSelectedAssessment(assessment)}
+                    key={group.patientId || group.patientName}
+                    onClick={() => setSelectedAssessment(group.assessments[0])}
                     className={`medical-card p-6 cursor-pointer transition-all border ${
-                      isActive 
+                      isGroupActive 
                         ? "border-blue-500 bg-blue-50/20 shadow-blue-50/50 scale-[1.01]" 
                         : "border-slate-50 hover:border-slate-200"
                     }`}
                   >
                     <div className="flex items-center gap-4">
                       {/* Accent visual */}
-                      <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-black text-lg">
-                        {assessment.patient_name ? assessment.patient_name.charAt(0).toUpperCase() : 'A'}
+                      <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-black text-lg shrink-0">
+                        {group.patientName ? group.patientName.charAt(0).toUpperCase() : 'A'}
                       </div>
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <h3 className="text-sm font-extrabold text-slate-900 truncate">
-                            {assessment.patient_name}
+                            {group.patientName}
                           </h3>
                           <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 shrink-0">
                             <Calendar className="w-3 h-3" /> {dateString}
                           </span>
                         </div>
                         
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
-                          <span className="text-[9px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded tracking-wide">ID: {assessment.id || 'N/A'}</span>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 mt-1">
+                          <span className="text-[9px] font-black text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md shrink-0">
+                            {group.assessments.length} {group.assessments.length === 1 ? 'Garment' : 'Garments'}
+                          </span>
                           <span className="text-slate-300">•</span>
-                          <span className="text-[9px] font-black text-teal-600 bg-teal-50 px-2 py-0.5 rounded-lg uppercase tracking-wide">
-                            {assessment.garment_type}
-                          </span>
-                          <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg uppercase tracking-wide">
-                            {assessment.compression}
-                          </span>
+                          {group.assessments.map((asm) => {
+                            const isCurrent = selectedAssessment?.id === asm.id;
+                            return (
+                              <span 
+                                key={asm.id} 
+                                className={`text-[8.5px] font-extrabold px-2 py-0.5 rounded-lg tracking-wide ${
+                                  isCurrent 
+                                    ? "bg-blue-600 text-white" 
+                                    : "bg-slate-100 text-slate-600"
+                                }`}
+                              >
+                                {asm.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : asm.garment_type}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                       
-                      <ChevronRight className={`w-4 h-4 transition-transform text-slate-400 ${isActive ? 'rotate-180 text-blue-500' : ''}`} />
+                      <ChevronRight className={`w-4 h-4 transition-transform text-slate-400 ${isGroupActive ? 'rotate-180 text-blue-500' : ''}`} />
                     </div>
                   </div>
                 );
@@ -2347,6 +2386,45 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                       <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
+
+                  {/* Patient's Registered Garments Selector */}
+                  {(() => {
+                    const patientGroup = groupedPatients.find(g => 
+                      (g.patientId && g.patientId === selectedAssessment.patient_id) || 
+                      g.patientName.toLowerCase().trim() === selectedAssessment.patient_name.toLowerCase().trim()
+                    );
+                    if (!patientGroup || patientGroup.assessments.length <= 1) return null;
+                    return (
+                      <div className="space-y-2 bg-slate-50/50 border border-slate-100 p-4 rounded-3xl">
+                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block ml-1">
+                          Select Garment to View / گارمنٹ منتخب کریں ({patientGroup.assessments.length})
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {patientGroup.assessments.map((asm) => {
+                            const isCurrent = selectedAssessment.id === asm.id;
+                            return (
+                              <button
+                                key={asm.id}
+                                onClick={() => setSelectedAssessment(asm)}
+                                className={cn(
+                                  "px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5",
+                                  isCurrent 
+                                    ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100 scale-102"
+                                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+                                )}
+                              >
+                                <Activity className={cn("w-3.5 h-3.5", isCurrent ? "text-white" : "text-blue-500")} />
+                                <span className="truncate max-w-[120px]">{asm.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : asm.garment_type}</span>
+                                <span className={cn("text-[9px] font-medium font-mono px-1 py-0.2 rounded shrink-0", isCurrent ? "bg-blue-500/30 text-white" : "bg-slate-100 text-slate-500")}>
+                                  {new Date(asm.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Patient Demographics */}
                   <div className="grid grid-cols-3 gap-3 bg-blue-50/50 p-3.5 rounded-3xl border border-blue-50">
@@ -2466,15 +2544,17 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                     >
                       <Download className="w-3.5 h-3.5" /> PDF Document
                     </button>
-                    <button 
-                      onClick={() => handleWhatsAppShare(selectedAssessment)}
-                      className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 border border-transparent shadow-lg shadow-emerald-100 hover:scale-[1.02]"
-                    >
-                      <svg className="w-3.5 h-3.5 fill-current text-white" viewBox="0 0 24 24">
-                        <path d="M12.012 2c-5.506 0-9.988 4.475-9.988 9.977 0 1.764.46 3.42 1.258 4.876L2 22l5.3-1.383c1.4.764 2.99 1.192 4.697 1.192 5.508 0 9.99-4.476 9.99-9.982C22.012 6.477 17.525 2 12.012 2zm6.39 14.125c-.262.733-1.528 1.343-2.112 1.404-.567.06-1.12.23-3.626-.8-3.208-1.32-5.282-4.578-5.442-4.793-.16-.214-1.288-1.705-1.288-3.253 0-1.548.814-2.31 1.103-2.613.29-.304.633-.38.844-.38.21 0 .422.003.606.012.193.008.455-.074.71.554.264.65.903 2.192.98 2.348.08.156.133.338.028.544-.105.206-.16.333-.316.516-.156.182-.327.406-.467.545-.154.153-.314.32-.136.623.18.303.8 1.3 1.714 2.113.117.104.225.21.32.31.78.825 1.454 1.053 1.768 1.185.314.133.5.112.686-.098.187-.21.802-.93.1017-1.246.216-.317.433-.266.727-.156.294.11 1.86.877 2.177 1.033.317.156.527.23.605.367.078.136.078.79-.184 1.523z" />
-                      </svg>
-                      Share / واٹس ایپ
-                    </button>
+                    {isAdmin && (
+                      <button 
+                        onClick={() => handleWhatsAppShare(selectedAssessment)}
+                        className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 border border-transparent shadow-lg shadow-emerald-100 hover:scale-[1.02]"
+                      >
+                        <svg className="w-3.5 h-3.5 fill-current text-white" viewBox="0 0 24 24">
+                          <path d="M12.012 2c-5.506 0-9.988 4.475-9.988 9.977 0 1.764.46 3.42 1.258 4.876L2 22l5.3-1.383c1.4.764 2.99 1.192 4.697 1.192 5.508 0 9.99-4.476 9.99-9.982C22.012 6.477 17.525 2 12.012 2zm6.39 14.125c-.262.733-1.528 1.343-2.112 1.404-.567.06-1.12.23-3.626-.8-3.208-1.32-5.282-4.578-5.442-4.793-.16-.214-1.288-1.705-1.288-3.253 0-1.548.814-2.31 1.103-2.613.29-.304.633-.38.844-.38.21 0 .422.003.606.012.193.008.455-.074.71.554.264.65.903 2.192.98 2.348.08.156.133.338.028.544-.105.206-.16.333-.316.516-.156.182-.327.406-.467.545-.154.153-.314.32-.136.623.18.303.8 1.3 1.714 2.113.117.104.225.21.32.31.78.825 1.454 1.053 1.768 1.185.314.133.5.112.686-.098.187-.21.802-.93.1017-1.246.216-.317.433-.266.727-.156.294.11 1.86.877 2.177 1.033.317.156.527.23.605.367.078.136.078.79-.184 1.523z" />
+                        </svg>
+                        Share / واٹس ایپ
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               ) : (

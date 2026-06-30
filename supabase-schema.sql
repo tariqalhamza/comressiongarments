@@ -1,29 +1,54 @@
-# Supabase Database Schema
+-- ====================================================================================
+-- OPTION 1: 100% SAFE REPAIR SCRIPT (No Data Loss / Koi Data Delete Nahi Hoga)
+-- Use this to fix any missing columns or RLS issues on the existing "patients" table.
+-- ====================================================================================
 
--- Clinics Table
-CREATE TABLE clinics (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name TEXT NOT NULL,
-  address TEXT,
-  phone TEXT,
-  email TEXT,
-  logo_url TEXT,
+-- 1. Ensure the patients table exists
+CREATE TABLE IF NOT EXISTS patients (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  full_name TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Profiles Table (Role-based access)
-CREATE TABLE profiles (
-  id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
-  clinic_id UUID REFERENCES clinics(id),
-  full_name TEXT,
-  role TEXT CHECK (role IN ('admin', 'therapist', 'technician')) DEFAULT 'therapist',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- 2. Safely add any missing columns if they don't exist
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS clinic_id TEXT DEFAULT 'default';
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS created_by UUID;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS age INTEGER;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS gender TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS height DECIMAL;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS weight DECIMAL;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS diagnosis TEXT DEFAULT 'Patient Intake Registration';
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS medical_condition TEXT DEFAULT 'General';
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS doctor_name TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS hospital TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
 
--- Patients Table
+-- 3. Disable Row Level Security (RLS) on patients to allow multi-device live sync
+ALTER TABLE patients DISABLE ROW LEVEL SECURITY;
+
+
+-- ====================================================================================
+-- OPTION 2: RESET ONLY "PATIENTS" TABLE (Will delete existing patient data)
+-- If you want to completely delete and recreate ONLY the patients table:
+-- ====================================================================================
+/*
+-- Step A: Safely drop measurements & orders as they depend on patients (or you can keep them if empty)
+DROP TABLE IF EXISTS orders CASCADE;
+DROP TABLE IF EXISTS measurements CASCADE;
+
+-- Step B: Recreate ONLY the patients table
+DROP TABLE IF EXISTS patients CASCADE;
+
 CREATE TABLE patients (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  clinic_id UUID REFERENCES clinics(id),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  clinic_id TEXT DEFAULT 'default',
+  created_by UUID,
   full_name TEXT NOT NULL,
   age INTEGER,
   gender TEXT,
@@ -32,47 +57,44 @@ CREATE TABLE patients (
   phone TEXT,
   email TEXT,
   address TEXT,
-  diagnosis TEXT,
-  medical_condition TEXT,
+  city TEXT,
+  diagnosis TEXT DEFAULT 'Patient Intake Registration',
+  medical_condition TEXT DEFAULT 'General',
   doctor_name TEXT,
+  hospital TEXT,
   notes TEXT,
   photo_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Measurements Table
+-- Step C: Re-create dependent tables
 CREATE TABLE measurements (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
-  therapist_id UUID REFERENCES profiles(id),
+  therapist_id UUID,
   measurement_date DATE DEFAULT CURRENT_DATE,
-  body_area TEXT NOT NULL, -- 'Upper Limb', 'Lower Limb', 'Torso'
-  side TEXT CHECK (side IN ('left', 'right', 'both')),
-  data JSONB NOT NULL, -- Stores all point measurements
+  body_area TEXT NOT NULL,
+  side TEXT,
+  data JSONB NOT NULL,
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Orders Table
 CREATE TABLE orders (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
   measurement_id UUID REFERENCES measurements(id),
   garment_type TEXT NOT NULL,
-  status TEXT DEFAULT 'Measurement Taken' CHECK (status IN ('Measurement Taken', 'Approved', 'In Production', 'Quality Check', 'Delivered')),
-  config JSONB NOT NULL, -- Garment options (fabric, class, options)
+  status TEXT DEFAULT 'Measurement Taken',
+  config JSONB NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_by UUID
 );
 
--- RLS Policies
-ALTER TABLE clinics ENABLE ROW LEVEL SECURITY;
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
-ALTER TABLE measurements ENABLE ROW LEVEL SECURITY;
-ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-
--- Simple policy: users can see data from their clinic
-CREATE POLICY clinic_isolation ON patients 
-  USING (clinic_id IN (SELECT clinic_id FROM profiles WHERE id = auth.uid()));
+-- Disable RLS to sync instantly
+ALTER TABLE patients DISABLE ROW LEVEL SECURITY;
+ALTER TABLE measurements DISABLE ROW LEVEL SECURITY;
+ALTER TABLE orders DISABLE ROW LEVEL SECURITY;
+*/

@@ -316,6 +316,44 @@ export const dbService = {
           const localPatients = getLocalStoragePatients().filter(p => p.id !== '1' && p.id !== '2');
           const remotePatients = (data || []) as Patient[];
           const remoteIds = new Set(remotePatients.map(p => p.id));
+
+          // Background Auto-Sync: Automatically upload local patients that are not in the remote database
+          const unsyncedPatients = localPatients.filter(p => p && p.id && !remoteIds.has(p.id));
+          if (unsyncedPatients.length > 0) {
+            console.log(`[Sync] Found ${unsyncedPatients.length} unsynced local patients. Uploading to live database...`);
+            for (const p of unsyncedPatients) {
+              try {
+                const cleanPayload = { ...p };
+                delete (cleanPayload as any)._isSynced;
+                
+                if (cleanPayload.clinic_id && !isValidUUID(cleanPayload.clinic_id)) {
+                  delete cleanPayload.clinic_id;
+                }
+                
+                let { error: syncErr } = await supabase.from('patients').insert(cleanPayload);
+                
+                // Retry without 'created_by' if column does not exist on live Supabase table
+                if (syncErr && (syncErr.message?.includes('created_by') || syncErr.code === '42703')) {
+                  const retryPayload = { ...cleanPayload };
+                  delete (retryPayload as any).created_by;
+                  const retryResult = await supabase.from('patients').insert(retryPayload);
+                  syncErr = retryResult.error;
+                }
+                
+                if (!syncErr) {
+                  console.log(`[Sync] Automatically synced patient ${p.id} ("${p.full_name}") to Supabase.`);
+                  p._isSynced = true;
+                  remotePatients.push(p);
+                  remoteIds.add(p.id);
+                } else {
+                  console.warn(`[Sync] Background sync failed for patient ${p.id}:`, syncErr.message || syncErr);
+                }
+              } catch (e) {
+                console.warn(`[Sync] Background sync exception for patient ${p.id}:`, e);
+              }
+            }
+          }
+
           const patientMap = new Map<string, Patient>();
           
           localPatients.forEach(p => {

@@ -374,19 +374,7 @@ ALTER TABLE IF EXISTS orders DISABLE ROW LEVEL SECURITY;`;
           />
         </div>
 
-        <div className="flex items-center gap-3">
-          <button className="px-4 py-3 bg-white text-slate-600 rounded-2xl font-bold text-sm shadow-sm border border-slate-50 flex items-center gap-2 hover:bg-slate-50 transition-colors">
-            <Filter className="w-4 h-4" />
-            Filter
-          </button>
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="btn-primary flex items-center gap-2"
-          >
-            <UserPlus className="w-4 h-4" />
-            Add New Patient
-          </button>
-        </div>
+
       </div>
 
       {filteredPatients.length === 0 ? (
