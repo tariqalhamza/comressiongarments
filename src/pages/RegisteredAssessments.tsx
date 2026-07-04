@@ -2538,12 +2538,14 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
 
                   {/* Actions */}
                   <div className="pt-2 flex flex-col sm:flex-row gap-3">
-                    <button 
-                      onClick={() => handleDownloadPDF(selectedAssessment)}
-                      className="flex-1 py-3 px-4 bg-slate-900 hover:bg-slate-850 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 border border-transparent shadow-lg shadow-slate-100 hover:scale-[1.02]"
-                    >
-                      <Download className="w-3.5 h-3.5" /> PDF Document
-                    </button>
+                    {isAdmin && (
+                      <button 
+                        onClick={() => handleDownloadPDF(selectedAssessment)}
+                        className="flex-1 py-3 px-4 bg-slate-900 hover:bg-slate-850 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 border border-transparent shadow-lg shadow-slate-100 hover:scale-[1.02]"
+                      >
+                        <Download className="w-3.5 h-3.5" /> PDF Document
+                      </button>
+                    )}
                     {isAdmin && (
                       <button 
                         onClick={() => handleWhatsAppShare(selectedAssessment)}

@@ -51,10 +51,14 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { Annotation } from '../types';
 import ClinicalReport from '../components/ClinicalReport';
+import { useAuthStore } from '../services/authStore';
 
 const BodyMeasurements: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>('measurements');
   const [isGenerating, setIsGenerating] = useState(false);
+  const { user, profile: loggedInProfile } = useAuthStore();
+  const isSuperEmail = ['mehmood@gmail.com', 'detox16277@gmail.com'].includes(user?.email?.toLowerCase().trim() || loggedInProfile?.email?.toLowerCase().trim() || '');
+  const isAdmin = loggedInProfile?.role === 'admin' || isSuperEmail;
   const reportRef = React.useRef<HTMLDivElement>(null);
   const [selectedArea, setSelectedArea] = useState<AreaType>('Lower Limb');
   const [patientName, setPatientName] = useState('');
@@ -429,18 +433,20 @@ const BodyMeasurements: React.FC = () => {
               Print
             </button>
 
-            <button 
-              onClick={handleDownloadReport}
-              disabled={isGenerating}
-              className="flex items-center gap-2 px-5 py-3 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50"
-            >
-              {isGenerating ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <Download className="w-4 h-4" />
-              )}
-              {isGenerating ? 'Generating...' : 'Report (PDF)'}
-            </button>
+            {isAdmin && (
+              <button 
+                onClick={handleDownloadReport}
+                disabled={isGenerating}
+                className="flex items-center gap-2 px-5 py-3 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50"
+              >
+                {isGenerating ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                {isGenerating ? 'Generating...' : 'Report (PDF)'}
+              </button>
+            )}
 
             <button 
               onClick={toggleUnits}

@@ -3788,18 +3788,20 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                       {isSaving ? 'SAVING...' : 'SAVE PATIENT DATA'}
                     </button>
 
-                    <button 
-                      onClick={generatePDF}
-                      disabled={isGenerating}
-                      className="btn-primary px-5 py-4 sm:px-10 sm:py-6 text-xs sm:text-base flex items-center justify-center gap-2 sm:gap-4 bg-slate-900 shadow-2xl hover:scale-105 transition-transform w-full sm:w-auto"
-                    >
-                      {isGenerating ? (
-                        <div className="w-4 h-4 sm:w-6 sm:h-6 border-4 border-white/20 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <Download className="w-4 h-4 sm:w-6 sm:h-6" />
-                      )}
-                      {isGenerating ? 'GENERATING...' : 'DIRECT DOWNLOAD (PDF)'}
-                    </button>
+                    {isAdmin && (
+                      <button 
+                        onClick={generatePDF}
+                        disabled={isGenerating}
+                        className="btn-primary px-5 py-4 sm:px-10 sm:py-6 text-xs sm:text-base flex items-center justify-center gap-2 sm:gap-4 bg-slate-900 shadow-2xl hover:scale-105 transition-transform w-full sm:w-auto"
+                      >
+                        {isGenerating ? (
+                          <div className="w-4 h-4 sm:w-6 sm:h-6 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <Download className="w-4 h-4 sm:w-6 sm:h-6" />
+                        )}
+                        {isGenerating ? 'GENERATING...' : 'DIRECT DOWNLOAD (PDF)'}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

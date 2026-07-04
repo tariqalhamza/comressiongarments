@@ -55,6 +55,7 @@ const Registration: React.FC<RegistrationProps> = ({
 }) => {
   const { user, profile: loggedInProfile } = useAuthStore();
   const isSuperEmail = ['mehmood@gmail.com', 'detox16277@gmail.com'].includes(user?.email?.toLowerCase().trim() || loggedInProfile?.email?.toLowerCase().trim() || '');
+  const isAdmin = loggedInProfile?.role === 'admin' || isSuperEmail;
   const [profiles, setProfiles] = useState<any[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [savedAssessments, setSavedAssessments] = useState<any[]>([]);
@@ -1464,31 +1465,33 @@ CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL U
 
                   {/* Excel and PDF Download Action Buttons */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-slate-100/70">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const matchedAssessment = savedAssessments.find(
-                          asm => {
-                            if (asm.patient_id && asm.patient_id !== 'anonymous') {
-                              return asm.patient_id === patientItem.id;
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const matchedAssessment = savedAssessments.find(
+                            asm => {
+                              if (asm.patient_id && asm.patient_id !== 'anonymous') {
+                                return asm.patient_id === patientItem.id;
+                              }
+                              const asmTime = new Date(asm.created_at).getTime();
+                              const patientTime = new Date(patientItem.created_at).getTime();
+                              return (
+                                asm.patient_name.toLowerCase().trim() === patientItem.full_name.toLowerCase().trim() &&
+                                asmTime >= patientTime - 60000
+                              );
                             }
-                            const asmTime = new Date(asm.created_at).getTime();
-                            const patientTime = new Date(patientItem.created_at).getTime();
-                            return (
-                              asm.patient_name.toLowerCase().trim() === patientItem.full_name.toLowerCase().trim() &&
-                              asmTime >= patientTime - 60000
-                            );
-                          }
-                        );
-                        exportPatientToPDF(patientItem, matchedAssessment || null);
-                      }}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-50 hover:bg-slate-900 border border-slate-250 hover:border-slate-800 text-slate-800 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95 z-20"
-                      title="Download PDF clinical dossier / پی ڈی ایف رپورٹ حاصل کریں"
-                    >
-                      <Download className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                      <span>Download PDF / پی ڈی ایف</span>
-                    </button>
+                          );
+                          exportPatientToPDF(patientItem, matchedAssessment || null);
+                        }}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-50 hover:bg-slate-900 border border-slate-250 hover:border-slate-800 text-slate-800 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95 z-20"
+                        title="Download PDF clinical dossier / پی ڈی ایف رپورٹ حاصل کریں"
+                      >
+                        <Download className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                        <span>Download PDF / پی ڈی ایف</span>
+                      </button>
+                    )}
 
                     <button
                       type="button"

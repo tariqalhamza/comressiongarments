@@ -17,6 +17,7 @@ import {
 import { Patient } from '../types';
 import { cn } from '../lib/utils';
 import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.png';
+import { useAuthStore } from '../services/authStore';
 
 // Helper to get garment type from clinical assessment diagnosis
 const getGarmentType = (diag: string) => {
@@ -1101,6 +1102,9 @@ interface ReportModalProps {
 const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, patient }) => {
   const reportRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const { user, profile: loggedInProfile } = useAuthStore();
+  const isSuperEmail = ['mehmood@gmail.com', 'detox16277@gmail.com'].includes(user?.email?.toLowerCase().trim() || loggedInProfile?.email?.toLowerCase().trim() || '');
+  const isAdmin = loggedInProfile?.role === 'admin' || isSuperEmail;
 
   const displayMeasurements = React.useMemo(() => {
     if (patient.measurements && Array.isArray(patient.measurements)) {
@@ -1509,15 +1513,17 @@ const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, patient }) =
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 justify-end">
-            <button 
-              onClick={generatePDF}
-              disabled={isGenerating}
-              className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:bg-white rounded-xl transition-colors font-bold text-[10px] sm:text-xs uppercase tracking-wider border border-slate-200 disabled:opacity-50"
-            >
-              <Download className={isGenerating ? "w-4 h-4 animate-bounce" : "w-4 h-4"} />
-              <span className="hidden xs:inline">{isGenerating ? 'Processing...' : 'Download PDF'}</span>
-              <span className="xs:hidden">{isGenerating ? '...' : 'PDF'}</span>
-            </button>
+            {isAdmin && (
+              <button 
+                onClick={generatePDF}
+                disabled={isGenerating}
+                className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:bg-white rounded-xl transition-colors font-bold text-[10px] sm:text-xs uppercase tracking-wider border border-slate-200 disabled:opacity-50"
+              >
+                <Download className={isGenerating ? "w-4 h-4 animate-bounce" : "w-4 h-4"} />
+                <span className="hidden xs:inline">{isGenerating ? 'Processing...' : 'Download PDF'}</span>
+                <span className="xs:hidden">{isGenerating ? '...' : 'PDF'}</span>
+              </button>
+            )}
             <button 
               onClick={handleManualPrint}
               className="flex items-center gap-2 px-3 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-colors font-bold text-[10px] sm:text-xs uppercase tracking-wider shadow-lg"

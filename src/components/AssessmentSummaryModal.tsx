@@ -17,6 +17,7 @@ import { Patient } from '../types';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.png';
+import { useAuthStore } from '../services/authStore';
 
 interface RegisteredAssessment {
   id: string;
@@ -54,6 +55,9 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
   const printAreaRef = useRef<HTMLDivElement>(null);
   const [activeBothHandView, setActiveBothHandView] = useState<'Right' | 'Left'>('Right');
   const [isGenerating, setIsGenerating] = useState(false);
+  const { user, profile: loggedInProfile } = useAuthStore();
+  const isSuperEmail = ['mehmood@gmail.com', 'detox16277@gmail.com'].includes(user?.email?.toLowerCase().trim() || loggedInProfile?.email?.toLowerCase().trim() || '');
+  const isAdmin = loggedInProfile?.role === 'admin' || isSuperEmail;
   const handSelectionVal = assessmentPayload?.sub_options?.['Hand Selection'] || 'Right Hand Glove';
   const isBoth = assessmentPayload?.garment_type === 'All Gloves/Glove With Sleeve' && handSelectionVal === 'Both Hand Glove';
 
@@ -1508,7 +1512,7 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
           </p>
 
           <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-            {assessmentPayload && (
+            {isAdmin && assessmentPayload && (
               <button
                 onClick={handleDownloadPDF}
                 disabled={isGenerating}
