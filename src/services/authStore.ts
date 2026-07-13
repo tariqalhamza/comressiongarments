@@ -176,10 +176,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   }
 }));
 
-// Initialize listener
-if (isDemo) {
-  // If we are in Offline/Demo mode, immediately load the demo session from localStorage without touching Supabase web auth
+// Unified, robust initialization flow that supports both Offline/Demo and Live sessions
+const initializeAuth = () => {
   const store = useAuthStore.getState();
+  
+  // 1. Immediately hydrate the active session from localStorage (fast/offline fallback path)
   const storedDemo = localStorage.getItem('demo_user_logged_in');
   if (storedDemo) {
     try {
@@ -219,42 +220,60 @@ if (isDemo) {
       store.setUser(null);
     }
   } else {
-    // No prior demo session, show login form
     store.setUser(null);
   }
-} else {
-  // Initialize standard Supabase listener
-  supabase.auth.onAuthStateChange(async (_event, session) => {
-    const store = useAuthStore.getState();
-    if (session?.user) {
-      // Find cache to bypass load flickering
-      let cachedProfile: any = null;
-      const storedDemo = localStorage.getItem('demo_user_logged_in');
-      if (storedDemo) {
-        try {
-          const parsed = JSON.parse(storedDemo);
-          if (parsed.user?.id === session.user.id) {
-            cachedProfile = parsed.profile;
-          }
-        } catch {}
-      }
-      
-      store.setUser(session.user, cachedProfile);
-      await store.fetchProfile(session.user.id);
-    } else {
-      store.setUser(null);
-    }
-  });
 
-  // Safety fallback: If standard Supabase Auth takes more than 2 seconds, force-load to prevent infinite login spinal wait
+  // 2. Always listen to live Supabase Auth State changes in the background (if Supabase client is active)
+  try {
+    supabase.auth.onAuthStateChange(async (_event, session) => {
+      const storeState = useAuthStore.getState();
+      if (session?.user) {
+        // Find cache to bypass load flickering
+        let cachedProfile: any = null;
+        const storedNow = localStorage.getItem('demo_user_logged_in');
+        if (storedNow) {
+          try {
+            const parsed = JSON.parse(storedNow);
+            if (parsed.user?.id === session.user.id) {
+              cachedProfile = parsed.profile;
+            }
+          } catch {}
+        }
+        
+        storeState.setUser(session.user, cachedProfile);
+        await storeState.fetchProfile(session.user.id);
+      } else {
+        // If there is a cached local/synced session, preserve it rather than logging out!
+        const storedNow = localStorage.getItem('demo_user_logged_in');
+        if (storedNow) {
+          try {
+            const parsed = JSON.parse(storedNow);
+            if (parsed && parsed.user) {
+              console.log("Preserving cached clinical synced profile session:", parsed.user.email);
+              storeState.setUser(parsed.user, parsed.profile);
+              return;
+            }
+          } catch (e) {
+            console.warn("Failed to restore cached session:", e);
+          }
+        }
+        // Only log out if no local/synced session is active either
+        storeState.setUser(null);
+      }
+    });
+  } catch (err) {
+    console.warn("Supabase auth listener initialization bypassed (expected in strict offline contexts):", err);
+  }
+
+  // 3. Safety fallback: If standard Supabase Auth takes more than 2.3 seconds, force-load to prevent infinite login spinal wait
   setTimeout(() => {
-    const store = useAuthStore.getState();
-    if (store.loading) {
+    const storeState = useAuthStore.getState();
+    if (storeState.loading) {
       console.warn("Supabase Auth listener took too long to fire. Safely loading portal in Offline/Demo framework.");
-      const storedDemo = localStorage.getItem('demo_user_logged_in');
-      if (storedDemo) {
+      const storedNow = localStorage.getItem('demo_user_logged_in');
+      if (storedNow) {
         try {
-          const parsed = JSON.parse(storedDemo);
+          const parsed = JSON.parse(storedNow);
           const email = parsed.user?.email || '';
           const uid = parsed.user?.id || 'demo';
           
@@ -284,14 +303,16 @@ if (isDemo) {
             full_name: savedCustom.name || parsed.profile?.full_name || 'Administrator'
           };
 
-          store.setUser(parsed.user, mergedProfile);
+          storeState.setUser(parsed.user, mergedProfile);
           return;
         } catch {}
       }
-      store.setUser(null);
+      storeState.setUser(null);
     }
   }, 2300);
-}
+};
+
+initializeAuth();
 
 // Keep current database user context synchronized on any auth state changes
 if (typeof useAuthStore.subscribe === 'function') {

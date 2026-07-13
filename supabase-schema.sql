@@ -98,3 +98,22 @@ ALTER TABLE patients DISABLE ROW LEVEL SECURITY;
 ALTER TABLE measurements DISABLE ROW LEVEL SECURITY;
 ALTER TABLE orders DISABLE ROW LEVEL SECURITY;
 */
+
+-- ====================================================================================
+-- OPTION 3: PROFILES TABLE SAFE REPAIR (Sync Clinician Logins Across Devices)
+-- Run this in Supabase SQL Editor if profiles are not syncing or logins fail.
+-- ====================================================================================
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID PRIMARY KEY,
+  full_name TEXT,
+  role TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Safely add email and password columns for multi-device credentials sharing
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS password TEXT;
+
+-- Disable Row Level Security (RLS) on profiles so any device can sync and authenticate
+ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
+

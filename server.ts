@@ -58,6 +58,37 @@ async function startServer() {
     }
   });
 
+  // Clinical user profiles sync endpoints for multi-device login persistence
+  const PROFILES_FILE_PATH = path.join(process.cwd(), "clinical-profiles.json");
+
+  app.get("/api/get-profiles", (req, res) => {
+    try {
+      let profiles = [];
+      if (fs.existsSync(PROFILES_FILE_PATH)) {
+        const fileContent = fs.readFileSync(PROFILES_FILE_PATH, "utf-8");
+        profiles = JSON.parse(fileContent);
+      }
+      res.json(profiles);
+    } catch (error) {
+      console.error("Failed to read clinical profiles:", error);
+      res.json([]);
+    }
+  });
+
+  app.post("/api/save-profiles", (req, res) => {
+    try {
+      const profiles = req.body;
+      if (!Array.isArray(profiles)) {
+        return res.status(400).json({ error: "Invalid data format. Expected array." });
+      }
+      fs.writeFileSync(PROFILES_FILE_PATH, JSON.stringify(profiles, null, 2), "utf-8");
+      res.json({ success: true, message: "Clinical profiles updated successfully on server." });
+    } catch (error) {
+      console.error("Failed to save clinical profiles:", error);
+      res.status(500).json({ error: "Failed to save clinical profiles on server" });
+    }
+  });
+
   // Gemini Initialization
   const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY,

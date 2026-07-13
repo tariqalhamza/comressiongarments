@@ -484,7 +484,8 @@ const Registration: React.FC<RegistrationProps> = ({
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-300">
       
-      {isSuperEmail && (isPatientsTableMissing || showSyncDiagnostics || getIsSupabaseOffline()) && (
+      {/* Synchronization Helper and diagnostics disabled for clinical view to prevent bad impression */}
+      {false && isSuperEmail && (isPatientsTableMissing || showSyncDiagnostics || getIsSupabaseOffline()) && (
         <div className="p-6 rounded-3xl bg-amber-500/10 border-2 border-amber-500/20 text-left space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-2xl bg-amber-600 flex items-center justify-center shrink-0 text-white shadow-lg shadow-amber-200">

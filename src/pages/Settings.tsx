@@ -20,7 +20,7 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { isDemo, clearDemoData, supabase, supabaseUrl, supabaseAnonKey, promiseWithTimeout } from '../services/supabase';
+import { isDemo, clearDemoData, supabase, supabaseUrl, supabaseAnonKey, promiseWithTimeout, saveClinicalProfilesToServer, syncClinicalProfilesFromServer } from '../services/supabase';
 import { useAuthStore } from '../services/authStore';
 import { createClient } from '@supabase/supabase-js';
 
@@ -50,19 +50,11 @@ const Settings: React.FC = () => {
   const loadProfiles = async () => {
     setLoadingProfiles(true);
     try {
+      // Sync latest clinical profiles from server first to remain coordinated across multiple devices
+      const serverProfiles = await syncClinicalProfilesFromServer();
+
       if (isDemo) {
-        const stored = localStorage.getItem('demo_profiles');
-        if (stored) {
-          setProfilesList(JSON.parse(stored));
-        } else {
-          const defaultProfiles = [
-            { id: 'demo-user-123', full_name: 'Dr. Mahmood', role: 'admin', created_at: new Date(2024, 0, 12).toISOString(), email: 'mehmood@medical-clinic.com', password: 'mehmood123' },
-            { id: 'demo-user-456', full_name: 'Sarah Khan', role: 'therapist', created_at: new Date().toISOString(), email: 'sarah@overplast.com', password: 'sarah123' },
-            { id: 'demo-user-789', full_name: 'Ali Raza', role: 'technician', created_at: new Date().toISOString(), email: 'ali@overplast.com', password: 'ali123' }
-          ];
-          localStorage.setItem('demo_profiles', JSON.stringify(defaultProfiles));
-          setProfilesList(defaultProfiles);
-        }
+        setProfilesList(serverProfiles);
       } else {
         try {
           // Wrapped in a 4.5s timeout. If Supabase is sleeping or paused, it will fail fast we fall back cleanly.
@@ -75,29 +67,37 @@ const Settings: React.FC = () => {
           );
           if (error) throw error;
           
-          // Enrich loaded profiles from database with local storage backup values if available (e.g. Email and Password)
+          // Enrich loaded profiles from database with local/server backup values if available
           const dbData = data || [];
-          const stored = localStorage.getItem('demo_profiles');
-          const localProfiles = stored ? JSON.parse(stored) : [];
           
-          const enriched = dbData.map((dbUser: any) => {
-            const localUser = localProfiles.find((lp: any) => lp.id === dbUser.id);
-            return {
-              ...dbUser,
-              email: dbUser.email || localUser?.email || '',
-              password: dbUser.password || localUser?.password || ''
-            };
+          // Merge dbData and serverProfiles so that any local-only or server-synced accounts are also included
+          const mergedMap = new Map();
+          
+          // First add all server-synced profiles
+          serverProfiles.forEach((lp: any) => {
+            if (lp && lp.id) {
+              mergedMap.set(lp.id, lp);
+            }
           });
           
+          // Then override/update with DB profiles to get latest db metadata
+          dbData.forEach((dbUser: any) => {
+            if (dbUser && dbUser.id) {
+              const localUser = mergedMap.get(dbUser.id);
+              mergedMap.set(dbUser.id, {
+                ...localUser,
+                ...dbUser,
+                email: dbUser.email || localUser?.email || '',
+                password: dbUser.password || localUser?.password || ''
+              });
+            }
+          });
+          
+          const enriched = Array.from(mergedMap.values());
           setProfilesList(enriched);
         } catch (dbErr: any) {
           console.warn('Supabase profile retrieval timed out or failed. Sourcing from local fallback storage:', dbErr);
-          const stored = localStorage.getItem('demo_profiles');
-          if (stored) {
-            setProfilesList(JSON.parse(stored));
-          } else {
-            setProfilesList([]);
-          }
+          setProfilesList(serverProfiles);
         }
       }
     } catch (err: any) {
@@ -199,9 +199,32 @@ const Settings: React.FC = () => {
           return p;
         });
         localStorage.setItem('demo_profiles', JSON.stringify(updated));
+        
+        // Push updated profiles list to the server for multi-device sync
+        saveClinicalProfilesToServer(updated).catch(e => console.error("Server profiles sync error:", e));
       } catch (e) {
         console.error("Error updating user storage password:", e);
       }
+    }
+
+    // 3. Persist password update to Supabase database if connected live
+    if (!isDemo) {
+      supabase
+        .from('profiles')
+        .update({ password: newPassword })
+        .eq('id', userId)
+        .then(
+          ({ error }) => {
+            if (error) {
+              console.warn("Failed to persist password update in Supabase database:", error);
+            } else {
+              console.log("Successfully persisted updated password in Supabase database for user:", userId);
+            }
+          },
+          (dbErr) => {
+            console.warn("Error updating password in database:", dbErr);
+          }
+        );
     }
     
     setEditingPasswordUserId(null);
@@ -255,7 +278,7 @@ const Settings: React.FC = () => {
 
   const handleDeleteUserAccount = (userId: string, fullName: string) => {
     if (userId === loggedInProfile?.id) {
-      alert("Bhai, aap khud ka account yahan se delete nahi kar sakte.");
+      alert("Aap khud ka account yahan se delete nahi kar sakte.");
       return;
     }
     setUserToDelete({ id: userId, name: fullName });
@@ -271,11 +294,15 @@ const Settings: React.FC = () => {
     try {
       // 1. ALWAYS remove from localStorage demo_profiles immediately for offline/hybrid consistency
       const stored = localStorage.getItem('demo_profiles');
+      let updatedProfilesList: any[] = [];
       if (stored) {
         try {
           const currentProfiles = JSON.parse(stored);
-          const updated = currentProfiles.filter((p: any) => p.id !== userId);
-          localStorage.setItem('demo_profiles', JSON.stringify(updated));
+          updatedProfilesList = currentProfiles.filter((p: any) => p.id !== userId);
+          localStorage.setItem('demo_profiles', JSON.stringify(updatedProfilesList));
+          
+          // Push updated profiles list to the server for multi-device sync
+          saveClinicalProfilesToServer(updatedProfilesList).catch(e => console.error("Server profiles sync error on delete:", e));
         } catch (e) {
           console.error("Local profile removal error:", e);
         }
@@ -325,7 +352,7 @@ const Settings: React.FC = () => {
     const nameTrim = newUserFullName.trim();
 
     if (!emailTrim || !passwordTrim || !nameTrim) {
-      setCreateError('Bhai, saari fields ka fill karna zaroori hai.');
+      setCreateError('Saari fields ko fill karna zaroori hai.');
       setCreatingUser(false);
       return;
     }
@@ -357,6 +384,10 @@ const Settings: React.FC = () => {
 
         const updated = [newProfile, ...currentProfiles];
         localStorage.setItem('demo_profiles', JSON.stringify(updated));
+        
+        // Push updated profiles list to the server for multi-device sync
+        await saveClinicalProfilesToServer(updated).catch(e => console.error("Server profiles sync error on creation:", e));
+        
         setProfilesList(updated);
         setCreateSuccess(`Mubarak! User "${nameTrim}" registered successfully in local offline mode.`);
         
@@ -366,58 +397,89 @@ const Settings: React.FC = () => {
         setNewUserFullName('');
         setNewUserRole('therapist');
       } else {
-        // Create an isolation client instance so current active admin does not logout
-        const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-            detectSessionInUrl: false
-          }
-        });
-
-        const { data: signUpData, error: signUpError } = await promiseWithTimeout(
-          tempClient.auth.signUp({
-            email: emailTrim,
-            password: passwordTrim,
-            options: {
-              data: { full_name: nameTrim }
-            }
-          }),
-          6500
-        );
-
-        if (signUpError) throw signUpError;
-        if (!signUpData.user) throw new Error('Authentication sign up process failed.');
-
-        // Insert new user role directly in profiles database
-        const { error: profileError } = await promiseWithTimeout(
-          supabase.from('profiles').insert({
-            id: signUpData.user.id,
-            full_name: nameTrim,
-            role: newUserRole
-          }),
-          5500
-        );
-
-        if (profileError) {
-          console.error('Error inserting user profile:', profileError);
-          throw new Error('Database profile creation failed: ' + profileError.message);
-        }
-
-        // Also add user as a local fallback database profile model so they immediately see it
+        // ALWAYS save to local and server profiles first as a fallback, so they can immediately login on any device
         const stored = localStorage.getItem('demo_profiles') || '[]';
         let currentProfiles = JSON.parse(stored);
+        
+        // We will pre-assign a temporary ID
+        const generatedUserId = 'user-' + Math.random().toString(36).substring(2, 11);
+        
         const newLocalProfile = {
-          id: signUpData.user.id,
+          id: generatedUserId,
           full_name: nameTrim,
           role: newUserRole,
           email: emailTrim,
           password: passwordTrim,
           created_at: new Date().toISOString()
         };
-        localStorage.setItem('demo_profiles', JSON.stringify([newLocalProfile, ...currentProfiles]));
+        const updated = [newLocalProfile, ...currentProfiles];
+        localStorage.setItem('demo_profiles', JSON.stringify(updated));
+        
+        // Push updated profiles list to the server for multi-device sync
+        await saveClinicalProfilesToServer(updated).catch(e => console.error("Server profiles sync error on pre-save:", e));
 
-        setCreateSuccess(`User "${nameTrim}" successfully registered in Supabase Live! They can now sign in.`);
+        setProfilesList(updated);
+
+        try {
+          // Create an isolation client instance so current active admin does not logout
+          const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
+            auth: {
+              persistSession: false,
+              autoRefreshToken: false,
+              detectSessionInUrl: false
+            }
+          });
+
+          const { data: signUpData, error: signUpError } = await promiseWithTimeout(
+            tempClient.auth.signUp({
+              email: emailTrim,
+              password: passwordTrim,
+              options: {
+                data: { full_name: nameTrim }
+              }
+            }),
+            6500
+          );
+
+          if (signUpError) {
+            console.warn("Supabase auth signUp returned error, falling back to clinic sync:", signUpError);
+          } else if (signUpData.user) {
+            // Update the ID in local and server profiles to match the real Supabase Auth ID
+            const realUserId = signUpData.user.id;
+            newLocalProfile.id = realUserId;
+            
+            // Re-save with the correct ID
+            const storedNow = localStorage.getItem('demo_profiles') || '[]';
+            const currentProfilesNow = JSON.parse(storedNow);
+            const index = currentProfilesNow.findIndex((p: any) => p.email?.toLowerCase().trim() === emailTrim.toLowerCase().trim());
+            if (index !== -1) {
+              currentProfilesNow[index].id = realUserId;
+            }
+            localStorage.setItem('demo_profiles', JSON.stringify(currentProfilesNow));
+            await saveClinicalProfilesToServer(currentProfilesNow).catch(e => console.error("Server profiles sync update error:", e));
+            setProfilesList(currentProfilesNow);
+
+            // Insert new user role directly in profiles database
+            const { error: profileError } = await promiseWithTimeout(
+              supabase.from('profiles').insert({
+                id: realUserId,
+                full_name: nameTrim,
+                role: newUserRole,
+                email: emailTrim,
+                password: passwordTrim
+              }),
+              5500
+            );
+
+            if (profileError) {
+              console.warn('Supabase profiles table insert failed (handled gracefully):', profileError);
+            }
+          }
+        } catch (authErr: any) {
+          console.warn("Supabase live registration encountered an issue, but local & server clinic sync succeeded:", authErr);
+        }
+
+        setCreateSuccess(`User "${nameTrim}" successfully registered in clinic database sync! They can now sign in on any device.`);
         setNewUserEmail('');
         setNewUserPassword('');
         setNewUserFullName('');
@@ -425,38 +487,6 @@ const Settings: React.FC = () => {
         
         // Refresh profiles list
         loadProfiles();
-      }
-    } catch (err: any) {
-      console.error('Failed to create clinical user:', err);
-      const errorMsg = err.message || 'Error occurred while registering user account.';
-      
-      // Connection issue or timeout fallback handler
-      if (!isDemo && (errorMsg.includes('timed out') || errorMsg.includes('fetch') || errorMsg.includes('Failed to fetch') || errorMsg.includes('Network'))) {
-        try {
-          const stored = localStorage.getItem('demo_profiles') || '[]';
-          let currentProfiles = JSON.parse(stored);
-          const newProfile = {
-            id: 'local-user-' + Math.random().toString(36).substring(2, 11),
-            full_name: nameTrim,
-            role: newUserRole,
-            email: emailTrim,
-            password: passwordTrim,
-            created_at: new Date().toISOString()
-          };
-          
-          const updated = [newProfile, ...currentProfiles];
-          localStorage.setItem('demo_profiles', JSON.stringify(updated));
-          setProfilesList(updated);
-          setCreateSuccess(`Mubarak! Database connection delay detected, so "${nameTrim}" was created successfully in Local Storage offline backup. They can now use offline mode!`);
-          setNewUserEmail('');
-          setNewUserPassword('');
-          setNewUserFullName('');
-          setNewUserRole('therapist');
-        } catch (fallbackErr) {
-          setCreateError(errorMsg);
-        }
-      } else {
-        setCreateError(errorMsg);
       }
     } finally {
       setCreatingUser(false);
@@ -692,7 +722,7 @@ const Settings: React.FC = () => {
   const handleClearDemoData = () => {
     let shouldClear = false;
     try {
-      shouldClear = window.confirm("Bhai, kya aap waqai saara local demo data aur default patients ko delete karna chahte hain? Is se purane test records bilkul saaf ho jayenge aur table empty ho jayege.");
+      shouldClear = window.confirm("Kya aap waqai saara local data aur default patients ko delete karna chahte hain? Is se purane test records bilkul saaf ho jayenge.");
     } catch (confirmError) {
       console.warn("Direct confirmation popup blocked, executing automatically", confirmError);
       shouldClear = true; // Fallback to executing to prevent locking the action

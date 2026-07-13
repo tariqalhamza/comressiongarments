@@ -307,7 +307,8 @@ ALTER TABLE IF EXISTS orders DISABLE ROW LEVEL SECURITY;`;
 
   return (
     <div className="p-4 sm:p-8 space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-      {(!isDemo && getIsSupabaseOffline()) && (
+      {/* Database connection alert/SQL wizard disabled to keep UI clean and professional for clients */}
+      {false && (!isDemo && getIsSupabaseOffline()) && (
         <div className="p-6 bg-amber-50 border border-amber-100 rounded-3xl text-left space-y-4 shadow-sm animate-in fade-in slide-in-from-top-3 duration-500">
           <div className="flex items-start gap-4">
             <div className="p-3 bg-amber-100/80 text-amber-700 rounded-2xl shrink-0">

@@ -968,3 +968,53 @@ export const testSupabaseSync = async (): Promise<{
     };
   }
 };
+
+// Global Sync helper functions for clinical user profiles to allow robust cross-device login
+export const syncClinicalProfilesFromServer = async (): Promise<any[]> => {
+  try {
+    const res = await fetch("/api/get-profiles");
+    if (res.ok) {
+      const serverProfiles = await res.json();
+      if (Array.isArray(serverProfiles) && serverProfiles.length > 0) {
+        const stored = localStorage.getItem('demo_profiles');
+        const localProfiles = stored ? JSON.parse(stored) : [];
+        
+        const mergedMap = new Map();
+        
+        // Load local ones
+        localProfiles.forEach((p: any) => {
+          if (p && p.id) mergedMap.set(p.id, p);
+        });
+        
+        // Server ones take precedence and override
+        serverProfiles.forEach((p: any) => {
+          if (p && p.id) mergedMap.set(p.id, p);
+        });
+        
+        const mergedList = Array.from(mergedMap.values());
+        localStorage.setItem('demo_profiles', JSON.stringify(mergedList));
+        return mergedList;
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to sync clinical profiles from server:", e);
+  }
+  const stored = localStorage.getItem('demo_profiles');
+  return stored ? JSON.parse(stored) : [];
+};
+
+export const saveClinicalProfilesToServer = async (profiles: any[]): Promise<boolean> => {
+  try {
+    const res = await fetch("/api/save-profiles", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(profiles)
+    });
+    return res.ok;
+  } catch (e) {
+    console.warn("Failed to save clinical profiles to server:", e);
+    return false;
+  }
+};
