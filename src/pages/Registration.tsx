@@ -1300,7 +1300,7 @@ CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL U
                           )
                         )}
                       </div>
-                      <h4 className="font-black text-slate-950 text-xl tracking-tight leading-tight group-hover:text-blue-700 transition-colors">
+                      <h4 className="font-black text-emerald-700 text-xl tracking-tight leading-tight group-hover:text-emerald-800 transition-colors">
                         {patientItem.full_name}
                       </h4>
                       {/* Scoped Registrar Name - Only visible to administrators */}
@@ -1366,18 +1366,18 @@ CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL U
                     
                     {/* Phone / Mobile No */}
                     <div className="space-y-0.5">
-                      <span className="block text-[9px] font-black text-slate-800 uppercase tracking-widest">Mob No / موبائل</span>
-                      <div className="flex items-center gap-1.5 text-slate-950 font-black font-mono text-[11px] md:text-xs">
-                        <Phone className="w-3.5 h-3.5 text-slate-800 shrink-0" />
+                      <span className="block text-[9px] font-black text-green-800 uppercase tracking-widest">Mob No / موبائل</span>
+                      <div className="flex items-center gap-1.5 text-green-600 font-black font-mono text-[11px] md:text-xs">
+                        <Phone className="w-3.5 h-3.5 text-green-600 shrink-0" />
                         <span>{patientItem.phone || 'None'}</span>
                       </div>
                     </div>
 
                     {/* Age & Gender */}
                     <div className="space-y-0.5">
-                      <span className="block text-[9px] font-black text-slate-800 uppercase tracking-widest">Age & Gender</span>
-                      <div className="flex items-center gap-1.5 text-slate-950 font-black uppercase text-[11px] md:text-xs">
-                        <span className="px-2 py-0.5 bg-blue-600 text-white rounded font-black text-[9px] capitalize">{patientItem.gender}</span>
+                      <span className="block text-[9px] font-black text-green-800 uppercase tracking-widest">Age & Gender</span>
+                      <div className="flex items-center gap-1.5 text-green-600 font-black uppercase text-[11px] md:text-xs">
+                        <span className="px-2 py-0.5 bg-green-600 text-white rounded font-black text-[9px] capitalize">{patientItem.gender}</span>
                         <span>•</span>
                         <span>{patientItem.age} Yrs</span>
                       </div>
@@ -1385,27 +1385,27 @@ CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL U
 
                     {/* Doctor Name */}
                     <div className="space-y-0.5">
-                      <span className="block text-[9px] font-black text-slate-800 uppercase tracking-widest">Doctor name / ڈاکٹر</span>
-                      <div className="flex items-center gap-1.5 text-slate-950 font-black text-[11px] md:text-xs truncate">
-                        <Stethoscope className="w-3.5 h-3.5 text-slate-800 shrink-0" />
+                      <span className="block text-[9px] font-black text-green-800 uppercase tracking-widest">Doctor name / ڈاکٹر</span>
+                      <div className="flex items-center gap-1.5 text-green-600 font-black text-[11px] md:text-xs truncate">
+                        <Stethoscope className="w-3.5 h-3.5 text-green-600 shrink-0" />
                         <span className="truncate">{patientItem.doctor_name || 'No referral'}</span>
                       </div>
                     </div>
 
                     {/* Hospital Name */}
                     <div className="space-y-0.5">
-                      <span className="block text-[9px] font-black text-slate-800 uppercase tracking-widest">Hospital / ہسپتال</span>
-                      <div className="flex items-center gap-1.5 text-slate-950 font-black text-[11px] md:text-xs truncate">
-                        <Hospital className="w-3.5 h-3.5 text-slate-800 shrink-0" />
+                      <span className="block text-[9px] font-black text-green-800 uppercase tracking-widest">Hospital / ہسپتال</span>
+                      <div className="flex items-center gap-1.5 text-green-600 font-black text-[11px] md:text-xs truncate">
+                        <Hospital className="w-3.5 h-3.5 text-green-600 shrink-0" />
                         <span className="truncate">{patientItem.hospital || 'Not declared'}</span>
                       </div>
                     </div>
 
                     {/* Registration Date */}
                     <div className="space-y-1 col-span-2 border-t-2 border-slate-300 pt-2.5">
-                      <span className="block text-[9px] font-black text-slate-800 uppercase tracking-widest">Date / تاریخ</span>
-                      <div className="flex items-center gap-1.5 text-slate-950 font-black font-mono text-[11px] md:text-xs">
-                        <Calendar className="w-3.5 h-3.5 text-slate-800 shrink-0" />
+                      <span className="block text-[9px] font-black text-green-800 uppercase tracking-widest">Date / تاریخ</span>
+                      <div className="flex items-center gap-1.5 text-green-600 font-black font-mono text-[11px] md:text-xs">
+                        <Calendar className="w-3.5 h-3.5 text-green-600 shrink-0" />
                         <span>
                           {new Date(patientItem.created_at).toLocaleDateString(undefined, {
                             year: 'numeric',
@@ -1418,9 +1418,9 @@ CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL U
 
                     {/* Physical Address */}
                     <div className="space-y-1 col-span-2 border-t-2 border-slate-300 pt-2.5">
-                      <span className="block text-[9px] font-black text-slate-800 uppercase tracking-widest">Address / پتہ</span>
-                      <div className="flex items-start gap-1.5 text-slate-950 font-black leading-relaxed text-[11px] md:text-xs">
-                        <MapPin className="w-3.5 h-3.5 text-slate-800 shrink-0 mt-0.5" />
+                      <span className="block text-[9px] font-black text-blue-800 uppercase tracking-widest">Address / پتہ</span>
+                      <div className="flex items-start gap-1.5 text-blue-700 font-black leading-relaxed text-[11px] md:text-xs">
+                        <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
                         <span className="line-clamp-2">{patientItem.address || 'No location address registered'}</span>
                       </div>
                     </div>
@@ -1428,9 +1428,9 @@ CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL U
                     {/* Affected Area (Anatomical Site) */}
                     {patientItem.medical_condition && patientItem.medical_condition !== 'General' && (
                       <div className="space-y-1 col-span-2 border-t-2 border-slate-300 pt-2.5">
-                        <span className="block text-[9px] font-black text-amber-900 uppercase tracking-widest">Affected Area / متاثرہ جگہ</span>
-                        <div className="flex items-center gap-1.5 text-slate-950 font-black text-[11px] md:text-xs mt-1">
-                          <SlidersHorizontal className="w-4 h-4 text-amber-700 shrink-0" />
+                        <span className="block text-[9px] font-black text-green-800 uppercase tracking-widest">Affected Area / متاثرہ جگہ</span>
+                        <div className="flex items-center gap-1.5 text-green-600 font-black text-[11px] md:text-xs mt-1">
+                          <SlidersHorizontal className="w-4 h-4 text-green-600 shrink-0" />
                           <span>{patientItem.medical_condition}</span>
                         </div>
                       </div>
@@ -1439,7 +1439,7 @@ CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL U
                     {/* Affected Area Photo */}
                     {patientItem.photo_url && (
                       <div className="space-y-1.5 col-span-2 border-t-2 border-slate-300 pt-2.5">
-                        <span className="block text-[9px] font-black text-amber-900 uppercase tracking-widest">Affected Area Picture / متاثرہ حصہ کی تصویر</span>
+                        <span className="block text-[9px] font-black text-slate-800 uppercase tracking-widest">Affected Area Picture / متاثرہ حصہ کی تصویر</span>
                         <div className="relative rounded-2xl overflow-hidden border-2 border-slate-300 aspect-video max-h-[120px] mt-1 flex items-center justify-center bg-slate-50 shadow-inner">
                           <img 
                             src={patientItem.photo_url} 
@@ -1454,9 +1454,9 @@ CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL U
                     {/* Doctor's Notes / Case History */}
                     {patientItem.notes && (
                       <div className="space-y-1 col-span-2 border-t-2 border-slate-300 pt-2.5">
-                        <span className="block text-[9px] font-black text-amber-900 uppercase tracking-widest">Doctor's Notes / Case History</span>
-                        <div className="flex items-start gap-1.5 bg-amber-50 p-2.5 rounded-2xl border-2 border-amber-300 text-slate-950 font-black leading-normal text-[11px] md:text-xs mt-1 break-words w-full">
-                          <FileText className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                        <span className="block text-[9px] font-black text-red-900 uppercase tracking-widest">Doctor's Notes / Case History</span>
+                        <div className="flex items-start gap-1.5 bg-red-50 p-2.5 rounded-2xl border-2 border-red-300 text-red-700 font-black leading-normal text-[11px] md:text-xs mt-1 break-words w-full">
+                          <FileText className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                           <span>{patientItem.notes}</span>
                         </div>
                       </div>

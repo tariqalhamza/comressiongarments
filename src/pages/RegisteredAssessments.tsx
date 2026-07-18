@@ -60,6 +60,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
   const [patientPhotos, setPatientPhotos] = useState<Record<string, string>>({});
   const [patientAddresses, setPatientAddresses] = useState<Record<string, string>>({});
   const [patientNotes, setPatientNotes] = useState<Record<string, string>>({});
+  const [patientPhones, setPatientPhones] = useState<Record<string, string>>({});
 
   const getAssessmentDoctorNotes = (assessment: RegisteredAssessment) => {
     if (assessment.sub_options && (assessment.sub_options as any).doctorNotes) {
@@ -93,6 +94,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
           const photoMap: Record<string, string> = {};
           const addressMap: Record<string, string> = {};
           const notesMap: Record<string, string> = {};
+          const phoneMap: Record<string, string> = {};
           patientsData.forEach(p => {
             if (p.photo_url) {
               photoMap[p.full_name?.toLowerCase().trim()] = p.photo_url;
@@ -112,10 +114,17 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
                 notesMap[p.id] = p.notes;
               }
             }
+            if (p.phone) {
+              phoneMap[p.full_name?.toLowerCase().trim()] = p.phone;
+              if (p.id) {
+                phoneMap[p.id] = p.phone;
+              }
+            }
           });
           setPatientPhotos(photoMap);
           setPatientAddresses(addressMap);
           setPatientNotes(notesMap);
+          setPatientPhones(phoneMap);
         }
       } catch (pErr) {
         console.warn('Could not load patient list for photo map:', pErr);
@@ -1024,6 +1033,20 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
     };
     const resolvedAddress = getAddress();
 
+    // Resolve patient phone if available
+    const getPhone = () => {
+      const nameKey = assessment.patient_name?.toLowerCase().trim();
+      if (nameKey && patientPhones[nameKey]) {
+        return patientPhones[nameKey];
+      }
+      const idKey = (assessment as any).patient_id;
+      if (idKey && patientPhones[idKey]) {
+        return patientPhones[idKey];
+      }
+      return '';
+    };
+    const resolvedPhone = getPhone();
+
     // Resolve patient doctor notes if available
     const getDoctorNotes = () => {
       if (assessment.sub_options && (assessment.sub_options as any).doctorNotes) {
@@ -1042,13 +1065,17 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
     const resolvedDoctorNotes = getDoctorNotes();
 
     let messageText = `🩺 *CLINICAL ASSESSMENT SUMMARY / خلاصہ طبی معائنہ*\n\n`;
-    messageText += `*👤 PATIENT DETAILS / معلومات مریض*\n`;
-    messageText += `• File ID: *${assessment.id || 'N/A'}*\n`;
-    messageText += `• Name / نام: *${assessment.patient_name || 'N/A'}*\n`;
-    messageText += `• Age / Gender: *${assessment.age && assessment.age > 0 ? `${assessment.age} Yrs` : 'N/A'} / ${assessment.gender || 'N/A'}*\n`;
-    messageText += `• Date / تاریخ: *${assessment.created_at ? new Date(assessment.created_at).toLocaleDateString() : new Date().toLocaleDateString()}*\n`;
+    messageText += `*👤 PATIENT DETAILS / معلومات مریض* (🟢 *GREEN COLOR GROUP*)\n`;
+    messageText += `🟢 File ID: *${assessment.id || 'N/A'}*\n`;
+    messageText += `🟢 Name / نام: *${assessment.patient_name || 'N/A'}*\n`;
+    if (resolvedPhone) {
+      messageText += `🟢 Mob No / موبائل: *${resolvedPhone}*\n`;
+    }
+    messageText += `🟢 Age / Gender: *${assessment.age && assessment.age > 0 ? `${assessment.age} Yrs` : 'N/A'} / ${assessment.gender || 'N/A'}*\n`;
+    messageText += `🟢 Date / تاریخ: *${assessment.created_at ? new Date(assessment.created_at).toLocaleDateString() : new Date().toLocaleDateString()}*\n`;
     if (resolvedAddress) {
-      messageText += `• Address / پتہ: *${resolvedAddress}*\n`;
+      messageText += `🔵 *ADDRESS / پتہ* (🔵 *BLUE COLOR GROUP*)\n`;
+      messageText += `🔵 Address / پتہ: *${resolvedAddress}*\n`;
     }
     messageText += `\n`;
 
@@ -1072,23 +1099,23 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
       }
     }
 
-    // 1. Doctor's Notes & Case History
+    // 1. Doctor's Notes & Case History (🔴 RED COLOR GROUP)
     if (resolvedDoctorNotes) {
-      messageText += `*🩺 DOCTOR'S NOTES & CASE HISTORY / ڈاکٹر کے نوٹس اور ہسٹری*\n`;
-      messageText += `"${resolvedDoctorNotes}"\n\n`;
+      messageText += `🔴 *🩺 DOCTOR'S NOTES & CASE HISTORY / ڈاکٹر کے نوٹس اور ہسٹری* (🔴 *RED COLOR GROUP*)\n`;
+      messageText += `🔴 "${resolvedDoctorNotes}"\n\n`;
     }
 
     // 2. Garment Configuration Note
     if (assessment.notes) {
-      messageText += `*📝 GARMENT CONFIGURATION NOTE / پیمائش کے نوٹ*\n`;
-      messageText += `"${assessment.notes}"\n\n`;
+      messageText += `🔴 *📝 GARMENT CONFIGURATION NOTE / پیمائش کے نوٹ*\n`;
+      messageText += `🔴 "${assessment.notes}"\n\n`;
     }
 
     // 3. Custom Design Notes
     const customDesignNotes = assessment.sub_options ? (assessment.sub_options as any)['Custom Design Notes'] : null;
     if (customDesignNotes) {
-      messageText += `*✍️ CUSTOM DESIGN NOTES / اضافی ڈیزائن نوٹس*\n`;
-      messageText += `"${customDesignNotes}"\n\n`;
+      messageText += `🔴 *✍️ CUSTOM DESIGN NOTES / اضافی ڈیزائن نوٹس*\n`;
+      messageText += `🔴 "${customDesignNotes}"\n\n`;
     }
 
     messageText += `*Generated via Overplast Live Calibration Portal*`;
@@ -2715,26 +2742,26 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                     </div>
 
                     {/* Integrated patient specs banner inside schematic page */}
-                    <div className="w-full grid grid-cols-2 lg:grid-cols-3 gap-2 mb-4 bg-slate-100/50 p-2.5 rounded-2xl border border-slate-200/45 text-[10px]">
+                    <div className="w-full grid grid-cols-2 lg:grid-cols-3 gap-2 mb-4 bg-emerald-50/50 p-2.5 rounded-2xl border border-emerald-100 text-[10px]">
                       <div>
-                        <span className="text-[8px] font-black text-slate-400 block uppercase">Name / مریض</span>
-                        <span className="font-extrabold text-slate-800 break-words block truncate">{selectedAssessment.patient_name || 'N/A'}</span>
+                        <span className="text-[8px] font-black text-emerald-600 block uppercase">Name / مریض</span>
+                        <span className="font-extrabold text-emerald-700 break-words block truncate">{selectedAssessment.patient_name || 'N/A'}</span>
                       </div>
                       <div>
-                        <span className="text-[8px] font-black text-slate-400 block uppercase">File ID / فائل آئی ڈی</span>
-                        <span className="font-extrabold text-slate-800 font-mono block truncate">{selectedAssessment.id || 'N/A'}</span>
+                        <span className="text-[8px] font-black text-emerald-600 block uppercase">File ID / فائل آئی ڈی</span>
+                        <span className="font-extrabold text-emerald-700 font-mono block truncate">{selectedAssessment.id || 'N/A'}</span>
                       </div>
                       <div>
-                        <span className="text-[8px] font-black text-slate-400 block uppercase">Age & Gender / عمر و جنس</span>
-                        <span className="font-extrabold text-slate-800">{selectedAssessment.age ? `${selectedAssessment.age} Yrs` : 'N/A'} / <span className="capitalize">{selectedAssessment.gender || 'N/A'}</span></span>
+                        <span className="text-[8px] font-black text-emerald-600 block uppercase">Age & Gender / عمر و جنس</span>
+                        <span className="font-extrabold text-emerald-700">{selectedAssessment.age ? `${selectedAssessment.age} Yrs` : 'N/A'} / <span className="capitalize">{selectedAssessment.gender || 'N/A'}</span></span>
                       </div>
                       <div>
-                        <span className="text-[8px] font-black text-slate-400 block uppercase">Date / تاریخ</span>
-                        <span className="font-extrabold text-slate-800">{selectedAssessment.created_at ? new Date(selectedAssessment.created_at).toLocaleDateString() : 'N/A'}</span>
+                        <span className="text-[8px] font-black text-emerald-600 block uppercase">Date / تاریخ</span>
+                        <span className="font-extrabold text-emerald-700">{selectedAssessment.created_at ? new Date(selectedAssessment.created_at).toLocaleDateString() : 'N/A'}</span>
                       </div>
-                      <div className="col-span-2 lg:col-span-2">
-                        <span className="text-[8px] font-black text-slate-400 block uppercase">Address / پتہ</span>
-                        <span className="font-extrabold text-slate-800 block truncate" title={patientAddresses[selectedAssessment.patient_name?.toLowerCase().trim()] || selectedAssessment.city || 'N/A'}>
+                      <div className="col-span-2 lg:col-span-2 bg-blue-50/50 p-1.5 rounded-lg border border-blue-100">
+                        <span className="text-[8px] font-black text-blue-600 block uppercase">Address / پتہ</span>
+                        <span className="font-extrabold text-blue-700 block truncate" title={patientAddresses[selectedAssessment.patient_name?.toLowerCase().trim()] || selectedAssessment.city || 'N/A'}>
                           {patientAddresses[selectedAssessment.patient_name?.toLowerCase().trim()] || selectedAssessment.city || 'N/A'}
                         </span>
                       </div>
@@ -2793,16 +2820,16 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Patient's Doctor's Notes */}
                     <div className="space-y-1">
-                      <span className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider block">Doctor's Notes & Case History / ڈاکٹر کے نوٹس</span>
-                      <p className="text-xs text-slate-700 font-bold leading-relaxed p-3.5 rounded-2xl whitespace-pre-wrap bg-slate-50 border border-slate-100 font-sans min-h-[90px]">
+                      <span className="text-[10px] font-extrabold text-red-600 uppercase tracking-wider block">Doctor's Notes & Case History / ڈاکٹر کے نوٹس</span>
+                      <p className="text-xs text-red-700 font-bold leading-relaxed p-3.5 rounded-2xl whitespace-pre-wrap bg-red-50/50 border border-red-100 font-sans min-h-[90px]">
                         {getAssessmentDoctorNotes(selectedAssessment) || "No Case History Notes registered."}
                       </p>
                     </div>
 
                     {/* Garment Configuration Notes */}
                     <div className="space-y-1">
-                      <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Garment Configuration Note / پیمائش کے نوٹ</span>
-                      <p className="text-xs text-slate-700 font-bold leading-relaxed p-3.5 rounded-2xl whitespace-pre-wrap bg-slate-50 border border-slate-100 font-sans min-h-[90px]">
+                      <span className="text-[10px] font-extrabold text-red-600 uppercase tracking-wider block">Garment Configuration Note / پیمائش کے نوٹ</span>
+                      <p className="text-xs text-red-700 font-bold leading-relaxed p-3.5 rounded-2xl whitespace-pre-wrap bg-red-50/50 border border-red-100 font-sans min-h-[90px]">
                         {selectedAssessment.notes || "No Garment Configuration Notes added."}
                       </p>
                     </div>
@@ -2811,8 +2838,8 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                   {/* Custom Design Notes */}
                   {selectedAssessment.sub_options?.['Custom Design Notes'] && (
                     <div className="space-y-1">
-                      <span className="text-[10px] font-extrabold text-purple-600 uppercase tracking-wider block">Custom Design Notes / اضافی ڈیزائن نوٹس</span>
-                      <p className="text-xs text-slate-700 font-bold leading-relaxed p-3.5 rounded-2xl whitespace-pre-wrap bg-slate-50 border border-slate-100 font-sans min-h-[60px]">
+                      <span className="text-[10px] font-extrabold text-red-600 uppercase tracking-wider block">Custom Design Notes / اضافی ڈیزائن نوٹس</span>
+                      <p className="text-xs text-red-700 font-bold leading-relaxed p-3.5 rounded-2xl whitespace-pre-wrap bg-red-50/50 border border-red-100 font-sans min-h-[60px]">
                         {selectedAssessment.sub_options['Custom Design Notes']}
                       </p>
                     </div>

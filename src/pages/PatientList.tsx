@@ -411,7 +411,7 @@ ALTER TABLE IF EXISTS orders DISABLE ROW LEVEL SECURITY;`;
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-1">
-                        <h3 className="text-lg font-black text-slate-900 truncate tracking-tight">{patient.full_name}</h3>
+                        <h3 className="text-lg font-black text-green-700 truncate tracking-tight">{patient.full_name}</h3>
                         <div className="flex items-center gap-1 shrink-0 bg-white/80 backdrop-blur-sm px-1.5 py-1 rounded-xl border border-slate-100 shadow-sm relative z-30">
                           <button 
                             type="button"
@@ -436,7 +436,7 @@ ALTER TABLE IF EXISTS orders DISABLE ROW LEVEL SECURITY;`;
                           </button>
                         </div>
                       </div>
-                      <span className="px-2 py-0.5 bg-blue-100/50 text-blue-600 rounded-lg text-[9px] font-black uppercase tracking-widest leading-none inline-block">
+                      <span className="px-2 py-0.5 bg-green-100/50 text-green-700 rounded-lg text-[9px] font-black uppercase tracking-widest leading-none inline-block">
                         ID: {patient.id.slice(0, 8)}
                       </span>
                     </div>
@@ -448,8 +448,8 @@ ALTER TABLE IF EXISTS orders DISABLE ROW LEVEL SECURITY;`;
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4">
                     <div className="flex items-center gap-2">
-                      <Phone className="w-3.5 h-3.5 text-slate-300" />
-                      <span className="text-xs text-slate-500 font-semibold">{patient.phone}</span>
+                      <Phone className="w-3.5 h-3.5 text-green-600" />
+                      <span className="text-xs text-green-700 font-semibold">{patient.phone}</span>
                     </div>
                   </div>
                 </div>
@@ -460,12 +460,12 @@ ALTER TABLE IF EXISTS orders DISABLE ROW LEVEL SECURITY;`;
               <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-slate-300" />
-                    <span className="text-[10px] font-bold text-slate-500 uppercase">Age: {patient.age} ({patient.gender || 'N/A'})</span>
+                    <Calendar className="w-3.5 h-3.5 text-green-600" />
+                    <span className="text-[10px] font-bold text-green-700 uppercase">Age: {patient.age} ({patient.gender || 'N/A'})</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <MoreHorizontal className="w-3.5 h-3.5 text-slate-300" />
-                    <span className="text-[10px] font-bold text-slate-500 uppercase truncate max-w-[120px]">Ref: {patient.doctor_name}</span>
+                    <MoreHorizontal className="w-3.5 h-3.5 text-green-600" />
+                    <span className="text-[10px] font-bold text-green-700 uppercase truncate max-w-[120px]">Ref: {patient.doctor_name}</span>
                   </div>
                 </div>
                 <div 

@@ -129,55 +129,55 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patient, onBack, onStar
             </div>
             
             <div>
-              <h2 className="text-2xl font-bold text-slate-900">{patient.full_name}</h2>
-              <p className="text-slate-500 font-medium">Patient ID: {patient.id.slice(0, 8)}</p>
+              <h2 className="text-2xl font-bold text-green-700">{patient.full_name}</h2>
+              <p className="text-green-600 font-medium">Patient ID: {patient.id.slice(0, 8)}</p>
             </div>
 
             <div className="pt-6 border-t border-slate-100 grid grid-cols-2 gap-4">
-              <div className="text-center p-3 rounded-2xl bg-blue-50/50">
-                <span className="block text-blue-600 font-bold text-lg">{patient.age}</span>
-                <span className="text-[10px] text-blue-400 uppercase tracking-wider font-bold">Age</span>
+              <div className="text-center p-3 rounded-2xl bg-green-50/50">
+                <span className="block text-green-700 font-bold text-lg">{patient.age}</span>
+                <span className="text-[10px] text-green-650 uppercase tracking-wider font-bold">Age</span>
               </div>
-              <div className="text-center p-3 rounded-2xl bg-slate-50">
-                <span className="block text-slate-600 font-bold text-lg capitalize">{patient.gender ? patient.gender.charAt(0) : 'O'}</span>
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Gender</span>
+              <div className="text-center p-3 rounded-2xl bg-green-50">
+                <span className="block text-green-700 font-bold text-lg capitalize">{patient.gender ? patient.gender.charAt(0) : 'O'}</span>
+                <span className="text-[10px] text-green-650 uppercase tracking-wider font-bold">Gender</span>
               </div>
             </div>
 
             <div className="space-y-4 pt-6 text-left">
-              <div className="flex items-center gap-3 text-slate-600">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                  <Phone className="w-4 h-4 text-slate-400" />
+              <div className="flex items-center gap-3 text-green-700">
+                <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
+                  <Phone className="w-4 h-4 text-green-600" />
                 </div>
                 <span className="text-sm font-medium">{patient.phone}</span>
               </div>
-              <div className="flex items-start gap-3 text-slate-600">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                  <MapPin className="w-4 h-4 text-slate-400" />
+              <div className="flex items-start gap-3 text-blue-700">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                  <MapPin className="w-4 h-4 text-blue-650" />
                 </div>
                 <span className="text-sm font-medium leading-relaxed">{patient.address}</span>
               </div>
-              <div className="flex items-start gap-3 text-slate-600">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                  <MapPin className="w-4 h-4 text-slate-400" />
+              <div className="flex items-start gap-3 text-blue-700">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                  <MapPin className="w-4 h-4 text-blue-650" />
                 </div>
                 <span className="text-sm font-medium leading-relaxed">City: {patient.city || 'Karachi'}</span>
               </div>
             </div>
           </div>
 
-          <div className="medical-card p-6 border-l-4 border-l-blue-600 bg-white shadow-sm rounded-2xl">
-            <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
-              <Stethoscope className="w-4 h-4 text-blue-600" />
+          <div className="medical-card p-6 border-l-4 border-l-green-600 bg-white shadow-sm rounded-2xl">
+            <h3 className="text-sm font-semibold text-green-800 mb-4 flex items-center gap-2">
+              <Stethoscope className="w-4 h-4 text-green-600" />
               Attending Surgeon
             </h3>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold">
                 {patient.doctor_name ? patient.doctor_name.charAt(0) : 'D'}
               </div>
               <div>
-                <p className="text-sm font-bold text-slate-900">{patient.doctor_name || 'N/A'}</p>
-                <p className="text-xs text-slate-500">Primary Consultant</p>
+                <p className="text-sm font-bold text-green-700">{patient.doctor_name || 'N/A'}</p>
+                <p className="text-xs text-green-650">Primary Consultant</p>
               </div>
             </div>
           </div>

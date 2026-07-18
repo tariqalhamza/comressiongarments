@@ -2511,13 +2511,17 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
     }
 
     let messageText = `🩺 *CLINICAL ASSESSMENT SUMMARY / خلاصہ طبی معائنہ*\n\n`;
-    messageText += `*👤 PATIENT DETAILS / معلومات مریض*\n`;
-    messageText += `• File ID: *${patient.patientId || 'N/A'}*\n`;
-    messageText += `• Name / نام: *${patient.name || 'N/A'}*\n`;
-    messageText += `• Age / Gender: *${patient.age > 0 ? `${patient.age} Yrs` : 'N/A'} / ${patient.gender || 'N/A'}*\n`;
-    messageText += `• Date / تاریخ: *${patient.date || new Date().toLocaleDateString()}*\n`;
+    messageText += `*👤 PATIENT DETAILS / معلومات مریض* (🟢 *GREEN COLOR GROUP*)\n`;
+    messageText += `🟢 File ID: *${patient.patientId || 'N/A'}*\n`;
+    messageText += `🟢 Name / نام: *${patient.name || 'N/A'}*\n`;
+    if (patient.phone) {
+      messageText += `🟢 Mob No / موبائل: *${patient.phone}*\n`;
+    }
+    messageText += `🟢 Age / Gender: *${patient.age > 0 ? `${patient.age} Yrs` : 'N/A'} / ${patient.gender || 'N/A'}*\n`;
+    messageText += `🟢 Date / تاریخ: *${patient.date || new Date().toLocaleDateString()}*\n`;
     if (patient.address) {
-      messageText += `• Address / پتہ: *${patient.address}*\n`;
+      messageText += `🔵 *ADDRESS / پتہ* (🔵 *BLUE COLOR GROUP*)\n`;
+      messageText += `🔵 Address / پتہ: *${patient.address}*\n`;
     }
     messageText += `\n`;
 
@@ -2549,23 +2553,23 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
       }
     }
 
-    // 1. Doctor's Notes & Case History
+    // 1. Doctor's Notes & Case History (🔴 RED COLOR GROUP)
     if (patient.notes) {
-      messageText += `*🩺 DOCTOR'S NOTES & CASE HISTORY / ڈاکٹر کے نوٹس اور ہسٹری*\n`;
-      messageText += `"${patient.notes}"\n\n`;
+      messageText += `🔴 *🩺 DOCTOR'S NOTES & CASE HISTORY / ڈاکٹر کے نوٹس اور ہسٹری* (🔴 *RED COLOR GROUP*)\n`;
+      messageText += `🔴 "${patient.notes}"\n\n`;
     }
 
     // 2. Garment Configuration Note
     if (garmentNotes) {
-      messageText += `*📝 GARMENT CONFIGURATION NOTE / پیمائش کے نوٹ*\n`;
-      messageText += `"${garmentNotes}"\n\n`;
+      messageText += `🔴 *📝 GARMENT CONFIGURATION NOTE / پیمائش کے نوٹ*\n`;
+      messageText += `🔴 "${garmentNotes}"\n\n`;
     }
 
     // 3. Custom Design Notes
     const customDesignNotes = garment.subOptions?.['Custom Design Notes'];
     if (customDesignNotes) {
-      messageText += `*✍️ CUSTOM DESIGN NOTES / اضافی ڈیزائن نوٹس*\n`;
-      messageText += `"${customDesignNotes}"\n\n`;
+      messageText += `🔴 *✍️ CUSTOM DESIGN NOTES / اضافی ڈیزائن نوٹس*\n`;
+      messageText += `🔴 "${customDesignNotes}"\n\n`;
     }
 
     messageText += `*Generated via Overplast Live Calibration Portal*`;
@@ -3622,42 +3626,42 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-sm">
                           <div>
-                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Patient File ID</p>
-                            <p className="text-sm font-black text-slate-900 font-mono mt-0.5">{patient.patientId || 'N/A'}</p>
+                            <p className="text-[8px] font-black text-green-500 uppercase tracking-wider">Patient File ID</p>
+                            <p className="text-sm font-black text-green-700 font-mono mt-0.5">{patient.patientId || 'N/A'}</p>
                           </div>
                           <div>
-                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Patient Name</p>
-                            <p className="text-sm font-black text-slate-900 mt-0.5">{patient.name || 'N/A'}</p>
+                            <p className="text-[8px] font-black text-green-500 uppercase tracking-wider">Patient Name</p>
+                            <p className="text-sm font-black text-green-700 mt-0.5">{patient.name || 'N/A'}</p>
                           </div>
                           <div>
-                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Age & Gender</p>
-                            <p className="text-sm font-bold text-slate-800 capitalize mt-0.5">
+                            <p className="text-[8px] font-black text-green-500 uppercase tracking-wider">Age & Gender</p>
+                            <p className="text-sm font-bold text-green-700 capitalize mt-0.5">
                               {patient.age > 0 ? `${patient.age} Years` : 'N/A'} / {patient.gender || 'N/A'}
                             </p>
                           </div>
                           <div>
-                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Contact Phone</p>
-                            <p className="text-sm font-bold text-slate-800 mt-0.5 font-mono">{patient.phone || 'N/A'}</p>
+                            <p className="text-[8px] font-black text-green-500 uppercase tracking-wider">Contact Phone</p>
+                            <p className="text-sm font-bold text-green-700 mt-0.5 font-mono">{patient.phone || 'N/A'}</p>
                           </div>
                           <div>
                             <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">City / Location</p>
-                            <p className="text-sm font-bold text-slate-800 mt-0.5">{patient.city || 'N/A'}</p>
+                            <p className="text-sm font-bold text-blue-700 mt-0.5">{patient.city || 'N/A'}</p>
                           </div>
                           <div>
-                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Registration Date</p>
-                            <p className="text-sm font-bold text-slate-800 mt-0.5 font-mono">{patient.date || 'N/A'}</p>
+                            <p className="text-[8px] font-black text-green-500 uppercase tracking-wider">Registration Date</p>
+                            <p className="text-sm font-bold text-green-700 mt-0.5 font-mono">{patient.date || 'N/A'}</p>
                           </div>
                           <div>
-                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Assigned Institution / Hospital</p>
-                            <p className="text-sm font-bold text-slate-800 mt-0.5">{patient.hospitalName || 'N/A'}</p>
+                            <p className="text-[8px] font-black text-green-500 uppercase tracking-wider">Assigned Institution / Hospital</p>
+                            <p className="text-sm font-bold text-green-700 mt-0.5">{patient.hospitalName || 'N/A'}</p>
                           </div>
                           <div>
-                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Referring Doctor</p>
-                            <p className="text-sm font-bold text-slate-800 mt-0.5">{patient.doctorRef || 'N/A'}</p>
+                            <p className="text-[8px] font-black text-green-500 uppercase tracking-wider">Referring Doctor</p>
+                            <p className="text-sm font-bold text-green-700 mt-0.5">{patient.doctorRef || 'N/A'}</p>
                           </div>
                           <div className="sm:col-span-2">
                             <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Home Address</p>
-                            <p className="text-xs font-semibold text-slate-700 mt-0.5 leading-relaxed">{patient.address || 'N/A'}</p>
+                            <p className="text-xs font-semibold text-blue-700 mt-0.5 leading-relaxed">{patient.address || 'N/A'}</p>
                           </div>
                         </div>
                       </div>
@@ -4037,16 +4041,16 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
               
               {/* Patient's Doctor's Notes */}
               <div className="space-y-1">
-                <span className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider block">Doctor's Notes & Case History / ڈاکٹر کے نوٹس</span>
-                <p className="text-xs text-slate-700 font-bold leading-relaxed p-3.5 rounded-xl whitespace-pre-wrap bg-slate-50 border border-slate-100 font-sans">
+                <span className="text-[10px] font-extrabold text-red-600 uppercase tracking-wider block">Doctor's Notes & Case History / ڈاکٹر کے نوٹس</span>
+                <p className="text-xs text-red-700 font-bold leading-relaxed p-3.5 rounded-xl whitespace-pre-wrap bg-red-50/50 border border-red-100 font-sans">
                   {patient.notes || "No Case History Notes registered."}
                 </p>
               </div>
 
               {/* Garment Configuration Notes */}
               <div className="space-y-1">
-                <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Garment Configuration Note / پیمائش کے نوٹ</span>
-                <p className="text-xs text-slate-700 font-bold leading-relaxed p-3.5 rounded-xl whitespace-pre-wrap bg-slate-50 border border-slate-100 font-sans">
+                <span className="text-[10px] font-extrabold text-red-600 uppercase tracking-wider block">Garment Configuration Note / پیمائش کے نوٹ</span>
+                <p className="text-xs text-red-700 font-bold leading-relaxed p-3.5 rounded-xl whitespace-pre-wrap bg-red-50/50 border border-red-100 font-sans">
                   {garmentNotes || "No Garment Configuration Notes added."}
                 </p>
               </div>
@@ -4054,8 +4058,8 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
               {/* Custom Design Notes */}
               {garment.subOptions?.['Custom Design Notes'] && (
                 <div className="space-y-1">
-                  <span className="text-[10px] font-extrabold text-purple-600 uppercase tracking-wider block">Custom Design Notes / اضافی ڈیزائن نوٹس</span>
-                  <p className="text-xs text-slate-700 font-bold leading-relaxed p-3.5 rounded-xl whitespace-pre-wrap bg-slate-50 border border-slate-100 font-sans">
+                  <span className="text-[10px] font-extrabold text-red-600 uppercase tracking-wider block">Custom Design Notes / اضافی ڈیزائن نوٹس</span>
+                  <p className="text-xs text-red-700 font-bold leading-relaxed p-3.5 rounded-xl whitespace-pre-wrap bg-red-50/50 border border-red-100 font-sans">
                     {garment.subOptions['Custom Design Notes']}
                   </p>
                 </div>
