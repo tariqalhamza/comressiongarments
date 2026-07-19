@@ -2504,6 +2504,98 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
     }
   };
 
+  const handleDownloadChatImage = async (elementId: string) => {
+    const reportElement = document.getElementById(elementId);
+    if (!reportElement) {
+      alert("Chat bubble element not found / واٹس ایپ پیغام نہیں ملا");
+      return;
+    }
+
+    const originalInlineStyles = new Map<HTMLElement, string>();
+
+    try {
+      // Apply clean fallback styles for oklch, oklab and color-mix
+      const elementsToConvert = [reportElement, ...Array.from(reportElement.querySelectorAll('*'))] as HTMLElement[];
+      elementsToConvert.forEach((el) => {
+        if (!el.style) return;
+        try {
+          const comp = window.getComputedStyle(el);
+          const stylesToApply: { [key: string]: string } = {};
+
+          const colorProps = [
+            'color', 
+            'backgroundColor', 
+            'borderColor', 
+            'borderTopColor', 
+            'borderRightColor', 
+            'borderBottomColor', 
+            'borderLeftColor', 
+            'fill', 
+            'stroke', 
+            'outlineColor'
+          ];
+          
+          colorProps.forEach((prop) => {
+            const val = (comp as any)[prop];
+            if (val && (val.includes('oklch') || val.includes('oklab') || val.includes('color-mix'))) {
+              const resolved = resolveModernColors(val);
+              stylesToApply[prop] = resolved;
+            }
+          });
+
+          if (Object.keys(stylesToApply).length > 0) {
+            originalInlineStyles.set(el, el.style.cssText);
+            Object.keys(stylesToApply).forEach((prop) => {
+              (el.style as any)[prop] = stylesToApply[prop];
+            });
+          }
+        } catch (e) {
+          console.warn("Inline modern color mapping failed for:", el, e);
+        }
+      });
+
+      // Temporarily expand max-height and overflow to capture full content without scrollbars
+      const origMaxHeight = reportElement.style.maxHeight;
+      const origOverflow = reportElement.style.overflow;
+      const origHeight = reportElement.style.height;
+      originalInlineStyles.set(reportElement, reportElement.style.cssText);
+      
+      reportElement.style.maxHeight = 'none';
+      reportElement.style.height = 'auto';
+      reportElement.style.overflow = 'visible';
+
+      // Give browser brief layout breath
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      const canvas = await html2canvas(reportElement, {
+        scale: 3, // Premium quality crisp render
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#efeae2', // WhatsApp chat screen background color!
+        logging: false,
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const link = document.createElement('a');
+      link.href = imgData;
+      const patientName = (patient.name || 'Clinical').trim().replace(/\s+/g, '_');
+      link.download = `Overplast_WhatsApp_Card_${patientName}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error("Chat Card generation error:", e);
+      alert("Error generating card image. Please try again.");
+    } finally {
+      // Restore original inline styles
+      originalInlineStyles.forEach((originalStyle, el) => {
+        try {
+          el.style.cssText = originalStyle;
+        } catch (err) {}
+      });
+    }
+  };
+
   const handleWhatsAppShare = async () => {
     if (!patient.name) {
       alert("Please ensure patient name is completed before sharing.");
@@ -3618,59 +3710,99 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    <div className="lg:col-span-7 p-8 bg-blue-50/60 rounded-[2.5rem] border border-blue-100/40 space-y-8 flex flex-col justify-between">
+                    {/* Patient Demographics & Info (🟢 GREEN COLOR GROUP) */}
+                    <div className="lg:col-span-7 p-8 bg-emerald-50/50 rounded-[2.5rem] border border-emerald-100 space-y-8 flex flex-col justify-between">
                       <div className="space-y-6">
-                        <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2 border-b border-blue-100 pb-3">
-                          <User className="w-4 h-4" /> Patient Demographics & Info
+                        <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2 border-b border-emerald-100 pb-3">
+                          <User className="w-4 h-4 text-emerald-600" /> Patient Demographics & Info (🟢 GREEN COLOR GROUP)
                         </h4>
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-sm">
                           <div>
-                            <p className="text-[8px] font-black text-green-500 uppercase tracking-wider">Patient File ID</p>
-                            <p className="text-sm font-black text-green-700 font-mono mt-0.5">{patient.patientId || 'N/A'}</p>
+                            <p className="text-[8px] font-black text-emerald-500 uppercase tracking-wider">Patient File ID</p>
+                            <p className="text-sm sm:text-base font-black text-emerald-700 font-mono mt-0.5">{patient.patientId || 'N/A'}</p>
                           </div>
                           <div>
-                            <p className="text-[8px] font-black text-green-500 uppercase tracking-wider">Patient Name</p>
-                            <p className="text-sm font-black text-green-700 mt-0.5">{patient.name || 'N/A'}</p>
+                            <p className="text-[8px] font-black text-emerald-500 uppercase tracking-wider">Patient Name</p>
+                            <p className="text-sm sm:text-base font-black text-emerald-700 mt-0.5">{patient.name || 'N/A'}</p>
                           </div>
                           <div>
-                            <p className="text-[8px] font-black text-green-500 uppercase tracking-wider">Age & Gender</p>
-                            <p className="text-sm font-bold text-green-700 capitalize mt-0.5">
+                            <p className="text-[8px] font-black text-emerald-500 uppercase tracking-wider">Age & Gender</p>
+                            <p className="text-sm sm:text-base font-black text-emerald-700 capitalize mt-0.5">
                               {patient.age > 0 ? `${patient.age} Years` : 'N/A'} / {patient.gender || 'N/A'}
                             </p>
                           </div>
                           <div>
-                            <p className="text-[8px] font-black text-green-500 uppercase tracking-wider">Contact Phone</p>
-                            <p className="text-sm font-bold text-green-700 mt-0.5 font-mono">{patient.phone || 'N/A'}</p>
+                            <p className="text-[8px] font-black text-emerald-500 uppercase tracking-wider">Contact Phone</p>
+                            <p className="text-sm sm:text-base font-black text-emerald-700 mt-0.5 font-mono">{patient.phone || 'N/A'}</p>
                           </div>
                           <div>
-                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">City / Location</p>
-                            <p className="text-sm font-bold text-blue-700 mt-0.5">{patient.city || 'N/A'}</p>
+                            <p className="text-[8px] font-black text-emerald-500 uppercase tracking-wider">Registration Date</p>
+                            <p className="text-sm sm:text-base font-black text-emerald-700 mt-0.5 font-mono">{patient.date || 'N/A'}</p>
                           </div>
                           <div>
-                            <p className="text-[8px] font-black text-green-500 uppercase tracking-wider">Registration Date</p>
-                            <p className="text-sm font-bold text-green-700 mt-0.5 font-mono">{patient.date || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <p className="text-[8px] font-black text-green-500 uppercase tracking-wider">Assigned Institution / Hospital</p>
-                            <p className="text-sm font-bold text-green-700 mt-0.5">{patient.hospitalName || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <p className="text-[8px] font-black text-green-500 uppercase tracking-wider">Referring Doctor</p>
-                            <p className="text-sm font-bold text-green-700 mt-0.5">{patient.doctorRef || 'N/A'}</p>
+                            <p className="text-[8px] font-black text-emerald-500 uppercase tracking-wider">Assigned Institution / Hospital</p>
+                            <p className="text-sm sm:text-base font-black text-emerald-700 mt-0.5">{patient.hospitalName || 'N/A'}</p>
                           </div>
                           <div className="sm:col-span-2">
-                            <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Home Address</p>
-                            <p className="text-xs font-semibold text-blue-700 mt-0.5 leading-relaxed">{patient.address || 'N/A'}</p>
+                            <p className="text-[8px] font-black text-emerald-500 uppercase tracking-wider">Referring Doctor</p>
+                            <p className="text-sm sm:text-base font-black text-emerald-700 mt-0.5">{patient.doctorRef || 'N/A'}</p>
                           </div>
+
+                          {/* Address Info (🔵 BLUE COLOR GROUP) */}
+                          <div className="sm:col-span-2 bg-blue-50/60 p-4 rounded-2xl border border-blue-100 space-y-3.5">
+                            <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest border-b border-blue-100/50 pb-1.5">
+                              Address / پتہ (🔵 BLUE COLOR GROUP)
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div>
+                                <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">City / Location</p>
+                                <p className="text-xs sm:text-sm font-extrabold text-blue-700 mt-0.5">{patient.city || 'N/A'}</p>
+                              </div>
+                              <div>
+                                <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">Home Address</p>
+                                <p className="text-xs sm:text-sm font-extrabold text-blue-700 mt-0.5 leading-relaxed">{patient.address || 'N/A'}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Doctor & Garment Configuration Notes (🔴 RED COLOR GROUP) */}
+                          {(patient.notes || garmentNotes || garment.subOptions?.['Custom Design Notes']) && (
+                            <div className="sm:col-span-2 bg-red-50/60 p-4 rounded-2xl border border-red-100 space-y-3.5">
+                              <p className="text-[9px] font-black text-red-600 uppercase tracking-widest border-b border-red-100/50 pb-1.5">
+                                Notes & Case History / ضروری ہدایات (🔴 RED COLOR GROUP)
+                              </p>
+                              <div className="space-y-3">
+                                {patient.notes && (
+                                  <div>
+                                    <p className="text-[8px] font-black text-red-400 uppercase tracking-wider">Doctor Notes & Case History</p>
+                                    <p className="text-xs sm:text-sm font-extrabold text-red-700 mt-0.5 leading-relaxed bg-white/45 p-2 rounded-xl border border-red-100/20 whitespace-pre-wrap">{patient.notes}</p>
+                                  </div>
+                                )}
+                                {garmentNotes && (
+                                  <div>
+                                    <p className="text-[8px] font-black text-red-400 uppercase tracking-wider">Garment Configuration Note</p>
+                                    <p className="text-xs sm:text-sm font-extrabold text-red-700 mt-0.5 leading-relaxed bg-white/45 p-2 rounded-xl border border-red-100/20 whitespace-pre-wrap">{garmentNotes}</p>
+                                  </div>
+                                )}
+                                {garment.subOptions?.['Custom Design Notes'] && (
+                                  <div>
+                                    <p className="text-[8px] font-black text-red-400 uppercase tracking-wider">Custom Design Notes</p>
+                                    <p className="text-xs sm:text-sm font-extrabold text-red-700 mt-0.5 leading-relaxed bg-white/45 p-2 rounded-xl border border-red-100/20 whitespace-pre-wrap">{garment.subOptions['Custom Design Notes']}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
                         </div>
                       </div>
 
                       {/* Patient Uploaded Clinical Image Display */}
                       {photos && photos.length > 0 && (
-                        <div className="pt-6 border-t border-blue-100/60 space-y-3">
-                          <p className="text-[9px] font-black text-blue-500 uppercase tracking-wider">Uploaded Clinical Patient Photo</p>
-                          <div className="relative group w-full max-w-sm rounded-[2rem] overflow-hidden border border-blue-200/60 bg-white p-2.5 shadow-sm transition-all hover:shadow-md">
+                        <div className="pt-6 border-t border-emerald-100 space-y-3">
+                          <p className="text-[9px] font-black text-emerald-600 uppercase tracking-wider">Uploaded Clinical Patient Photo</p>
+                          <div className="relative group w-full max-w-sm rounded-[2rem] overflow-hidden border border-emerald-200/60 bg-white p-2.5 shadow-sm transition-all hover:shadow-md">
                             <img 
                               src={photos[photos.length - 1]} 
                               alt="Clinical Measurement Snapshot" 
@@ -3696,7 +3828,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
 
                     {/* Right Column: Compression and Specification verification */}
                     <div className="lg:col-span-5 space-y-8 flex flex-col justify-between">
-                      <div className="p-8 bg-purple-50 rounded-[2.5rem] space-y-6">
+                      <div className="p-8 bg-purple-50 rounded-[2.5rem] space-y-6 border border-purple-100/40">
                         <h4 className="text-[10px] font-black text-purple-600 uppercase tracking-widest flex items-center gap-2 border-b border-purple-100 pb-3">
                           <FileText className="w-3 h-3" /> Clinical & Compression Specs
                         </h4>
@@ -3729,7 +3861,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                         </div>
                       </div>
 
-                      <div className="p-8 bg-emerald-50 rounded-[2.5rem] space-y-6">
+                      <div className="p-8 bg-emerald-50 rounded-[2.5rem] space-y-6 border border-emerald-100/40">
                         <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2 border-b border-emerald-100 pb-3">
                           <Activity className="w-3 h-3" /> Specification Matrix
                         </h4>
@@ -3747,6 +3879,133 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                           <div>
                             <p className="text-[8px] font-black text-emerald-300 uppercase">Status</p>
                             <p className="text-sm font-black text-emerald-600 mt-0.5">Calibration & Diagnostics Verified</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Live WhatsApp Message Template Preview */}
+                    <div className="lg:col-span-12 bg-slate-50 border border-slate-200 p-6 sm:p-8 rounded-[2.5rem] space-y-6 shadow-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center font-bold shadow-sm">
+                            <svg className="w-5 h-5 fill-current text-emerald-600" viewBox="0 0 24 24">
+                              <path d="M12.012 2c-5.506 0-9.988 4.475-9.988 9.977 0 1.764.46 3.42 1.258 4.876L2 22l5.3-1.383c1.4.764 2.99 1.192 4.697 1.192 5.508 0 9.99-4.476 9.99-9.982C22.012 6.477 17.525 2 12.012 2zm6.39 14.125c-.262.733-1.528 1.343-2.112 1.404-.567.06-1.12.23-3.626-.8-3.208-1.32-5.282-4.578-5.442-4.793-.16-.214-1.288-1.705-1.288-3.253 0-1.548.814-2.31 1.103-2.613.29-.304.633-.38.844-.38.21 0 .422.003.606.012.193.008.455-.074.71.554.264.65.903 2.192.98 2.348.08.156.133.338.028.544-.105.206-.16.333-.316.516-.156.182-.327.406-.467.545-.154.153-.314.32-.136.623.18.303.8 1.3 1.714 2.113.117.104.225.21.32.31.78.825 1.454 1.053 1.768 1.185.314.133.5.112.686-.098.187-.21.802-.93.1017-1.246.216-.317.433-.266.727-.156.294.11 1.86.877 2.177 1.033.317.156.527.23.605.367.078.136.078.79-.184 1.523z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">Live WhatsApp Message Template Preview / واٹس ایپ پیغام کا خاکہ</h4>
+                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-0.5">High-Fidelity Realtime Sizing Representation</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-xl uppercase tracking-widest border border-emerald-100">READY TO SEND</span>
+                        </div>
+                      </div>
+
+                      <div id="whatsapp-chat-bubble-new" className="flex justify-center bg-[#efeae2] rounded-[1.8rem] p-4 sm:p-6 border border-slate-200 max-h-[480px] overflow-y-auto shadow-inner relative" style={{ backgroundImage: 'radial-gradient(#dfd9d0 1.2px, transparent 1.2px)', backgroundSize: '16px 16px' }}>
+                        {/* WhatsApp Chat Bubble */}
+                        <div className="w-full max-w-lg bg-[#d9fdd3] rounded-2xl rounded-tr-none p-5 shadow-md border border-[#c1e2b8] relative text-xs text-slate-800 leading-relaxed font-sans">
+                          {/* Chat bubble pointer */}
+                          <div className="absolute right-0 top-0 w-3 h-3 bg-[#d9fdd3] border-t border-r border-[#c1e2b8]" style={{ transform: 'translateX(4px) rotate(45deg)', transformOrigin: 'top left', clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
+
+                          {/* Message Header */}
+                          <p className="font-extrabold text-slate-900 border-b border-[#c1e2b8] pb-2 mb-3 text-[11px] sm:text-xs">
+                            🩺 *CLINICAL ASSESSMENT SUMMARY / خلاصہ طبی معائنہ*
+                          </p>
+
+                          {/* Patient Details (🟢 GREEN COLOR GROUP) */}
+                          <div className="text-emerald-700 bg-emerald-50/70 p-3 rounded-xl border border-emerald-100 mb-3 space-y-1.5">
+                            <p className="font-black uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-emerald-200/50 pb-1 mb-1">
+                              *👤 PATIENT DETAILS / معلومات مریض* (🟢 *GREEN COLOR GROUP*)
+                            </p>
+                            <p className="font-black text-xs sm:text-sm">🟢 File ID: *<span className="underline">{patient.patientId || 'N/A'}</span>*</p>
+                            <p className="font-black text-xs sm:text-sm">🟢 Name / نام: *<span className="underline">{patient.name || 'N/A'}</span>*</p>
+                            {patient.phone && <p className="font-black text-xs sm:text-sm">🟢 Mob No / موبائل: *<span>{patient.phone}</span>*</p>}
+                            <p className="font-black text-xs sm:text-sm">🟢 Age / Gender: *<span>{patient.age > 0 ? `${patient.age} Yrs` : 'N/A'} / {patient.gender || 'N/A'}</span>*</p>
+                            <p className="font-black text-xs sm:text-sm">🟢 Date / تاریخ: *<span>{patient.date || new Date().toLocaleDateString()}</span>*</p>
+                          </div>
+
+                          {/* Address Details (🔵 BLUE COLOR GROUP) */}
+                          {patient.address && (
+                            <div className="text-blue-700 bg-blue-50/70 p-3 rounded-xl border border-blue-100 mb-3 space-y-1.5">
+                              <p className="font-black uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-blue-200/50 pb-1 mb-1">
+                                *🔵 ADDRESS / پتہ* (🔵 *BLUE COLOR GROUP*)
+                              </p>
+                              <p className="font-black text-xs sm:text-sm">🔵 Address / پتہ: *<span>{patient.address}</span>*</p>
+                            </div>
+                          )}
+
+                          {/* Garment Configuration */}
+                          <div className="mb-3 space-y-1 p-3 bg-white/40 rounded-xl border border-slate-200/50">
+                            <p className="font-black text-slate-900 uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-slate-200 pb-1 mb-1">
+                              *📦 GARMENT CONFIGURATION / گارمنٹ کنفیگریشن*
+                            </p>
+                            <p className="font-extrabold text-slate-800 text-xs">• Garment Type: *<span className="font-black text-slate-900">{garment.type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (garment.type || 'N/A')}</span>*</p>
+                            <p className="font-extrabold text-slate-800 text-xs">• Silicone Option: *<span className="font-black text-slate-900">{garment.siliconePasting || 'N/A'}</span>*</p>
+                            <p className="font-extrabold text-slate-800 text-xs">• Compression Force: *<span className="font-black text-slate-900">{garment.compression || 'N/A'}</span>*</p>
+                          </div>
+
+                          {/* Core Measurements */}
+                          {measurements.filter(m => m.value && m.value.trim() !== '').length > 0 && (
+                            <div className="mb-3 space-y-1 p-3 bg-white/40 rounded-xl border border-slate-200/50">
+                              <p className="font-black text-slate-900 uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-slate-200 pb-1 mb-1">
+                                *📐 CORE MEASUREMENTS / پیمائش*
+                              </p>
+                              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                                {measurements.filter(m => m.value && m.value.trim() !== '').map(m => (
+                                  <p key={m.id} className="font-bold text-slate-800 text-xs">• {m.label}: *<span className="font-black text-slate-900">{m.value}</span>*</p>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Custom Design Options */}
+                          {garment.subOptions && Object.entries(garment.subOptions).filter(([key, val]) => key !== 'Custom Design Notes' && key !== 'doctorNotes' && typeof val === 'string' && val.trim() !== '').length > 0 && (
+                            <div className="mb-3 space-y-1 p-3 bg-white/40 rounded-xl border border-slate-200/50">
+                              <p className="font-black text-slate-900 uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-slate-200 pb-1 mb-1">
+                                *✍️ CUSTOM DESIGN OPTIONS / اضافی تفصیلات*
+                              </p>
+                              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                                {Object.entries(garment.subOptions).filter(([key, val]) => key !== 'Custom Design Notes' && key !== 'doctorNotes' && typeof val === 'string' && val.trim() !== '').map(([key, val]) => (
+                                  <p key={key} className="font-bold text-slate-800 text-xs">• {key}: *<span className="font-black text-slate-900">{val}</span>*</p>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Notes (🔴 RED COLOR GROUP) */}
+                          {(patient.notes || garmentNotes || garment.subOptions?.['Custom Design Notes']) && (
+                            <div className="text-red-700 bg-red-50/70 p-3 rounded-xl border border-red-100 mb-1 space-y-2.5">
+                              <p className="font-black uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-red-200 pb-1 mb-1">
+                                *🔴 🩺 NOTES & CASE HISTORY / نوٹس اور ہسٹری* (🔴 *RED COLOR GROUP*)
+                              </p>
+                              {patient.notes && (
+                                <div className="space-y-0.5">
+                                  <p className="font-black text-[9px] sm:text-[10px] uppercase text-rose-650">*🩺 Doctor's Notes & Case History:*</p>
+                                  <p className="font-black text-xs sm:text-sm italic">🔴 "*"{patient.notes}"*"</p>
+                                </div>
+                              )}
+                              {garmentNotes && (
+                                <div className="space-y-0.5 border-t border-rose-200/30 pt-1.5">
+                                  <p className="font-black text-[9px] sm:text-[10px] uppercase text-rose-650">*📝 Garment Configuration Note:*</p>
+                                  <p className="font-black text-xs sm:text-sm italic">🔴 "*"{garmentNotes}"*"</p>
+                                </div>
+                              )}
+                              {garment.subOptions?.['Custom Design Notes'] && (
+                                <div className="space-y-0.5 border-t border-rose-200/30 pt-1.5">
+                                  <p className="font-black text-[9px] sm:text-[10px] uppercase text-rose-650">*✍️ Custom Design Notes:*</p>
+                                  <p className="font-black text-xs sm:text-sm italic">🔴 "*"{garment.subOptions['Custom Design Notes']}"*"</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Bubble Footer */}
+                          <div className="flex items-center justify-end gap-1 text-[8.5px] text-slate-500 font-bold uppercase mt-2.5 select-none border-t border-[#c1e2b8]/50 pt-1.5">
+                            <span>*Generated via Overplast Live Calibration Portal*</span>
+                            <span className="text-[7.5px] text-slate-400 font-medium font-mono">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="text-blue-500 font-black">✓✓</span>
                           </div>
                         </div>
                       </div>
@@ -3776,6 +4035,16 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                           <path d="M12.012 2c-5.506 0-9.988 4.475-9.988 9.977 0 1.764.46 3.42 1.258 4.876L2 22l5.3-1.383c1.4.764 2.99 1.192 4.697 1.192 5.508 0 9.99-4.476 9.99-9.982C22.012 6.477 17.525 2 12.012 2zm6.39 14.125c-.262.733-1.528 1.343-2.112 1.404-.567.06-1.12.23-3.626-.8-3.208-1.32-5.282-4.578-5.442-4.793-.16-.214-1.288-1.705-1.288-3.253 0-1.548.814-2.31 1.103-2.613.29-.304.633-.38.844-.38.21 0 .422.003.606.012.193.008.455-.074.71.554.264.65.903 2.192.98 2.348.08.156.133.338.028.544-.105.206-.16.333-.316.516-.156.182-.327.406-.467.545-.154.153-.314.32-.136.623.18.303.8 1.3 1.714 2.113.117.104.225.21.32.31.78.825 1.454 1.053 1.768 1.185.314.133.5.112.686-.098.187-.21.802-.93.1017-1.246.216-.317.433-.266.727-.156.294.11 1.86.877 2.177 1.033.317.156.527.23.605.367.078.136.078.79-.184 1.523z" />
                         </svg>
                         SHARE ON WHATSAPP / واٹس ایپ
+                      </button>
+                    )}
+
+                    {isAdmin && (
+                      <button 
+                        onClick={() => handleDownloadChatImage('whatsapp-chat-bubble-new')}
+                        className="btn-primary px-5 py-4 sm:px-10 sm:py-6 text-xs sm:text-base flex items-center justify-center gap-2 sm:gap-4 bg-purple-600 hover:bg-purple-700 shadow-2xl hover:scale-105 transition-transform w-full sm:w-auto text-white"
+                      >
+                        <Download className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
+                        COLOR CARD / رنگین کارڈ
                       </button>
                     )}
 

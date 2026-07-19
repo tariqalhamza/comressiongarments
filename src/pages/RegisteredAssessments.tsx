@@ -20,6 +20,7 @@ import html2canvas from 'html2canvas';
 import { cn } from '../lib/utils';
 import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.png';
 import { useAuthStore } from '../services/authStore';
+import { GARMENT_FIELDS } from './ClinicalAssessment';
 
 interface RegisteredAssessment {
   id: string;
@@ -1008,6 +1009,98 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
       pdf.save(filename);
     } catch (e) {
       console.error("PDF generation error:", e);
+    } finally {
+      // Restore original inline styles
+      originalInlineStyles.forEach((originalStyle, el) => {
+        try {
+          el.style.cssText = originalStyle;
+        } catch (err) {}
+      });
+    }
+  };
+
+  const handleDownloadChatImage = async (assessment: RegisteredAssessment, elementId: string) => {
+    const reportElement = document.getElementById(elementId);
+    if (!reportElement) {
+      alert("Chat bubble element not found / واٹس ایپ پیغام نہیں ملا");
+      return;
+    }
+
+    const originalInlineStyles = new Map<HTMLElement, string>();
+
+    try {
+      // Apply clean fallback styles for oklch, oklab and color-mix
+      const elementsToConvert = [reportElement, ...Array.from(reportElement.querySelectorAll('*'))] as HTMLElement[];
+      elementsToConvert.forEach((el) => {
+        if (!el.style) return;
+        try {
+          const comp = window.getComputedStyle(el);
+          const stylesToApply: { [key: string]: string } = {};
+
+          const colorProps = [
+            'color', 
+            'backgroundColor', 
+            'borderColor', 
+            'borderTopColor', 
+            'borderRightColor', 
+            'borderBottomColor', 
+            'borderLeftColor', 
+            'fill', 
+            'stroke', 
+            'outlineColor'
+          ];
+          
+          colorProps.forEach((prop) => {
+            const val = (comp as any)[prop];
+            if (val && (val.includes('oklch') || val.includes('oklab') || val.includes('color-mix'))) {
+              const resolved = resolveModernColors(val);
+              stylesToApply[prop] = resolved;
+            }
+          });
+
+          if (Object.keys(stylesToApply).length > 0) {
+            originalInlineStyles.set(el, el.style.cssText);
+            Object.keys(stylesToApply).forEach((prop) => {
+              (el.style as any)[prop] = stylesToApply[prop];
+            });
+          }
+        } catch (e) {
+          console.warn("Inline modern color mapping failed for:", el, e);
+        }
+      });
+
+      // Temporarily expand max-height and overflow to capture full content without scrollbars
+      const origMaxHeight = reportElement.style.maxHeight;
+      const origOverflow = reportElement.style.overflow;
+      const origHeight = reportElement.style.height;
+      originalInlineStyles.set(reportElement, reportElement.style.cssText);
+      
+      reportElement.style.maxHeight = 'none';
+      reportElement.style.height = 'auto';
+      reportElement.style.overflow = 'visible';
+
+      // Give browser brief layout breath
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      const canvas = await html2canvas(reportElement, {
+        scale: 3, // Premium quality crisp render
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#efeae2', // WhatsApp chat screen background color!
+        logging: false,
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const link = document.createElement('a');
+      link.href = imgData;
+      const patientName = assessment.patient_name.trim().replace(/\s+/g, '_');
+      link.download = `Overplast_WhatsApp_Card_${patientName}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error("Chat Card generation error:", e);
+      alert("Error generating card image. Please try again.");
     } finally {
       // Restore original inline styles
       originalInlineStyles.forEach((originalStyle, el) => {
@@ -2401,9 +2494,9 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                 >
                   <div className="flex items-center justify-between border-b border-slate-100 pb-5">
                     <div>
-                      <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2.5 py-1 rounded-xl uppercase tracking-widest">Live Record Verified</span>
-                      <h3 className="text-xl font-black text-slate-900 tracking-tight mt-2">{selectedAssessment.patient_name}</h3>
-                      <p className="text-slate-500 text-xs font-semibold font-mono mt-1">🆔 File ID: {selectedAssessment.id}</p>
+                      <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-xl uppercase tracking-widest">Live Record Verified (🟢)</span>
+                      <h3 className="text-xl font-black text-emerald-800 tracking-tight mt-2">{selectedAssessment.patient_name}</h3>
+                      <p className="text-emerald-600 text-xs font-extrabold font-mono mt-1">🆔 File ID: {selectedAssessment.id}</p>
                     </div>
                     
                     <button 
@@ -2454,19 +2547,19 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                     );
                   })()}
 
-                  {/* Patient Demographics */}
-                  <div className="grid grid-cols-3 gap-3 bg-blue-50/50 p-3.5 rounded-3xl border border-blue-50">
-                    <div className="text-center p-2 bg-white rounded-2xl shadow-sm border border-slate-50/60">
-                      <span className="text-[8px] font-black text-slate-400 uppercase block tracking-widest leading-none mb-1">Age / عمر</span>
-                      <span className="font-extrabold text-blue-900 text-xs block">{selectedAssessment.age ? `${selectedAssessment.age} Yrs` : 'N/A'}</span>
+                  {/* Patient Demographics (🟢 GREEN COLOR GROUP) */}
+                  <div className="grid grid-cols-3 gap-3 bg-emerald-50/50 p-3.5 rounded-3xl border border-emerald-100/50">
+                    <div className="text-center p-2 bg-white rounded-2xl shadow-sm border border-emerald-50">
+                      <span className="text-[8px] font-black text-emerald-500 uppercase block tracking-widest leading-none mb-1">Age / عمر</span>
+                      <span className="font-black text-emerald-750 text-xs block">{selectedAssessment.age ? `${selectedAssessment.age} Yrs` : 'N/A'}</span>
                     </div>
-                    <div className="text-center p-2 bg-white rounded-2xl shadow-sm border border-slate-50/60">
-                      <span className="text-[8px] font-black text-slate-400 uppercase block tracking-widest leading-none mb-1">Gender / جنس</span>
-                      <span className="font-extrabold text-blue-900 text-xs block uppercase">{selectedAssessment.gender || 'N/A'}</span>
+                    <div className="text-center p-2 bg-white rounded-2xl shadow-sm border border-emerald-50">
+                      <span className="text-[8px] font-black text-emerald-500 uppercase block tracking-widest leading-none mb-1">Gender / جنس</span>
+                      <span className="font-black text-emerald-750 text-xs block uppercase">{selectedAssessment.gender || 'N/A'}</span>
                     </div>
-                    <div className="text-center p-2 bg-white rounded-2xl shadow-sm border border-slate-50/60">
-                      <span className="text-[8px] font-black text-slate-400 uppercase block tracking-widest leading-none mb-1">City / شہر</span>
-                      <span className="font-extrabold text-blue-900 text-xs block truncate uppercase">{selectedAssessment.city || 'N/A'}</span>
+                    <div className="text-center p-2 bg-white rounded-2xl shadow-sm border border-emerald-50">
+                      <span className="text-[8px] font-black text-emerald-500 uppercase block tracking-widest leading-none mb-1">City / شہر</span>
+                      <span className="font-black text-emerald-750 text-xs block truncate uppercase">{selectedAssessment.city || 'N/A'}</span>
                     </div>
                   </div>
 
@@ -2536,33 +2629,180 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                     </div>
                   )}
 
-                  {/* Notes snippet */}
+                  {/* Notes snippet (🔴 RED COLOR GROUP) */}
                   <div className="space-y-3">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Clinical & Configuration Notes / ضروری ہدایات</span>
-                    <div className="space-y-3 bg-slate-50/40 border border-slate-100/50 p-4 rounded-2xl max-h-[160px] overflow-y-auto">
+                    <span className="text-[9px] font-black text-red-500 uppercase tracking-widest block">Clinical & Configuration Notes / ضروری ہدایات (🔴 RED COLOR GROUP)</span>
+                    <div className="space-y-3 bg-red-50/40 border border-red-100 p-4 rounded-2xl max-h-[160px] overflow-y-auto">
                       {getAssessmentDoctorNotes(selectedAssessment) && (
                         <div className="space-y-1">
-                          <span className="text-[9px] font-black text-blue-650 uppercase tracking-widest block">Doctor Notes / ڈاکٹر نوٹس</span>
-                          <p className="text-xs text-slate-700 font-bold whitespace-pre-wrap font-sans">{getAssessmentDoctorNotes(selectedAssessment)}</p>
+                          <span className="text-[9px] font-black text-red-600 uppercase tracking-widest block">Doctor Notes / ڈاکٹر نوٹس</span>
+                          <p className="text-xs text-red-700 font-extrabold whitespace-pre-wrap font-sans bg-white/45 p-2 rounded-xl border border-red-100/20">{getAssessmentDoctorNotes(selectedAssessment)}</p>
                         </div>
                       )}
                       {selectedAssessment.notes && (
-                        <div className={`space-y-1 ${getAssessmentDoctorNotes(selectedAssessment) ? 'pt-2.5 border-t border-slate-100' : ''}`}>
-                          <span className="text-[9px] font-black text-indigo-650 uppercase tracking-widest block">Garment Configuration Note / پیمائش کے نوٹ</span>
-                          <p className="text-xs text-slate-700 font-bold whitespace-pre-wrap font-sans">{selectedAssessment.notes}</p>
+                        <div className={`space-y-1 ${getAssessmentDoctorNotes(selectedAssessment) ? 'pt-2.5 border-t border-red-100/40' : ''}`}>
+                          <span className="text-[9px] font-black text-red-600 uppercase tracking-widest block">Garment Configuration Note / پیمائش کے نوٹ</span>
+                          <p className="text-xs text-red-700 font-extrabold whitespace-pre-wrap font-sans bg-white/45 p-2 rounded-xl border border-red-100/20">{selectedAssessment.notes}</p>
                         </div>
                       )}
                       {selectedAssessment.sub_options?.['Custom Design Notes'] && (
-                        <div className={`space-y-1 ${(getAssessmentDoctorNotes(selectedAssessment) || selectedAssessment.notes) ? 'pt-2.5 border-t border-slate-100' : ''}`}>
-                          <span className="text-[9px] font-black text-purple-650 uppercase tracking-widest block">Custom Design Notes / ڈیزائن نوٹس</span>
-                          <p className="text-xs text-slate-700 font-bold whitespace-pre-wrap font-sans">{selectedAssessment.sub_options['Custom Design Notes']}</p>
+                        <div className={`space-y-1 ${(getAssessmentDoctorNotes(selectedAssessment) || selectedAssessment.notes) ? 'pt-2.5 border-t border-red-100/40' : ''}`}>
+                          <span className="text-[9px] font-black text-red-600 uppercase tracking-widest block">Custom Design Notes / ڈیزائن نوٹس</span>
+                          <p className="text-xs text-red-700 font-extrabold whitespace-pre-wrap font-sans bg-white/45 p-2 rounded-xl border border-red-100/20">{selectedAssessment.sub_options['Custom Design Notes']}</p>
                         </div>
                       )}
                       {!getAssessmentDoctorNotes(selectedAssessment) && !selectedAssessment.notes && !selectedAssessment.sub_options?.['Custom Design Notes'] && (
-                        <p className="text-xs text-slate-400 italic">No notes recorded.</p>
+                        <p className="text-xs text-red-400 italic">No notes recorded.</p>
                       )}
                     </div>
                   </div>
+
+                  {/* Live WhatsApp Message Template Preview */}
+                  {(() => {
+                    const nameKey = selectedAssessment.patient_name?.toLowerCase().trim();
+                    const idKey = selectedAssessment.patient_id;
+                    const resolvedPhone = (nameKey && patientPhones[nameKey]) || (idKey && patientPhones[idKey]) || '';
+                    const resolvedAddress = (nameKey && patientAddresses[nameKey]) || (idKey && patientAddresses[idKey]) || selectedAssessment.city || 'N/A';
+                    const resolvedDoctorNotes = selectedAssessment.sub_options?.doctorNotes || (nameKey && patientNotes[nameKey]) || (idKey && patientNotes[idKey]) || '';
+
+                    // Get spec matrix fields
+                    const fields = GARMENT_FIELDS[selectedAssessment.garment_type] || [];
+                    const coreMeasurements = Object.entries(selectedAssessment.sub_options || {})
+                      .filter(([key, val]) => {
+                        const lowerKey = key.toLowerCase();
+                        return fields.some(f => f.id.toLowerCase() === lowerKey || f.label.toLowerCase() === lowerKey) && val !== undefined && String(val).trim() !== '';
+                      });
+
+                    const customOptions = Object.entries(selectedAssessment.sub_options || {})
+                      .filter(([key, val]) => {
+                        const lowerKey = key.toLowerCase();
+                        const isField = fields.some(f => f.id.toLowerCase() === lowerKey || f.label.toLowerCase() === lowerKey);
+                        return !isField && 
+                          key !== 'Custom Design Notes' && 
+                          key !== 'doctorNotes' && 
+                          key !== 'Hand Selection' && 
+                          typeof val === 'string' && 
+                          val.trim() !== '';
+                      });
+
+                    return (
+                      <div className="bg-slate-50 border border-slate-200 p-4 sm:p-5 rounded-3xl space-y-4 shadow-sm">
+                        <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
+                          <div className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center font-bold">
+                            <svg className="w-4 h-4 fill-current text-emerald-600" viewBox="0 0 24 24">
+                              <path d="M12.012 2c-5.506 0-9.988 4.475-9.988 9.977 0 1.764.46 3.42 1.258 4.876L2 22l5.3-1.383c1.4.764 2.99 1.192 4.697 1.192 5.508 0 9.99-4.476 9.99-9.982C22.012 6.477 17.525 2 12.012 2zm6.39 14.125c-.262.733-1.528 1.343-2.112 1.404-.567.06-1.12.23-3.626-.8-3.208-1.32-5.282-4.578-5.442-4.793-.16-.214-1.288-1.705-1.288-3.253 0-1.548.814-2.31 1.103-2.613.29-.304.633-.38.844-.38.21 0 .422.003.606.012.193.008.455-.074.71.554.264.65.903 2.192.98 2.348.08.156.133.338.028.544-.105.206-.16.333-.316.516-.156.182-.327.406-.467.545-.154.153-.314.32-.136.623.18.303.8 1.3 1.714 2.113.117.104.225.21.32.31.78.825 1.454 1.053 1.768 1.185.314.133.5.112.686-.098.187-.21.802-.93.1017-1.246.216-.317.433-.266.727-.156.294.11 1.86.877 2.177 1.033.317.156.527.23.605.367.078.136.078.79-.184 1.523z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Live WhatsApp Message Preview / واٹس ایپ پیغام</h4>
+                          </div>
+                        </div>
+
+                        <div id={`registered-chat-bubble-container-${selectedAssessment.id}`} className="flex justify-center bg-[#efeae2] rounded-2xl p-3 sm:p-4 border border-slate-200 max-h-[360px] overflow-y-auto shadow-inner relative" style={{ backgroundImage: 'radial-gradient(#dfd9d0 1.2px, transparent 1.2px)', backgroundSize: '16px 16px' }}>
+                          <div className="w-full bg-[#d9fdd3] rounded-xl rounded-tr-none p-4 shadow-sm border border-[#c1e2b8] relative text-[11px] text-slate-800 leading-relaxed font-sans">
+                            <div className="absolute right-0 top-0 w-2.5 h-2.5 bg-[#d9fdd3] border-t border-r border-[#c1e2b8]" style={{ transform: 'translateX(3px) rotate(45deg)', transformOrigin: 'top left', clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
+
+                            <p className="font-extrabold text-slate-900 border-b border-[#c1e2b8] pb-1.5 mb-2 text-[10px] sm:text-[11px]">
+                              🩺 *CLINICAL ASSESSMENT SUMMARY / خلاصہ طبی معائنہ*
+                            </p>
+
+                            {/* Patient Details (🟢 GREEN COLOR GROUP) */}
+                            <div className="text-emerald-700 bg-emerald-50/70 p-2 rounded-lg border border-emerald-100 mb-2 space-y-1">
+                              <p className="font-black uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-emerald-200/50 pb-0.5 mb-0.5">
+                                *👤 PATIENT DETAILS / معلومات مریض* (🟢 *GREEN COLOR GROUP*)
+                              </p>
+                              <p className="font-black">🟢 File ID: *<span className="underline">{selectedAssessment.id}</span>*</p>
+                              <p className="font-black">🟢 Name / نام: *<span className="underline">{selectedAssessment.patient_name}</span>*</p>
+                              {resolvedPhone && <p className="font-black">🟢 Mob No / موبائل: *<span>{resolvedPhone}</span>*</p>}
+                              <p className="font-black">🟢 Age / Gender: *<span>{selectedAssessment.age ? `${selectedAssessment.age} Yrs` : 'N/A'} / {selectedAssessment.gender || 'N/A'}</span>*</p>
+                              <p className="font-black">🟢 Date / تاریخ: *<span>{new Date(selectedAssessment.created_at).toLocaleDateString()}</span>*</p>
+                            </div>
+
+                            {/* Address Details (🔵 BLUE COLOR GROUP) */}
+                            {resolvedAddress && (
+                              <div className="text-blue-700 bg-blue-50/70 p-2 rounded-lg border border-blue-100 mb-2 space-y-1">
+                                <p className="font-black uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-blue-200/50 pb-0.5 mb-0.5">
+                                  *🔵 ADDRESS / پتہ* (🔵 *BLUE COLOR GROUP*)
+                                </p>
+                                <p className="font-black">🔵 Address / پتہ: *<span>{resolvedAddress}</span>*</p>
+                              </div>
+                            )}
+
+                            {/* Garment Configuration */}
+                            <div className="mb-2 space-y-1 p-2 bg-white/40 rounded-lg border border-slate-200/50">
+                              <p className="font-black text-slate-900 uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-slate-200 pb-0.5 mb-0.5">
+                                *📦 GARMENT CONFIGURATION / گارمنٹ کنفیگریشن*
+                              </p>
+                              <p className="font-extrabold text-slate-800">• Garment Type: *<span className="font-black text-slate-900">{selectedAssessment.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : selectedAssessment.garment_type}</span>*</p>
+                              <p className="font-extrabold text-slate-800">• Silicone Option: *<span className="font-black text-slate-900">{selectedAssessment.silicone_pasting}</span>*</p>
+                              <p className="font-extrabold text-slate-800">• Compression Force: *<span className="font-black text-slate-900">{selectedAssessment.compression}</span>*</p>
+                            </div>
+
+                            {/* Core Measurements */}
+                            {coreMeasurements.length > 0 && (
+                              <div className="mb-2 space-y-1 p-2 bg-white/40 rounded-lg border border-slate-200/50">
+                                <p className="font-black text-slate-900 uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-slate-200 pb-0.5 mb-0.5">
+                                  *📐 CORE MEASUREMENTS / پیمائش*
+                                </p>
+                                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                                  {coreMeasurements.map(([key, val]) => (
+                                    <p key={key} className="font-bold text-slate-800">• {key}: *<span className="font-black text-slate-900">{val}</span>*</p>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Custom Options */}
+                            {customOptions.length > 0 && (
+                              <div className="mb-2 space-y-1 p-2 bg-white/40 rounded-lg border border-slate-200/50">
+                                <p className="font-black text-slate-900 uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-slate-200 pb-0.5 mb-0.5">
+                                  *✍️ CUSTOM DESIGN OPTIONS / اضافی تفصیلات*
+                                </p>
+                                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                                  {customOptions.map(([key, val]) => (
+                                    <p key={key} className="font-bold text-slate-800">• {key}: *<span className="font-black text-slate-900">{val}</span>*</p>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Notes (🔴 RED COLOR GROUP) */}
+                            {(resolvedDoctorNotes || selectedAssessment.notes || selectedAssessment.sub_options?.['Custom Design Notes']) && (
+                              <div className="text-red-700 bg-red-50/70 p-2 rounded-lg border border-red-100 mb-1 space-y-2">
+                                <p className="font-black uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-red-200 pb-0.5 mb-0.5">
+                                  *🔴 🩺 NOTES & CASE HISTORY / نوٹس اور ہسٹری* (🔴 *RED COLOR GROUP*)
+                                </p>
+                                {resolvedDoctorNotes && (
+                                  <div className="space-y-0.5">
+                                    <p className="font-black text-[8px] sm:text-[9px] uppercase text-rose-650">*🩺 Doctor's Notes & Case History:*</p>
+                                    <p className="font-black italic">🔴 "*"{resolvedDoctorNotes}"*"</p>
+                                  </div>
+                                )}
+                                {selectedAssessment.notes && (
+                                  <div className="space-y-0.5 border-t border-rose-200/30 pt-1">
+                                    <p className="font-black text-[8px] sm:text-[9px] uppercase text-rose-650">*📝 Garment Configuration Note:*</p>
+                                    <p className="font-black italic">🔴 "*"{selectedAssessment.notes}"*"</p>
+                                  </div>
+                                )}
+                                {selectedAssessment.sub_options?.['Custom Design Notes'] && (
+                                  <div className="space-y-0.5 border-t border-rose-200/30 pt-1">
+                                    <p className="font-black text-[8px] sm:text-[9px] uppercase text-rose-650">*✍️ Custom Design Notes:*</p>
+                                    <p className="font-black italic">🔴 "*"{selectedAssessment.sub_options['Custom Design Notes']}"*"</p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Bubble Footer */}
+                            <div className="flex items-center justify-end gap-1 text-[7.5px] text-slate-500 font-bold uppercase mt-2 select-none border-t border-[#c1e2b8]/50 pt-1">
+                              <span>*Generated via Overplast Live Portal*</span>
+                              <span className="text-blue-500 font-black">✓✓</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Actions */}
                   <div className="pt-2 flex flex-col sm:flex-row gap-3">
@@ -2583,6 +2823,14 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                           <path d="M12.012 2c-5.506 0-9.988 4.475-9.988 9.977 0 1.764.46 3.42 1.258 4.876L2 22l5.3-1.383c1.4.764 2.99 1.192 4.697 1.192 5.508 0 9.99-4.476 9.99-9.982C22.012 6.477 17.525 2 12.012 2zm6.39 14.125c-.262.733-1.528 1.343-2.112 1.404-.567.06-1.12.23-3.626-.8-3.208-1.32-5.282-4.578-5.442-4.793-.16-.214-1.288-1.705-1.288-3.253 0-1.548.814-2.31 1.103-2.613.29-.304.633-.38.844-.38.21 0 .422.003.606.012.193.008.455-.074.71.554.264.65.903 2.192.98 2.348.08.156.133.338.028.544-.105.206-.16.333-.316.516-.156.182-.327.406-.467.545-.154.153-.314.32-.136.623.18.303.8 1.3 1.714 2.113.117.104.225.21.32.31.78.825 1.454 1.053 1.768 1.185.314.133.5.112.686-.098.187-.21.802-.93.1017-1.246.216-.317.433-.266.727-.156.294.11 1.86.877 2.177 1.033.317.156.527.23.605.367.078.136.078.79-.184 1.523z" />
                         </svg>
                         Share / واٹس ایپ
+                      </button>
+                    )}
+                    {isAdmin && (
+                      <button 
+                        onClick={() => handleDownloadChatImage(selectedAssessment, `registered-chat-bubble-container-${selectedAssessment.id}`)}
+                        className="flex-1 py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 border border-transparent shadow-lg shadow-purple-100 hover:scale-[1.02]"
+                      >
+                        <Download className="w-3.5 h-3.5" /> Color Card / رنگین کارڈ
                       </button>
                     )}
                   </div>
