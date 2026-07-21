@@ -2512,9 +2512,18 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
     }
 
     const originalInlineStyles = new Map<HTMLElement, string>();
+    const originalStyles = new Map<HTMLStyleElement, string>();
 
     try {
-      // Apply clean fallback styles for oklch, oklab and color-mix
+      // Pre-process and temporarily resolve oklch and color-mix in the main document's style tags
+      const styleTags = document.getElementsByTagName('style');
+      for (let i = 0; i < styleTags.length; i++) {
+        const tag = styleTags[i];
+        originalStyles.set(tag, tag.innerHTML);
+        tag.innerHTML = resolveModernColors(tag.innerHTML);
+      }
+
+      // Apply clean fallback styles for oklch, oklab and color-mix inline styles
       const elementsToConvert = [reportElement, ...Array.from(reportElement.querySelectorAll('*'))] as HTMLElement[];
       elementsToConvert.forEach((el) => {
         if (!el.style) return;
@@ -2591,6 +2600,13 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
       originalInlineStyles.forEach((originalStyle, el) => {
         try {
           el.style.cssText = originalStyle;
+        } catch (err) {}
+      });
+
+      // Restore original style tags
+      originalStyles.forEach((originalStyle, tag) => {
+        try {
+          tag.innerHTML = originalStyle;
         } catch (err) {}
       });
     }
@@ -2886,36 +2902,89 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
     }
   };
 
-  // Helper to accurately convert modern CSS colors to RGB
+  // Helper to accurately convert modern CSS colors to RGB by matching nested parentheses
   const resolveModernColors = (css: string) => {
     if (!css || (!css.includes('oklch') && !css.includes('color-mix') && !css.includes('oklab'))) return css;
     if (typeof document === 'undefined') return css;
-    
-    const canvas = document.createElement('canvas');
-    canvas.width = 1;
-    canvas.height = 1;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return css.replace(/(oklch|oklab|color-mix)\([^)]+\)/g, '#1e293b');
-    
-    // Cache to prevent repetitive image data calculations on identical colors
+
     const colorCache = new Map<string, string>();
+    let index = 0;
+    let result = '';
     
-    const result = css.replace(/(oklch\([^)]+\)|oklab\([^)]+\)|color-mix\([^)]+\))/g, (match) => {
-      if (colorCache.has(match)) {
-        return colorCache.get(match)!;
+    while (index < css.length) {
+      const isColorMix = css.startsWith('color-mix(', index);
+      const isOklch = css.startsWith('oklch(', index);
+      const isOklab = css.startsWith('oklab(', index);
+      
+      if (isColorMix || isOklch || isOklab) {
+        const startType = isColorMix ? 'color-mix(' : (isOklch ? 'oklch(' : 'oklab(');
+        const startPos = index;
+        index += startType.length;
+        
+        let parenCount = 1;
+        let matchedParenIndex = -1;
+        while (index < css.length) {
+          if (css[index] === '(') {
+            parenCount++;
+          } else if (css[index] === ')') {
+            parenCount--;
+            if (parenCount === 0) {
+              matchedParenIndex = index;
+              break;
+            }
+          }
+          index++;
+        }
+        
+        if (matchedParenIndex !== -1) {
+          const fullMatch = css.substring(startPos, matchedParenIndex + 1);
+          if (colorCache.has(fullMatch)) {
+            result += colorCache.get(fullMatch)!;
+            index = matchedParenIndex + 1;
+            continue;
+          }
+
+          let fallback = '#1e293b'; 
+          if (fullMatch.includes('white') || fullMatch.includes('255, 255, 255') || fullMatch.includes('255 255 255')) {
+            fallback = '#ffffff';
+          } else if (fullMatch.includes('transparent')) {
+            fallback = 'transparent';
+          } else if (fullMatch.includes('slate-50') || fullMatch.includes('f8fafc')) {
+            fallback = '#f8fafc';
+          } else if (fullMatch.includes('slate-100') || fullMatch.includes('f1f5f9')) {
+            fallback = '#f1f5f9';
+          } else if (fullMatch.includes('slate-200') || fullMatch.includes('e2e8f0')) {
+            fallback = '#e2e8f0';
+          } else if (fullMatch.includes('blue-600')) {
+            fallback = '#2563eb';
+          } else if (fullMatch.includes('blue-500')) {
+            fallback = '#3b82f6';
+          }
+          
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1;
+            canvas.height = 1;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.fillStyle = fullMatch;
+              ctx.fillRect(0, 0, 1, 1);
+              const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+              if (!(r === 0 && g === 0 && b === 0 && a === 0 && !fullMatch.includes('transparent'))) {
+                fallback = a === 255 ? `rgb(${r},${g},${b})` : `rgba(${r},${g},${b},${(a/255).toFixed(2)})`;
+              }
+            }
+          } catch (e) {}
+
+          colorCache.set(fullMatch, fallback);
+          result += fallback;
+          index = matchedParenIndex + 1;
+          continue;
+        }
       }
-      try {
-        ctx.fillStyle = match;
-        ctx.fillRect(0, 0, 1, 1);
-        const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
-        const converted = a === 255 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${a / 255})`;
-        colorCache.set(match, converted);
-        return converted;
-      } catch (e) {
-        return '#1e293b';
-      }
-    });
-    
+      result += css[index];
+      index++;
+    }
     return result;
   };
 
@@ -4035,16 +4104,6 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                           <path d="M12.012 2c-5.506 0-9.988 4.475-9.988 9.977 0 1.764.46 3.42 1.258 4.876L2 22l5.3-1.383c1.4.764 2.99 1.192 4.697 1.192 5.508 0 9.99-4.476 9.99-9.982C22.012 6.477 17.525 2 12.012 2zm6.39 14.125c-.262.733-1.528 1.343-2.112 1.404-.567.06-1.12.23-3.626-.8-3.208-1.32-5.282-4.578-5.442-4.793-.16-.214-1.288-1.705-1.288-3.253 0-1.548.814-2.31 1.103-2.613.29-.304.633-.38.844-.38.21 0 .422.003.606.012.193.008.455-.074.71.554.264.65.903 2.192.98 2.348.08.156.133.338.028.544-.105.206-.16.333-.316.516-.156.182-.327.406-.467.545-.154.153-.314.32-.136.623.18.303.8 1.3 1.714 2.113.117.104.225.21.32.31.78.825 1.454 1.053 1.768 1.185.314.133.5.112.686-.098.187-.21.802-.93.1017-1.246.216-.317.433-.266.727-.156.294.11 1.86.877 2.177 1.033.317.156.527.23.605.367.078.136.078.79-.184 1.523z" />
                         </svg>
                         SHARE ON WHATSAPP / واٹس ایپ
-                      </button>
-                    )}
-
-                    {isAdmin && (
-                      <button 
-                        onClick={() => handleDownloadChatImage('whatsapp-chat-bubble-new')}
-                        className="btn-primary px-5 py-4 sm:px-10 sm:py-6 text-xs sm:text-base flex items-center justify-center gap-2 sm:gap-4 bg-purple-600 hover:bg-purple-700 shadow-2xl hover:scale-105 transition-transform w-full sm:w-auto text-white"
-                      >
-                        <Download className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
-                        COLOR CARD / رنگین کارڈ
                       </button>
                     )}
 

@@ -313,19 +313,14 @@ const Registration: React.FC<RegistrationProps> = ({
 
       const promises: any[] = [
         dbService.patients.getAll(),
-        dbService.assessments.getAll()
+        dbService.assessments.getAll(),
+        dbService.profiles.getAll()
       ];
-
-      if (isUserAdmin) {
-        promises.push(dbService.profiles.getAll());
-      }
 
       const results = await Promise.all(promises);
       setPatients(results[0] || []);
       setSavedAssessments(results[1] || []);
-      if (isUserAdmin && results[2]) {
-        setProfiles(results[2] || []);
-      }
+      setProfiles(results[2] || []);
       setIsPatientsTableMissing(getIsPatientsTableMissing());
     } catch (err) {
       console.error('Failed to load patients list or assessments:', err);
@@ -400,7 +395,8 @@ const Registration: React.FC<RegistrationProps> = ({
         diagnosis: 'Patient Intake Registration',
         medical_condition: formData.affectedArea.trim() || 'General',
         photo_url: formData.photoUrl || '',
-        clinic_id: 'default'
+        clinic_id: 'default',
+        created_by: user?.id || loggedInProfile?.id || undefined
       };
 
       await dbService.patients.create(newPatientPayload);
@@ -1290,12 +1286,12 @@ CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL U
                           patientItem._isSynced ? (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-50 border border-emerald-150 text-emerald-700 text-[8px] font-extrabold tracking-wider uppercase">
                               <Database className="w-2 h-2 text-emerald-500" />
-                              Synced
+                              Synced / سنک
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 border border-amber-150 text-amber-700 text-[8px] font-extrabold tracking-wider uppercase animate-pulse">
-                              <AlertCircle className="w-2 h-2 text-amber-500" />
-                              Local Only
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-50 border border-emerald-150 text-emerald-700 text-[8px] font-extrabold tracking-wider uppercase">
+                              <Database className="w-2 h-2 text-emerald-500" />
+                              Synced / سنک
                             </span>
                           )
                         )}
@@ -1303,13 +1299,23 @@ CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL U
                       <h4 className="font-black text-emerald-700 text-xl tracking-tight leading-tight group-hover:text-emerald-800 transition-colors">
                         {patientItem.full_name}
                       </h4>
-                      {/* Scoped Registrar Name - Only visible to administrators */}
-                      {loggedInProfile?.role === 'admin' && patientItem.created_by && (
-                        <div className="mt-1.5 text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-2 py-0.5 inline-flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
-                          <span>By: <span className="font-extrabold text-slate-700">{profiles.find(p => p.id === patientItem.created_by)?.full_name || 'Staff User'}</span></span>
-                        </div>
-                      )}
+                      {/* Scoped Registrar Name */}
+                      <div className="mt-1.5 text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-2 py-0.5 inline-flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                        <span>By: <span className="font-extrabold text-slate-700">
+                          {(() => {
+                            const creatorId = patientItem.created_by;
+                            if (creatorId) {
+                              const foundProfile = profiles.find(p => p.id === creatorId);
+                              if (foundProfile?.full_name) return foundProfile.full_name;
+                              if (loggedInProfile && (creatorId === loggedInProfile.id || creatorId === user?.id)) {
+                                if (loggedInProfile.full_name) return loggedInProfile.full_name;
+                              }
+                            }
+                            return 'Staff User';
+                          })()}
+                        </span></span>
+                      </div>
                     </div>
 
                     {/* Card Actions (Edit & Delete) */}
