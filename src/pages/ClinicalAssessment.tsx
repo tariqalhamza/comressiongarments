@@ -2650,16 +2650,28 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
     }
 
     // Add sub-options / hand measurements if they exist
-    if (garment.subOptions) {
-      const activeSubOptions = Object.entries(garment.subOptions).filter(([key, val]) => key !== 'Custom Design Notes' && key !== 'doctorNotes' && typeof val === 'string' && val.trim() !== '');
-      if (activeSubOptions.length > 0) {
-        messageText += `*✍️ CUSTOM DESIGN OPTIONS / اضافی تفصیلات*\n`;
-        activeSubOptions.forEach(([key, val]) => {
-          messageText += `• ${key}: *${val}*\n`;
-        });
-        messageText += `\n`;
-      }
-    }
+    const garmentTypeVal = garment.type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (garment.type || 'N/A');
+    const colorVal = garment.subOptions?.['Color'] || garment.subOptions?.['color'] || 'Standard';
+
+    const remainingSubOptions = garment.subOptions
+      ? Object.entries(garment.subOptions).filter(([key, val]) => {
+          const k = key.toLowerCase();
+          return k !== 'custom design notes' &&
+                 k !== 'doctornotes' &&
+                 k !== 'color' &&
+                 k !== 'garment type' &&
+                 typeof val === 'string' &&
+                 val.trim() !== '';
+        })
+      : [];
+
+    messageText += `*✍️ CUSTOM DESIGN OPTIONS / اضافی تفصیلات*\n`;
+    messageText += `• Garment Type: *${garmentTypeVal}*\n`;
+    messageText += `• Color: *${colorVal}*\n`;
+    remainingSubOptions.forEach(([key, val]) => {
+      messageText += `• ${key}: *${val}*\n`;
+    });
+    messageText += `\n`;
 
     // 1. Doctor's Notes & Case History (🔴 RED COLOR GROUP)
     if (patient.notes) {
@@ -4030,18 +4042,36 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                           )}
 
                           {/* Custom Design Options */}
-                          {garment.subOptions && Object.entries(garment.subOptions).filter(([key, val]) => key !== 'Custom Design Notes' && key !== 'doctorNotes' && typeof val === 'string' && val.trim() !== '').length > 0 && (
-                            <div className="mb-3 space-y-1 p-3 bg-white/40 rounded-xl border border-slate-200/50">
-                              <p className="font-black text-slate-900 uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-slate-200 pb-1 mb-1">
-                                *✍️ CUSTOM DESIGN OPTIONS / اضافی تفصیلات*
-                              </p>
-                              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                                {Object.entries(garment.subOptions).filter(([key, val]) => key !== 'Custom Design Notes' && key !== 'doctorNotes' && typeof val === 'string' && val.trim() !== '').map(([key, val]) => (
-                                  <p key={key} className="font-bold text-slate-800 text-xs">• {key}: *<span className="font-black text-slate-900">{val}</span>*</p>
-                                ))}
+                          {(() => {
+                            const garmentTypeVal = garment.type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (garment.type || 'N/A');
+                            const colorVal = garment.subOptions?.['Color'] || garment.subOptions?.['color'] || 'Standard';
+                            const remainingSubOptions = garment.subOptions
+                              ? Object.entries(garment.subOptions).filter(([key, val]) => {
+                                  const k = key.toLowerCase();
+                                  return k !== 'custom design notes' &&
+                                         k !== 'doctornotes' &&
+                                         k !== 'color' &&
+                                         k !== 'garment type' &&
+                                         typeof val === 'string' &&
+                                         val.trim() !== '';
+                                })
+                              : [];
+
+                            return (
+                              <div className="mb-3 space-y-1 p-3 bg-white/40 rounded-xl border border-slate-200/50">
+                                <p className="font-black text-slate-900 uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-slate-200 pb-1 mb-1">
+                                  *✍️ CUSTOM DESIGN OPTIONS / اضافی تفصیلات*
+                                </p>
+                                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                                  <p className="font-bold text-slate-800 text-xs">• Garment Type: *<span className="font-black text-slate-900">{garmentTypeVal}</span>*</p>
+                                  <p className="font-bold text-slate-800 text-xs">• Color: *<span className="font-black text-slate-900">{colorVal}</span>*</p>
+                                  {remainingSubOptions.map(([key, val]) => (
+                                    <p key={key} className="font-bold text-slate-800 text-xs">• {key}: *<span className="font-black text-slate-900">{val}</span>*</p>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            );
+                          })()}
 
                           {/* Notes (🔴 RED COLOR GROUP) */}
                           {(patient.notes || garmentNotes || garment.subOptions?.['Custom Design Notes']) && (

@@ -11,7 +11,12 @@ import {
   Eye, 
   ChevronRight,
   FileText,
-  BadgeAlert
+  BadgeAlert,
+  Edit3,
+  X,
+  Check,
+  Plus,
+  Save
 } from 'lucide-react';
 import { dbService, getIsAssessmentsTableMissing } from '../services/supabase';
 import { motion, AnimatePresence } from 'motion/react';
@@ -62,6 +67,195 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
   const [patientAddresses, setPatientAddresses] = useState<Record<string, string>>({});
   const [patientNotes, setPatientNotes] = useState<Record<string, string>>({});
   const [patientPhones, setPatientPhones] = useState<Record<string, string>>({});
+
+  // Edit Assessment state
+  const [assessmentToEdit, setAssessmentToEdit] = useState<RegisteredAssessment | null>(null);
+  const [editFormData, setEditFormData] = useState<{
+    patient_name: string;
+    hospital_name: string;
+    doctor_ref: string;
+    garment_type: string;
+    silicone_pasting: string;
+    compression: string;
+    notes: string;
+    measurements: Record<string, string>;
+    sub_options: Record<string, any>;
+  }>({
+    patient_name: '',
+    hospital_name: '',
+    doctor_ref: '',
+    garment_type: '',
+    silicone_pasting: '',
+    compression: '',
+    notes: '',
+    measurements: {},
+    sub_options: {}
+  });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editSuccessMsg, setEditSuccessMsg] = useState('');
+  const [newMeasurementKey, setNewMeasurementKey] = useState('');
+  const [newMeasurementVal, setNewMeasurementVal] = useState('');
+
+  const handleOpenEditModal = (asm: RegisteredAssessment) => {
+    setAssessmentToEdit(asm);
+
+    // Extract initial measurement dictionary from measurements (array/object) & sub_options
+    const initialMeas: Record<string, string> = {};
+
+    if (Array.isArray(asm.measurements)) {
+      asm.measurements.forEach((item: any) => {
+        if (item && typeof item === 'object') {
+          const k = item.id || item.label || item.name;
+          if (k && item.value !== undefined) {
+            initialMeas[k] = String(item.value);
+            if (item.label) initialMeas[item.label] = String(item.value);
+            if (item.id) initialMeas[item.id] = String(item.value);
+          }
+        }
+      });
+    } else if (asm.measurements && typeof asm.measurements === 'object') {
+      Object.entries(asm.measurements).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) {
+          initialMeas[k] = String(v);
+        }
+      });
+    }
+
+    if (asm.sub_options && typeof asm.sub_options === 'object') {
+      Object.entries(asm.sub_options).forEach(([k, v]) => {
+        if (k !== 'Custom Design Notes' && k !== 'doctorNotes' && k !== 'Hand Selection' && v !== undefined && v !== null && String(v).trim() !== '') {
+          if (!initialMeas[k]) {
+            initialMeas[k] = String(v);
+          }
+        }
+      });
+    }
+
+    let initialSilicone = asm.silicone_pasting || 'Without Silicone';
+    if (initialSilicone !== 'With Silicone' && initialSilicone !== 'Without Silicone') {
+      initialSilicone = initialSilicone.toLowerCase().includes('without') ? 'Without Silicone' : 'With Silicone';
+    }
+
+    let initialCompression = asm.compression || 'Moderate';
+    if (!['Low', 'Moderate', 'High'].includes(initialCompression)) {
+      if (initialCompression.includes('1') || initialCompression.toLowerCase().includes('low')) initialCompression = 'Low';
+      else if (initialCompression.includes('3') || initialCompression.includes('4') || initialCompression.toLowerCase().includes('high')) initialCompression = 'High';
+      else initialCompression = 'Moderate';
+    }
+
+    setEditFormData({
+      patient_name: asm.patient_name || '',
+      hospital_name: asm.hospital_name || '',
+      doctor_ref: asm.doctor_ref || '',
+      garment_type: asm.garment_type || '',
+      silicone_pasting: initialSilicone,
+      compression: initialCompression,
+      notes: asm.notes || '',
+      measurements: initialMeas,
+      sub_options: typeof asm.sub_options === 'object' && asm.sub_options ? { ...asm.sub_options } : {}
+    });
+    setEditSuccessMsg('');
+    setNewMeasurementKey('');
+    setNewMeasurementVal('');
+  };
+
+  const handleSaveAssessmentEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assessmentToEdit) return;
+    setIsSavingEdit(true);
+    try {
+      const cleanMeasurements: Record<string, string> = {};
+      Object.entries(editFormData.measurements).forEach(([k, v]) => {
+        if (k && k.trim() && v !== undefined && v !== null) {
+          cleanMeasurements[k.trim()] = String(v).trim();
+        }
+      });
+
+      const updatedSubOptions = {
+        ...(editFormData.sub_options || {})
+      };
+
+      const fields = GARMENT_FIELDS[editFormData.garment_type] || [];
+      Object.entries(cleanMeasurements).forEach(([k, v]) => {
+        updatedSubOptions[k] = v;
+        const matchedField = fields.find(f => f.id === k || f.label === k);
+        if (matchedField) {
+          updatedSubOptions[matchedField.id] = v;
+          updatedSubOptions[matchedField.label] = v;
+        }
+      });
+
+      const updatedPayload = {
+        patient_name: editFormData.patient_name.trim(),
+        hospital_name: editFormData.hospital_name.trim(),
+        doctor_ref: editFormData.doctor_ref.trim(),
+        garment_type: editFormData.garment_type.trim(),
+        silicone_pasting: editFormData.silicone_pasting,
+        compression: editFormData.compression,
+        notes: editFormData.notes.trim(),
+        measurements: cleanMeasurements,
+        sub_options: updatedSubOptions
+      };
+
+      await dbService.assessments.update(assessmentToEdit.id, updatedPayload);
+
+      setAssessments(prev => prev.map(a => a.id === assessmentToEdit.id ? { ...a, ...updatedPayload } : a));
+
+      if (selectedAssessment?.id === assessmentToEdit.id) {
+        setSelectedAssessment(prev => prev ? { ...prev, ...updatedPayload } : null);
+      }
+
+      setEditSuccessMsg('Assessment updated successfully! / اسیسمنٹ کامیابی سے اپڈیٹ ہو گئی');
+      setTimeout(() => {
+        setAssessmentToEdit(null);
+        setEditSuccessMsg('');
+      }, 1200);
+    } catch (err) {
+      console.error('Failed to update assessment:', err);
+      alert('Failed to update assessment. Please try again.');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleAddCustomMeasurement = () => {
+    if (!newMeasurementKey.trim()) return;
+    const key = newMeasurementKey.trim();
+    const val = newMeasurementVal.trim();
+    setEditFormData(prev => ({
+      ...prev,
+      measurements: {
+        ...prev.measurements,
+        [key]: val
+      },
+      sub_options: {
+        ...prev.sub_options,
+        [key]: val
+      }
+    }));
+    setNewMeasurementKey('');
+    setNewMeasurementVal('');
+  };
+
+  const handleRemoveMeasurementField = (key: string) => {
+    setEditFormData(prev => {
+      const nextMeas = { ...prev.measurements };
+      delete nextMeas[key];
+      const nextSub = { ...prev.sub_options };
+      delete nextSub[key];
+
+      const fields = GARMENT_FIELDS[prev.garment_type] || [];
+      const matched = fields.find(f => f.id === key || f.label === key);
+      if (matched) {
+        delete nextMeas[matched.id];
+        delete nextMeas[matched.label];
+        delete nextSub[matched.id];
+        delete nextSub[matched.label];
+      }
+
+      return { ...prev, measurements: nextMeas, sub_options: nextSub };
+    });
+  };
 
   const getAssessmentDoctorNotes = (assessment: RegisteredAssessment) => {
     if (assessment.sub_options && (assessment.sub_options as any).doctorNotes) {
@@ -1195,18 +1389,32 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
     messageText += `\n`;
 
     // Add sub-options / hand measurements if they exist
+    const garmentTypeVal = assessment.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (assessment.garment_type || 'N/A');
+    const colorVal = assessment.sub_options?.['Color'] || assessment.sub_options?.['color'] || 'Standard';
+
+    let remainingSubOptions: [string, any][] = [];
     if (assessment.sub_options) {
-      const activeSubOptions = Object.entries(assessment.sub_options).filter(
-        ([key, val]) => key !== 'Custom Design Notes' && key !== 'doctorNotes' && val !== undefined && val !== null && String(val).trim() !== ''
+      remainingSubOptions = Object.entries(assessment.sub_options).filter(
+        ([key, val]) => {
+          const k = key.toLowerCase();
+          return k !== 'custom design notes' &&
+                 k !== 'doctornotes' &&
+                 k !== 'color' &&
+                 k !== 'garment type' &&
+                 val !== undefined &&
+                 val !== null &&
+                 String(val).trim() !== '';
+        }
       );
-      if (activeSubOptions.length > 0) {
-        messageText += `*✍️ CUSTOM DESIGN OPTIONS / اضافی تفصیلات*\n`;
-        activeSubOptions.forEach(([key, val]) => {
-          messageText += `• ${key}: *${val}*\n`;
-        });
-        messageText += `\n`;
-      }
     }
+
+    messageText += `*✍️ CUSTOM DESIGN OPTIONS / اضافی تفصیلات*\n`;
+    messageText += `• Garment Type: *${garmentTypeVal}*\n`;
+    messageText += `• Color: *${colorVal}*\n`;
+    remainingSubOptions.forEach(([key, val]) => {
+      messageText += `• ${key}: *${val}*\n`;
+    });
+    messageText += `\n`;
 
     // 1. Doctor's Notes & Case History (🔴 RED COLOR GROUP)
     if (resolvedDoctorNotes) {
@@ -2515,13 +2723,23 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                       <p className="text-emerald-600 text-xs font-extrabold font-mono mt-1">🆔 File ID: {selectedAssessment.id}</p>
                     </div>
                     
-                    <button 
-                      onClick={() => setAssessmentToDelete(selectedAssessment)}
-                      className="p-3 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-600 rounded-2xl transition-all"
-                      title="Delete Record"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => handleOpenEditModal(selectedAssessment)}
+                        className="p-3 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-2xl transition-all flex items-center gap-1.5 font-extrabold text-xs border border-amber-200/60"
+                        title="Edit Assessment / اسیسمنٹ ترمیم کریں"
+                      >
+                        <Edit3 className="w-4 h-4 text-amber-600" />
+                        <span className="hidden sm:inline">Edit / ترمیم</span>
+                      </button>
+                      <button 
+                        onClick={() => setAssessmentToDelete(selectedAssessment)}
+                        className="p-3 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-600 rounded-2xl transition-all"
+                        title="Delete Record"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Patient's Registered Garments Selector */}
@@ -2689,6 +2907,9 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                         return fields.some(f => f.id.toLowerCase() === lowerKey || f.label.toLowerCase() === lowerKey) && val !== undefined && String(val).trim() !== '';
                       });
 
+                    const garmentTypeVal = selectedAssessment.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (selectedAssessment.garment_type || 'N/A');
+                    const colorVal = selectedAssessment.sub_options?.['Color'] || selectedAssessment.sub_options?.['color'] || 'Standard';
+
                     const customOptions = Object.entries(selectedAssessment.sub_options || {})
                       .filter(([key, val]) => {
                         const lowerKey = key.toLowerCase();
@@ -2696,7 +2917,8 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                         return !isField && 
                           key !== 'Custom Design Notes' && 
                           key !== 'doctorNotes' && 
-                          key !== 'Hand Selection' && 
+                          lowerKey !== 'color' && 
+                          lowerKey !== 'garment type' && 
                           typeof val === 'string' && 
                           val.trim() !== '';
                       });
@@ -2769,18 +2991,18 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                             )}
 
                             {/* Custom Options */}
-                            {customOptions.length > 0 && (
-                              <div className="mb-2 space-y-1 p-2 bg-white/40 rounded-lg border border-slate-200/50">
-                                <p className="font-black text-slate-900 uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-slate-200 pb-0.5 mb-0.5">
-                                  *✍️ CUSTOM DESIGN OPTIONS / اضافی تفصیلات*
-                                </p>
-                                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                                  {customOptions.map(([key, val]) => (
-                                    <p key={key} className="font-bold text-slate-800">• {key}: *<span className="font-black text-slate-900">{val}</span>*</p>
-                                  ))}
-                                </div>
+                            <div className="mb-2 space-y-1 p-2 bg-white/40 rounded-lg border border-slate-200/50">
+                              <p className="font-black text-slate-900 uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-slate-200 pb-0.5 mb-0.5">
+                                *✍️ CUSTOM DESIGN OPTIONS / اضافی تفصیلات*
+                              </p>
+                              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                                <p className="font-bold text-slate-800">• Garment Type: *<span className="font-black text-slate-900">{garmentTypeVal}</span>*</p>
+                                <p className="font-bold text-slate-800">• Color: *<span className="font-black text-slate-900">{colorVal}</span>*</p>
+                                {customOptions.map(([key, val]) => (
+                                  <p key={key} className="font-bold text-slate-800">• {key}: *<span className="font-black text-slate-900">{val}</span>*</p>
+                                ))}
                               </div>
-                            )}
+                            </div>
 
                             {/* Notes (🔴 RED COLOR GROUP) */}
                             {(resolvedDoctorNotes || selectedAssessment.notes || selectedAssessment.sub_options?.['Custom Design Notes']) && (
@@ -2822,6 +3044,12 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
 
                   {/* Actions */}
                   <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                    <button 
+                      onClick={() => handleOpenEditModal(selectedAssessment)}
+                      className="flex-1 py-3 px-4 bg-amber-500 hover:bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 border border-transparent shadow-lg shadow-amber-100 hover:scale-[1.02]"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" /> Edit / ترمیم کریں
+                    </button>
                     {isAdmin && (
                       <button 
                         onClick={() => handleDownloadPDF(selectedAssessment)}
@@ -2886,6 +3114,351 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Edit Assessment Modal */}
+      {assessmentToEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-2xl w-full my-8 overflow-hidden flex flex-col max-h-[90vh]"
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-amber-900 text-white p-6 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-500/20 rounded-2xl flex items-center justify-center border border-amber-500/30">
+                  <Edit3 className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-lg tracking-tight">Edit Assessment / اسیسمنٹ ترمیم کریں</h3>
+                  <p className="text-amber-200/80 text-xs font-medium">
+                    {assessmentToEdit.patient_name} — {assessmentToEdit.garment_type}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setAssessmentToEdit(null)}
+                className="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Success Message Banner */}
+            {editSuccessMsg && (
+              <div className="bg-emerald-50 border-b border-emerald-100 p-3 text-center text-emerald-700 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shrink-0">
+                <Check className="w-4 h-4 text-emerald-600" />
+                {editSuccessMsg}
+              </div>
+            )}
+
+            {/* Form Body */}
+            <form onSubmit={handleSaveAssessmentEdit} className="p-6 space-y-6 overflow-y-auto flex-1">
+              {/* Patient & Hospital Info */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                  <User className="w-4 h-4 text-slate-500" /> Patient & Hospital Info
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Patient Name</label>
+                    <input 
+                      type="text" 
+                      value={editFormData.patient_name}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, patient_name: e.target.value }))}
+                      required
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Hospital / Clinic</label>
+                    <input 
+                      type="text" 
+                      value={editFormData.hospital_name}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, hospital_name: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Doctor Reference</label>
+                    <input 
+                      type="text" 
+                      value={editFormData.doctor_ref}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, doctor_ref: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Garment Specifications */}
+              <div className="space-y-4 pt-2 border-t border-slate-100">
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-slate-500" /> Garment Specifications
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Garment Type / گارمنٹ کی قسم</label>
+                    <select 
+                      value={editFormData.garment_type}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, garment_type: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    >
+                      <option value="All Gloves/Glove With Sleeve">All Gloves/Glove With Sleeve</option>
+                      <option value="Face Mask & Chin Binder">Face Mask & Chin Binder</option>
+                      <option value="Connecting Sleeves">Connecting Sleeves</option>
+                      <option value="Arm sleeve Right Hand">Arm sleeve Right Hand</option>
+                      <option value="Arm sleeve Left Hand">Arm sleeve Left Hand</option>
+                      <option value="Connecting Sleeves/Arm Sleeve">Connecting Sleeves/Arm Sleeve</option>
+                      <option value="All Jacket">All Jacket</option>
+                      <option value="Belly Binder">Belly Binder</option>
+                      <option value="All Trouser">All Trouser</option>
+                      <option value="All Leg Sleeves">All Leg Sleeves</option>
+                      <option value="All Socks">All Socks</option>
+                      <option value="Body Shaper">Body Shaper</option>
+                      {editFormData.garment_type && ![
+                        'All Gloves/Glove With Sleeve',
+                        'Face Mask & Chin Binder',
+                        'Connecting Sleeves',
+                        'Arm sleeve Right Hand',
+                        'Arm sleeve Left Hand',
+                        'Connecting Sleeves/Arm Sleeve',
+                        'All Jacket',
+                        'Belly Binder',
+                        'All Trouser',
+                        'All Leg Sleeves',
+                        'All Socks',
+                        'Body Shaper'
+                      ].includes(editFormData.garment_type) && (
+                        <option value={editFormData.garment_type}>{editFormData.garment_type}</option>
+                      )}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Silicone Pasting / سلیکون پیسٹنگ</label>
+                    <select 
+                      value={editFormData.silicone_pasting}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, silicone_pasting: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    >
+                      <option value="With Silicone">With Silicone</option>
+                      <option value="Without Silicone">Without Silicone</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Compression Level / کمپریشن لیول</label>
+                    <select 
+                      value={editFormData.compression}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, compression: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Moderate">Moderate</option>
+                      <option value="High">High</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Measurements Editing Section */}
+              <div className="space-y-4 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                    <ClipboardCheck className="w-4 h-4 text-slate-500" /> Measurements Data / پیمائش کی تفصیلات
+                  </h4>
+                  <span className="text-[10px] text-slate-400 font-extrabold">
+                    {Object.keys(editFormData.measurements).length} Points
+                  </span>
+                </div>
+
+                {(() => {
+                  const predefinedFields = GARMENT_FIELDS[editFormData.garment_type] || [];
+                  const predefinedIds = predefinedFields.map(f => f.id);
+                  const predefinedLabels = predefinedFields.map(f => f.label);
+                  const allKeys = Array.from(new Set([
+                    ...predefinedIds,
+                    ...Object.keys(editFormData.measurements),
+                    ...Object.keys(editFormData.sub_options).filter(k => k !== 'Custom Design Notes' && k !== 'doctorNotes' && k !== 'Hand Selection')
+                  ]));
+
+                  if (allKeys.length === 0) {
+                    return (
+                      <p className="text-xs text-slate-400 italic">No measurements recorded yet for this garment.</p>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
+                      {allKeys.map((key) => {
+                        const predefined = predefinedFields.find(f => f.id === key || f.label === key);
+                        const labelText = predefined ? predefined.label : key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        const val = editFormData.measurements[key] ?? 
+                                    (predefined ? editFormData.measurements[predefined.id] : undefined) ?? 
+                                    (predefined ? editFormData.measurements[predefined.label] : undefined) ?? 
+                                    editFormData.sub_options[key] ?? 
+                                    (predefined ? editFormData.sub_options[predefined.label] : undefined) ?? 
+                                    '';
+
+                        return (
+                          <div key={key} className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
+                            <div className="flex-1 min-w-0">
+                              <label className="block text-[10px] font-black uppercase text-slate-500 truncate mb-0.5" title={labelText}>
+                                {labelText}
+                              </label>
+                              <input 
+                                type="text"
+                                value={val}
+                                placeholder={predefined?.placeholder || 'e.g. 25 cm'}
+                                onChange={(e) => {
+                                  const newVal = e.target.value;
+                                  setEditFormData(prev => {
+                                    const nextMeas = { ...prev.measurements, [key]: newVal };
+                                    if (predefined) {
+                                      nextMeas[predefined.id] = newVal;
+                                      nextMeas[predefined.label] = newVal;
+                                    }
+                                    const nextSub = { ...prev.sub_options, [key]: newVal };
+                                    if (predefined) {
+                                      nextSub[predefined.id] = newVal;
+                                      nextSub[predefined.label] = newVal;
+                                    }
+                                    return {
+                                      ...prev,
+                                      measurements: nextMeas,
+                                      sub_options: nextSub
+                                    };
+                                  });
+                                }}
+                                className="w-full px-2 py-1 rounded-lg border border-slate-200 text-xs font-extrabold text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveMeasurementField(key)}
+                              className="p-1.5 text-slate-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors shrink-0 mt-3"
+                              title="Delete measurement field"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+                {/* Add Custom Measurement Row */}
+                <div className="bg-amber-50/50 p-3 rounded-2xl border border-amber-100 flex flex-col sm:flex-row items-center gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="New Field Name (e.g., Wrist Left)" 
+                    value={newMeasurementKey}
+                    onChange={(e) => setNewMeasurementKey(e.target.value)}
+                    className="flex-1 px-3 py-1.5 rounded-xl border border-amber-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 w-full"
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="Value (e.g., 18 cm)" 
+                    value={newMeasurementVal}
+                    onChange={(e) => setNewMeasurementVal(e.target.value)}
+                    className="flex-1 px-3 py-1.5 rounded-xl border border-amber-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 w-full"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomMeasurement}
+                    className="w-full sm:w-auto px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition-colors flex items-center justify-center gap-1 shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Field
+                  </button>
+                </div>
+              </div>
+
+              {/* Sub Options & Doctor Notes */}
+              <div className="space-y-4 pt-2 border-t border-slate-100">
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                  <Stethoscope className="w-4 h-4 text-slate-500" /> Notes & Design Options
+                </h4>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Doctor's Notes & Case History</label>
+                  <textarea 
+                    rows={2}
+                    value={editFormData.sub_options['doctorNotes'] || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditFormData(prev => ({
+                        ...prev,
+                        sub_options: {
+                          ...prev.sub_options,
+                          doctorNotes: val
+                        }
+                      }));
+                    }}
+                    placeholder="Doctor notes or diagnosis history..."
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Custom Design Notes</label>
+                  <input 
+                    type="text" 
+                    value={editFormData.sub_options['Custom Design Notes'] || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditFormData(prev => ({
+                        ...prev,
+                        sub_options: {
+                          ...prev.sub_options,
+                          'Custom Design Notes': val
+                        }
+                      }));
+                    }}
+                    placeholder="Custom design specs (e.g., extra zipper, open toes...)"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">General Assessment Notes</label>
+                  <textarea 
+                    rows={2}
+                    value={editFormData.notes}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Garment notes or instructions..."
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setAssessmentToEdit(null)}
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-extrabold text-xs uppercase tracking-wider hover:bg-slate-50 transition-colors"
+                >
+                  Cancel / منسوخ
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingEdit}
+                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-amber-200 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isSavingEdit ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" /> Save Changes / تبدیلیاں محفوظ کریں
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </motion.div>
         </div>
       )}
 

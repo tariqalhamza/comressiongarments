@@ -840,6 +840,47 @@ export const dbService = {
         return fullAssessmentPayload;
       }
     },
+    async update(id: string, updates: any) {
+      try {
+        const list = getLocalStorageAssessments();
+        const index = list.findIndex(a => a.id === id);
+        if (index !== -1) {
+          const updatedList = [...list];
+          updatedList[index] = { ...updatedList[index], ...updates };
+          saveAssessmentsToLocal(updatedList);
+        }
+      } catch (e) {
+        console.warn("Failed immediate local assessment update caching:", e);
+      }
+
+      if (isDemo) {
+        const list = getLocalStorageAssessments();
+        const found = list.find(a => a.id === id);
+        return found || { ...updates, id };
+      }
+
+      try {
+        const cleanPayload = { ...updates };
+        delete (cleanPayload as any).id;
+        delete (cleanPayload as any)._isSynced;
+        const { data, error } = await supabase.from('assessments').update(cleanPayload).eq('id', id).select().single();
+        if (error) throw error;
+        
+        const updatedAssessment = data || { ...updates, id };
+        const localList = getLocalStorageAssessments();
+        const idx = localList.findIndex(a => a.id === id);
+        if (idx !== -1) {
+          localList[idx] = { ...localList[idx], ...updatedAssessment };
+          saveAssessmentsToLocal(localList);
+        }
+        return updatedAssessment;
+      } catch (err) {
+        console.warn('Could not update assessment in Supabase. Fallback active in LocalStorage:', err);
+        const list = getLocalStorageAssessments();
+        const found = list.find(a => a.id === id);
+        return found || { ...updates, id };
+      }
+    },
     async delete(id: string) {
       try {
         const list = getLocalStorageAssessments();
