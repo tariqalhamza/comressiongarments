@@ -99,24 +99,30 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
   const handleOpenEditModal = (asm: RegisteredAssessment) => {
     setAssessmentToEdit(asm);
 
-    // Extract initial measurement dictionary from measurements (array/object) & sub_options
+    // Extract initial measurement dictionary from measurements (array/object) & sub_options using canonical keys
+    const predefinedFields = GARMENT_FIELDS[asm.garment_type] || [];
+    const getCanonicalKey = (k: string) => {
+      const match = predefinedFields.find(f => f.id === k || f.label === k);
+      return match ? match.id : k;
+    };
+
     const initialMeas: Record<string, string> = {};
 
     if (Array.isArray(asm.measurements)) {
       asm.measurements.forEach((item: any) => {
         if (item && typeof item === 'object') {
           const k = item.id || item.label || item.name;
-          if (k && item.value !== undefined) {
-            initialMeas[k] = String(item.value);
-            if (item.label) initialMeas[item.label] = String(item.value);
-            if (item.id) initialMeas[item.id] = String(item.value);
+          if (k && item.value !== undefined && item.value !== null && String(item.value).trim() !== '') {
+            const canonicalKey = getCanonicalKey(k);
+            initialMeas[canonicalKey] = String(item.value);
           }
         }
       });
     } else if (asm.measurements && typeof asm.measurements === 'object') {
       Object.entries(asm.measurements).forEach(([k, v]) => {
-        if (v !== undefined && v !== null) {
-          initialMeas[k] = String(v);
+        if (v !== undefined && v !== null && String(v).trim() !== '') {
+          const canonicalKey = getCanonicalKey(k);
+          initialMeas[canonicalKey] = String(v);
         }
       });
     }
@@ -124,8 +130,9 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
     if (asm.sub_options && typeof asm.sub_options === 'object') {
       Object.entries(asm.sub_options).forEach(([k, v]) => {
         if (k !== 'Custom Design Notes' && k !== 'doctorNotes' && k !== 'Hand Selection' && v !== undefined && v !== null && String(v).trim() !== '') {
-          if (!initialMeas[k]) {
-            initialMeas[k] = String(v);
+          const canonicalKey = getCanonicalKey(k);
+          if (initialMeas[canonicalKey] === undefined) {
+            initialMeas[canonicalKey] = String(v);
           }
         }
       });
@@ -164,10 +171,17 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
     if (!assessmentToEdit) return;
     setIsSavingEdit(true);
     try {
+      const fields = GARMENT_FIELDS[editFormData.garment_type] || [];
+      const getCanonicalKey = (k: string) => {
+        const match = fields.find(f => f.id === k || f.label === k);
+        return match ? match.id : k;
+      };
+
       const cleanMeasurements: Record<string, string> = {};
       Object.entries(editFormData.measurements).forEach(([k, v]) => {
-        if (k && k.trim() && v !== undefined && v !== null) {
-          cleanMeasurements[k.trim()] = String(v).trim();
+        if (k && k.trim() && v !== undefined && v !== null && String(v).trim() !== '') {
+          const canonicalKey = getCanonicalKey(k.trim());
+          cleanMeasurements[canonicalKey] = String(v).trim();
         }
       });
 
@@ -175,13 +189,24 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         ...(editFormData.sub_options || {})
       };
 
-      const fields = GARMENT_FIELDS[editFormData.garment_type] || [];
+      // Clean up updatedSubOptions: remove duplicate keys for garment measurement fields
       Object.entries(cleanMeasurements).forEach(([k, v]) => {
-        updatedSubOptions[k] = v;
         const matchedField = fields.find(f => f.id === k || f.label === k);
         if (matchedField) {
-          updatedSubOptions[matchedField.id] = v;
+          delete updatedSubOptions[matchedField.id];
+          delete updatedSubOptions[matchedField.label];
           updatedSubOptions[matchedField.label] = v;
+        } else {
+          updatedSubOptions[k] = v;
+        }
+      });
+
+      // Remove any garment measurement field from updatedSubOptions if removed during edit
+      fields.forEach(field => {
+        const hasValue = cleanMeasurements[field.id] !== undefined || cleanMeasurements[field.label] !== undefined;
+        if (!hasValue) {
+          delete updatedSubOptions[field.id];
+          delete updatedSubOptions[field.label];
         }
       });
 
@@ -402,12 +427,12 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         else if (label === 'Little finger') fallbackKey = 'Small finger';
         else if (label === 'Total length middle finger to wrist') fallbackKey = 'Total length medal finger to wrist';
         else if (label === 'Total length middle finger to end of scar') fallbackKey = 'Total length medal finger to end of scar';
-        // Belly Binder mappings
-        else if (label === 'Diaphrom') fallbackKey = 'Diaphrarm';
+        // Belly Binder / Belly Belt mappings
+        else if (label === 'Diaphrom' || label === 'Diaphrarm') fallbackKey = 'Diaphrarm';
         else if (label === 'West (Waist)' || label === 'West' || label === 'Waist') fallbackKey = 'Waist';
         else if (label === 'Open End') fallbackKey = 'Open end thigh';
         else if (label === 'Close End (Leg end)') fallbackKey = 'Close end thigh';
-        else if (label === 'Length Diaphrom to West' || label === 'Length Diaphrom to Waist') fallbackKey = 'length diaphragm to waist';
+        else if (label === 'Width diapharm to waist' || label === 'Width diaphrom to waist' || label === 'Length Diaphrom to West' || label === 'Length Diaphrom to Waist') fallbackKey = 'length diaphragm to waist';
         else if (label === 'Short Length' || label === 'Waist to Close End') fallbackKey = 'Waist to Close End';
         // All Trouser backwards compatibility fallbacks
         else if (label === 'Belly') fallbackKey = 'Diaphrarm';
@@ -565,6 +590,80 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         <g transform="translate(75, 235)">
           <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#ec4899" stroke-width="0.5" />
           <text y="3" text-anchor="middle" fill="#ec4899" font-family="sans-serif" font-size="9" font-weight="bold">Close End: ${formatVal('Close End')}</text>
+        </g>
+      </svg>`;
+    }
+
+    if (garment === 'Sports Bra') {
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" width="300" height="300">
+        <path d="M 100,55 L 125,55 C 132,105 188,105 195,55 L 220,55 C 238,125 240,140 230,150 L 225,240 C 180,245 140,245 95,240 L 90,150 C 80,140 82,125 100,55 Z" fill="#eff6ff" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round" />
+        <path d="M 92,215 C 138,220 182,220 228,215" stroke="#2563eb" stroke-width="2" stroke-dasharray="3,3" fill="none" />
+        <line x1="160" y1="95" x2="160" y2="240" stroke="#93c5fd" stroke-width="2" stroke-dasharray="2,2" />
+        <line x1="100" y1="55" x2="220" y2="55" stroke="#7c3aed" stroke-width="2" stroke-dasharray="3,3" />
+        <line x1="88" y1="140" x2="232" y2="140" stroke="#0891b2" stroke-width="2" fill="none" />
+        <line x1="92" y1="180" x2="228" y2="180" stroke="#10b981" stroke-width="2" fill="none" />
+        <line x1="95" y1="230" x2="225" y2="230" stroke="#d97706" stroke-width="2.5" fill="none" />
+        <line x1="100" y1="55" x2="45" y2="55" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="2,2" />
+        <line x1="95" y1="240" x2="45" y2="240" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="2,2" />
+        <line x1="45" y1="55" x2="45" y2="240" stroke="#dc2626" stroke-width="1.5" />
+        
+        <g transform="translate(160, 55)">
+          <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#7c3aed" stroke-width="1.5" />
+          <text y="3" text-anchor="middle" fill="#7c3aed" font-family="sans-serif" font-size="8" font-weight="bold">Shoulder: ${formatVal('Shoulder')}</text>
+        </g>
+        <g transform="translate(160, 140)">
+          <rect x="-40" y="-7" width="80" height="14" rx="3" fill="white" stroke="#0891b2" stroke-width="1.5" />
+          <text y="3" text-anchor="middle" fill="#0891b2" font-family="sans-serif" font-size="8" font-weight="bold">Armpit: ${formatVal('Armpit')}</text>
+        </g>
+        <g transform="translate(160, 180)">
+          <rect x="-40" y="-7" width="80" height="14" rx="3" fill="white" stroke="#10b981" stroke-width="1.5" />
+          <text y="3" text-anchor="middle" fill="#10b981" font-family="sans-serif" font-size="8" font-weight="bold">Chest: ${formatVal('Chest')}</text>
+        </g>
+        <g transform="translate(160, 230)">
+          <rect x="-45" y="-7" width="90" height="14" rx="3" fill="white" stroke="#d97706" stroke-width="1.5" />
+          <text y="3" text-anchor="middle" fill="#d97706" font-family="sans-serif" font-size="8" font-weight="bold">Diaphrarm: ${formatVal('Diaphrarm')}</text>
+        </g>
+        <g transform="translate(45, 147)">
+          <rect x="-42" y="-6" width="84" height="12" rx="2" fill="white" stroke="#dc2626" stroke-width="0.5" />
+          <text y="2.5" text-anchor="middle" fill="#dc2626" font-family="sans-serif" font-size="8" font-weight="bold">Total Length: ${formatVal('Total length')}</text>
+        </g>
+      </svg>`;
+    }
+
+    if (garment === 'Belly Belt') {
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" width="300" height="300">
+        <path d="M 100,70 Q 160,75 220,70 C 230,115 235,160 228,210 Q 160,215 92,210 C 85,160 90,115 100,70 Z" fill="#eff6ff" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round" />
+        <rect x="150" y="73" width="20" height="139" rx="2" fill="#dbeafe" stroke="#3b82f6" stroke-width="1" />
+        <line x1="160" y1="73" x2="160" y2="212" stroke="#2563eb" stroke-width="1" stroke-dasharray="3,3" />
+        <circle cx="160" cy="85" r="2" fill="#1d4ed8" />
+        <circle cx="160" cy="105" r="2" fill="#1d4ed8" />
+        <circle cx="160" cy="125" r="2" fill="#1d4ed8" />
+        <circle cx="160" cy="145" r="2" fill="#1d4ed8" />
+        <circle cx="160" cy="165" r="2" fill="#1d4ed8" />
+        <circle cx="160" cy="185" r="2" fill="#1d4ed8" />
+        <circle cx="160" cy="200" r="2" fill="#1d4ed8" />
+        <path d="M 100,73 Q 160,78 220,73" stroke="#7c3aed" stroke-width="2" stroke-dasharray="3,3" fill="none" />
+        <path d="M 92,140 Q 160,145 228,140" stroke="#d97706" stroke-width="2" stroke-dasharray="3,3" fill="none" />
+        <path d="M 92,210 Q 160,215 228,210" stroke="#10b981" stroke-width="2" fill="none" />
+        <line x1="100" y1="70" x2="45" y2="70" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="2,2" />
+        <line x1="92" y1="210" x2="45" y2="210" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="2,2" />
+        <line x1="45" y1="70" x2="45" y2="210" stroke="#dc2626" stroke-width="1.5" />
+        <g transform="translate(160, 60)">
+          <rect x="-45" y="-7" width="90" height="14" rx="3" fill="white" stroke="#7c3aed" stroke-width="1.5" />
+          <text y="3" text-anchor="middle" fill="#7c3aed" font-family="sans-serif" font-size="8" font-weight="bold">Diaphrom: ${formatVal('Diaphrom')}</text>
+        </g>
+        <g transform="translate(160, 140)">
+          <rect x="-40" y="-7" width="80" height="14" rx="3" fill="white" stroke="#d97706" stroke-width="1.5" />
+          <text y="3" text-anchor="middle" fill="#d97706" font-family="sans-serif" font-size="8" font-weight="bold">Belly: ${formatVal('Belly')}</text>
+        </g>
+        <g transform="translate(160, 222)">
+          <rect x="-40" y="-7" width="80" height="14" rx="3" fill="white" stroke="#10b981" stroke-width="1.5" />
+          <text y="3" text-anchor="middle" fill="#10b981" font-family="sans-serif" font-size="8" font-weight="bold">Waist: ${formatVal('Waist')}</text>
+        </g>
+        <g transform="translate(45, 140)">
+          <rect x="-42" y="-12" width="84" height="24" rx="3" fill="white" stroke="#dc2626" stroke-width="0.8" />
+          <text y="-2" text-anchor="middle" fill="#dc2626" font-family="sans-serif" font-size="6.5" font-weight="bold">Diaphrom to Waist</text>
+          <text y="7" text-anchor="middle" fill="#dc2626" font-family="sans-serif" font-size="7.5" font-weight="bold">${formatVal('Width diapharm to waist')}</text>
         </g>
       </svg>`;
     }
@@ -1367,71 +1466,144 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
     };
     const resolvedDoctorNotes = getDoctorNotes();
 
-    let messageText = `🩺 *CLINICAL ASSESSMENT SUMMARY / خلاصہ طبی معائنہ*\n\n`;
-    messageText += `*👤 PATIENT DETAILS / معلومات مریض* (🟢 *GREEN COLOR GROUP*)\n`;
+    let messageText = `🩺 *CLINICAL ASSESSMENT SUMMARY*\n\n`;
+    messageText += `*👤 PATIENT DETAILS*\n`;
     messageText += `🟢 File ID: *${assessment.id || 'N/A'}*\n`;
-    messageText += `🟢 Name / نام: *${assessment.patient_name || 'N/A'}*\n`;
+    messageText += `🟢 Name: *${assessment.patient_name || 'N/A'}*\n`;
     if (resolvedPhone) {
-      messageText += `🟢 Mob No / موبائل: *${resolvedPhone}*\n`;
+      messageText += `🟢 Mob No: *${resolvedPhone}*\n`;
     }
     messageText += `🟢 Age / Gender: *${assessment.age && assessment.age > 0 ? `${assessment.age} Yrs` : 'N/A'} / ${assessment.gender || 'N/A'}*\n`;
-    messageText += `🟢 Date / تاریخ: *${assessment.created_at ? new Date(assessment.created_at).toLocaleDateString() : new Date().toLocaleDateString()}*\n`;
+    messageText += `🟢 Date: *${assessment.created_at ? new Date(assessment.created_at).toLocaleDateString() : new Date().toLocaleDateString()}*\n`;
     if (resolvedAddress) {
-      messageText += `🔵 *ADDRESS / پتہ* (🔵 *BLUE COLOR GROUP*)\n`;
-      messageText += `🔵 Address / پتہ: *${resolvedAddress}*\n`;
+      messageText += `🔵 *ADDRESS*\n`;
+      messageText += `🔵 Address: *${resolvedAddress}*\n`;
     }
     messageText += `\n`;
 
-    messageText += `*📦 GARMENT CONFIGURATION / گارمنٹ کنفیگریشن*\n`;
+    messageText += `*📦 GARMENT CONFIGURATION*\n`;
     messageText += `• Garment Type: *${assessment.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (assessment.garment_type || 'N/A')}*\n`;
     messageText += `• Silicone Option: *${assessment.silicone_pasting || 'N/A'}*\n`;
     messageText += `• Compression Force: *${assessment.compression || 'N/A'}*\n`;
     messageText += `\n`;
 
-    // Add sub-options / hand measurements if they exist
+    // Extract core measurements from measurements & sub_options without duplicates
+    const fields = GARMENT_FIELDS[assessment.garment_type] || [];
+    const seenFieldIds = new Set<string>();
+    const coreMeasurementsList: [string, string][] = [];
+
+    // Combine measurements source (measurements object/array and sub_options)
+    const combinedMeasDict: Record<string, string> = {};
+    if (Array.isArray(assessment.measurements)) {
+      assessment.measurements.forEach((item: any) => {
+        if (item && typeof item === 'object') {
+          const k = item.id || item.label || item.name;
+          if (k && item.value !== undefined && item.value !== null && String(item.value).trim() !== '') {
+            combinedMeasDict[k] = String(item.value);
+          }
+        }
+      });
+    } else if (assessment.measurements && typeof assessment.measurements === 'object') {
+      Object.entries(assessment.measurements).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && String(v).trim() !== '') {
+          combinedMeasDict[k] = String(v);
+        }
+      });
+    }
+
+    if (assessment.sub_options && typeof assessment.sub_options === 'object') {
+      Object.entries(assessment.sub_options).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && String(v).trim() !== '') {
+          if (!combinedMeasDict[k]) {
+            combinedMeasDict[k] = String(v);
+          }
+        }
+      });
+    }
+
+    // Process fields in predefined order first
+    fields.forEach(field => {
+      const lowerId = field.id.toLowerCase();
+      const lowerLabel = field.label.toLowerCase();
+      const matchedKey = Object.keys(combinedMeasDict).find(k => k.toLowerCase() === lowerId || k.toLowerCase() === lowerLabel);
+      if (matchedKey && combinedMeasDict[matchedKey] !== undefined && String(combinedMeasDict[matchedKey]).trim() !== '') {
+        seenFieldIds.add(field.id);
+        coreMeasurementsList.push([field.label, String(combinedMeasDict[matchedKey]).trim()]);
+      }
+    });
+
+    // Also check any extra measurement keys that match fields
+    Object.entries(combinedMeasDict).forEach(([k, v]) => {
+      const lowerKey = k.toLowerCase();
+      const matchedField = fields.find(f => f.id.toLowerCase() === lowerKey || f.label.toLowerCase() === lowerKey);
+      if (matchedField && !seenFieldIds.has(matchedField.id) && v !== undefined && String(v).trim() !== '') {
+        seenFieldIds.add(matchedField.id);
+        coreMeasurementsList.push([matchedField.label, String(v).trim()]);
+      }
+    });
+
+    if (coreMeasurementsList.length > 0) {
+      messageText += `*📐 CORE MEASUREMENTS*\n`;
+      coreMeasurementsList.forEach(([label, val]) => {
+        messageText += `• ${label}: *${val}*\n`;
+      });
+      messageText += `\n`;
+    }
+
+    // Custom Design Options
     const garmentTypeVal = assessment.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (assessment.garment_type || 'N/A');
     const colorVal = assessment.sub_options?.['Color'] || assessment.sub_options?.['color'] || 'Standard';
 
-    let remainingSubOptions: [string, any][] = [];
+    const customOptionsList: [string, string][] = [];
+    const seenCustomKeys = new Set<string>();
+
     if (assessment.sub_options) {
-      remainingSubOptions = Object.entries(assessment.sub_options).filter(
-        ([key, val]) => {
-          const k = key.toLowerCase();
-          return k !== 'custom design notes' &&
-                 k !== 'doctornotes' &&
-                 k !== 'color' &&
-                 k !== 'garment type' &&
-                 val !== undefined &&
-                 val !== null &&
-                 String(val).trim() !== '';
+      Object.entries(assessment.sub_options).forEach(([key, val]) => {
+        const lowerKey = key.toLowerCase();
+        const isField = fields.some(f => f.id.toLowerCase() === lowerKey || f.label.toLowerCase() === lowerKey);
+        if (
+          !isField &&
+          key !== 'Custom Design Notes' &&
+          key !== 'doctorNotes' &&
+          lowerKey !== 'color' &&
+          lowerKey !== 'garment type' &&
+          lowerKey !== 'hand selection' &&
+          val !== undefined &&
+          val !== null &&
+          String(val).trim() !== ''
+        ) {
+          if (!seenCustomKeys.has(lowerKey)) {
+            seenCustomKeys.add(lowerKey);
+            customOptionsList.push([key, String(val).trim()]);
+          }
         }
-      );
+      });
     }
 
-    messageText += `*✍️ CUSTOM DESIGN OPTIONS / اضافی تفصیلات*\n`;
+    messageText += `*✍️ CUSTOM DESIGN OPTIONS*\n`;
     messageText += `• Garment Type: *${garmentTypeVal}*\n`;
     messageText += `• Color: *${colorVal}*\n`;
-    remainingSubOptions.forEach(([key, val]) => {
+    customOptionsList.forEach(([key, val]) => {
       messageText += `• ${key}: *${val}*\n`;
     });
     messageText += `\n`;
 
-    // 1. Doctor's Notes & Case History (🔴 RED COLOR GROUP)
+    // 1. Doctor's Notes & Case History
     if (resolvedDoctorNotes) {
-      messageText += `🔴 *🩺 DOCTOR'S NOTES & CASE HISTORY / ڈاکٹر کے نوٹس اور ہسٹری* (🔴 *RED COLOR GROUP*)\n`;
+      messageText += `🔴 *🩺 DOCTOR'S NOTES & CASE HISTORY*\n`;
       messageText += `🔴 "${resolvedDoctorNotes}"\n\n`;
     }
 
     // 2. Garment Configuration Note
     if (assessment.notes) {
-      messageText += `🔴 *📝 GARMENT CONFIGURATION NOTE / پیمائش کے نوٹ*\n`;
+      messageText += `🔴 *📝 GARMENT CONFIGURATION NOTE*\n`;
       messageText += `🔴 "${assessment.notes}"\n\n`;
     }
 
     // 3. Custom Design Notes
     const customDesignNotes = assessment.sub_options ? (assessment.sub_options as any)['Custom Design Notes'] : null;
     if (customDesignNotes) {
-      messageText += `🔴 *✍️ CUSTOM DESIGN NOTES / اضافی ڈیزائن نوٹس*\n`;
+      messageText += `🔴 *✍️ CUSTOM DESIGN NOTES*\n`;
       messageText += `🔴 "${customDesignNotes}"\n\n`;
     }
 
@@ -1486,7 +1658,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
 
   const renderAssessmentDrawingSvg = (assessment: RegisteredAssessment) => {
     const handSelectionVal = assessment.sub_options?.['Hand Selection'] || 'Right Hand Glove';
-    const isBoth = assessment.garment_type === 'All Gloves/Glove With Sleeve' && handSelectionVal === 'Both Hand Glove';
+    const isBoth = (assessment.garment_type === 'All Gloves/Glove With Sleeve' || assessment.garment_type === 'Glove With Sleeve') && handSelectionVal === 'Both Hand Glove';
 
     const formatVal = (label: string) => {
       let lookupLabel = label;
@@ -1512,12 +1684,12 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         else if (label === 'Little finger') fallbackKey = 'Small finger';
         else if (label === 'Total length middle finger to wrist') fallbackKey = 'Total length medal finger to wrist';
         else if (label === 'Total length middle finger to end of scar') fallbackKey = 'Total length medal finger to end of scar';
-        // Belly Binder mappings
-        else if (label === 'Diaphrom') fallbackKey = 'Diaphrarm';
+        // Belly Binder / Belly Belt mappings
+        else if (label === 'Diaphrom' || label === 'Diaphrarm') fallbackKey = 'Diaphrarm';
         else if (label === 'West (Waist)' || label === 'West' || label === 'Waist') fallbackKey = 'Waist';
         else if (label === 'Open End') fallbackKey = 'Open end thigh';
         else if (label === 'Close End (Leg end)') fallbackKey = 'Close end thigh';
-        else if (label === 'Length Diaphrom to West' || label === 'Length Diaphrom to Waist') fallbackKey = 'length diaphragm to waist';
+        else if (label === 'Width diapharm to waist' || label === 'Width diaphrom to waist' || label === 'Length Diaphrom to West' || label === 'Length Diaphrom to Waist') fallbackKey = 'length diaphragm to waist';
         else if (label === 'Short Length' || label === 'Waist to Close End') fallbackKey = 'Waist to Close End';
         // All Trouser backwards compatibility fallbacks
         else if (label === 'Belly') fallbackKey = 'Diaphrarm';
@@ -1729,6 +1901,90 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
           </svg>
         );
 
+      case 'Sports Bra':
+        return (
+          <div className="flex flex-col items-center w-full">
+            <svg viewBox="0 0 320 320" className="w-full h-full max-h-[500px]" style={{ minHeight: '320px' }}>
+              <defs>
+                <marker id="arrow-blue-sb" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb" />
+                </marker>
+                <marker id="arrow-emerald-sb" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981" />
+                </marker>
+                <marker id="arrow-amber-sb" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#d97706" />
+                </marker>
+                <marker id="arrow-purple-sb" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed" />
+                </marker>
+                <marker id="arrow-rose-sb" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626" />
+                </marker>
+              </defs>
+
+              {/* Title Badge Indicator */}
+              <g transform="translate(160, 20)">
+                <rect x="-65" y="-10" width="130" height="20" rx="10" fill="#f8fafc" stroke="#1e293b" strokeWidth="1" />
+                <text y="3.5" textAnchor="middle" fill="#1e293b" fontSize="9" fontWeight="900" fontFamily="sans-serif" letterSpacing="0.5">
+                  SPORTS BRA
+                </text>
+              </g>
+
+              {/* Sports Bra Contour path */}
+              <path 
+                d="M 100,55 L 125,55 C 132,105 188,105 195,55 L 220,55 C 238,125 240,140 230,150 L 225,240 C 180,245 140,245 95,240 L 90,150 C 80,140 82,125 100,55 Z" 
+                fill="#eff6ff" 
+                stroke="#2563eb" 
+                strokeWidth="2.5" 
+                strokeLinejoin="round" 
+                strokeLinecap="round" 
+              />
+
+              {/* Inner Seam & Bottom Band */}
+              <path d="M 92,215 C 138,220 182,220 228,215" stroke="#2563eb" strokeWidth="2" strokeDasharray="3 3" fill="none" />
+              <line x1="160" y1="95" x2="160" y2="240" stroke="#93c5fd" strokeWidth="2" strokeDasharray="2 2" />
+
+              {/* Measurement Lines */}
+              <line x1="100" y1="55" x2="220" y2="55" stroke="#7c3aed" strokeWidth="2" strokeDasharray="3 3" />
+              <line x1="88" y1="140" x2="232" y2="140" stroke="#0891b2" strokeWidth="2" fill="none" />
+              <line x1="92" y1="180" x2="228" y2="180" stroke="#10b981" strokeWidth="2" fill="none" />
+              <line x1="95" y1="230" x2="225" y2="230" stroke="#d97706" strokeWidth="2.5" fill="none" />
+
+              {/* Total Length Vertical Ruler */}
+              <line x1="100" y1="55" x2="45" y2="55" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+              <line x1="95" y1="240" x2="45" y2="240" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+              <line x1="45" y1="55" x2="45" y2="240" stroke="#dc2626" strokeWidth="1.5" markerStart="url(#arrow-rose-sb)" markerEnd="url(#arrow-rose-sb)" />
+
+              {/* Overlays / Badges */}
+              <g transform="translate(160, 55)" className="text-[8px] font-bold">
+                <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#7c3aed" strokeWidth="1.5" />
+                <text y="3" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="8">Shoulder: {formatVal('Shoulder')}</text>
+              </g>
+
+              <g transform="translate(160, 140)" className="text-[8px] font-bold">
+                <rect x="-40" y="-7" width="80" height="14" rx="3" fill="white" stroke="#0891b2" strokeWidth="1.5" />
+                <text y="3" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="8">Armpit: {formatVal('Armpit')}</text>
+              </g>
+
+              <g transform="translate(160, 180)" className="text-[8px] font-bold">
+                <rect x="-40" y="-7" width="80" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="1.5" />
+                <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">Chest: {formatVal('Chest')}</text>
+              </g>
+
+              <g transform="translate(160, 230)" className="text-[8px] font-bold">
+                <rect x="-45" y="-7" width="90" height="14" rx="3" fill="white" stroke="#d97706" strokeWidth="1.5" />
+                <text y="3" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="8">Diaphrarm: {formatVal('Diaphrarm')}</text>
+              </g>
+
+              <g transform="translate(45, 147)" className="text-[7.5px] font-bold">
+                <rect x="-42" y="-6" width="84" height="12" rx="2" fill="white" stroke="#dc2626" strokeWidth="0.5" />
+                <text y="2.5" textAnchor="middle" className="fill-rose-600 font-bold" fontSize="7.5">Total Length: {formatVal('Total length')}</text>
+              </g>
+            </svg>
+          </div>
+        );
+
       case 'All Jacket':
         return (
           <svg viewBox="0 0 320 320" className="w-full h-full max-h-[320px]" style={{ minHeight: '260px' }}>
@@ -1828,6 +2084,173 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
             </g>
           </svg>
         );
+
+      case 'Glove With Sleeve':
+        {
+          const handSelectionVal = assessment.sub_options?.['Hand Selection'] || 'Right Hand Glove';
+          const isBoth = handSelectionVal === 'Both Hand Glove';
+          const activeHand = isBoth ? activeBothHandView : (handSelectionVal === 'Left Hand Glove' ? 'Left' : 'Right');
+          const isLeftHand = activeHand === 'Left';
+          const xThumb = isLeftHand ? 277 : 43;
+          const xLeftFinger = isLeftHand ? 209 : 111;
+          const xMiddleFinger = isLeftHand ? 172 : 148;
+          const xRightFinger = isLeftHand ? 139 : 181;
+          const xSmallFinger = isLeftHand ? 110 : 210;
+
+          return (
+            <div className="flex flex-col items-center w-full">
+              {isBoth && (
+                <div className="flex gap-2 mb-4 bg-slate-100 p-1.5 rounded-2xl no-print">
+                  <button
+                    type="button"
+                    onClick={() => setActiveBothHandView('Right')}
+                    className={cn(
+                      "px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                      activeBothHandView === 'Right'
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    )}
+                  >
+                    Right Hand View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveBothHandView('Left')}
+                    className={cn(
+                      "px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                      activeBothHandView === 'Left'
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    )}
+                  >
+                    Left Hand View
+                  </button>
+                </div>
+              )}
+              <svg viewBox="0 0 320 440" className="w-full h-full max-h-[780px]" style={{ minHeight: '500px' }}>
+                <defs>
+                  <marker id="arrow-blue-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb" />
+                  </marker>
+                  <marker id="arrow-emerald-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981" />
+                  </marker>
+                  <marker id="arrow-amber-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#d97706" />
+                  </marker>
+                  <marker id="arrow-purple-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed" />
+                  </marker>
+                  <marker id="arrow-rose-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626" />
+                  </marker>
+                </defs>
+
+                {/* Hand Selection Badge Indicator */}
+                <g transform="translate(160, 18)">
+                  <rect x="-85" y="-10" width="170" height="20" rx="10" fill="#f8fafc" stroke="#1e293b" strokeWidth="1" />
+                  <text y="3.5" textAnchor="middle" fill="#1e293b" fontSize="9" fontWeight="900" fontFamily="sans-serif" letterSpacing="0.5">
+                    {`GLOVE WITH SLEEVE (${handSelectionVal.toUpperCase()})`}
+                  </text>
+                </g>
+
+                {/* Flipped group for hand outline if Left Hand Glove is selected */}
+                <g transform={isLeftHand ? "translate(320, 0) scale(-1, 1)" : ""}>
+                  {/* Long Glove With Sleeve Contour path */}
+                  <path 
+                    d="M 110,410 C 108,380 110,345 112,320 C 112,295 112,260 111,245 C 111,235 90,220 85,205 C 75,188 45,182 35,170 C 22,158 32,142 48,150 C 68,160 85,164 98,170 L 102,82 Q 112,62 122,82 L 125,144 Q 128,148 131,144 L 138,50 Q 148,30 158,50 L 159,144 Q 162,148 165,144 L 171,62 Q 181,42 191,62 L 191,147 Q 194,151 197,147 L 202,94 Q 210,80 218,94 C 221,134 216,235 199,265 C 197,290 196,330 196,370 C 196,395 198,410 198,410 Q 154,420 110,410 Z" 
+                    fill="#eff6ff" 
+                    stroke="#2563eb" 
+                    strokeWidth="2.5" 
+                    strokeLinejoin="round" 
+                    strokeLinecap="round" 
+                  />
+                  
+                  {/* Internal Circumference lines */}
+                  <path d="M 98,205 Q 148,210 198,205" stroke="#2563eb" strokeWidth="2.5" fill="none" />
+                  <path d="M 111,265 Q 154,268 197,265" stroke="#10b981" strokeWidth="2.5" fill="none" />
+                  <path d="M 112,340 Q 154,343 196,340" stroke="#f59e0b" strokeWidth="2.5" fill="none" />
+                  <path d="M 110,410 Q 154,413 198,410" stroke="#dc2626" strokeWidth="2.5" fill="none" />
+
+                  {/* Finger Joint Loops */}
+                  <path d="M 137,92 Q 145,95 153,92" stroke="#4f46e5" strokeWidth="2" fill="none" />
+                  <path d="M 104,112 Q 111,115 118,112" stroke="#0891b2" strokeWidth="2" fill="none" />
+                  <path d="M 169,102 Q 177,105 185,102" stroke="#059669" strokeWidth="2" fill="none" />
+                  <path d="M 199,124 Q 206,126 213,124" stroke="#db2777" strokeWidth="2" fill="none" />
+                  <path d="M 33,163 Q 43,157 52,146" stroke="#ea580c" strokeWidth="2" fill="none" />
+
+                  {/* Length 1: Middle Finger to Wrist (y=40 to y=265) */}
+                  <line x1="148" y1="40" x2="65" y2="40" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+                  <line x1="111" y1="265" x2="65" y2="265" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+                  <line x1="65" y1="40" x2="65" y2="265" stroke="#4f46e5" strokeWidth="1.5" markerStart="url(#arrow-purple-cl)" markerEnd="url(#arrow-purple-cl)" />
+
+                  {/* Length 2: Wrist to end of scar / Close end (y=265 to y=410) */}
+                  <line x1="197" y1="265" x2="275" y2="265" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+                  <line x1="198" y1="410" x2="275" y2="410" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+                  <line x1="275" y1="265" x2="275" y2="410" stroke="#dc2626" strokeWidth="1.5" markerStart="url(#arrow-rose-cl)" markerEnd="url(#arrow-rose-cl)" />
+                </g>
+
+                {/* Overlays / Badges */}
+                <g transform="translate(155, 235)" className="text-[8px] font-bold">
+                  <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#2563eb" strokeWidth="1.5" />
+                  <text y="3" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="8">Palm: {formatVal('Palm')}</text>
+                </g>
+
+                <g transform="translate(155, 290)" className="text-[8px] font-bold">
+                  <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="1.5" />
+                  <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">Wrist: {formatVal('Wrist')}</text>
+                </g>
+
+                <g transform="translate(155, 360)" className="text-[8px] font-bold">
+                  <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#f59e0b" strokeWidth="1.5" />
+                  <text y="3" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="8">Elbow: {formatVal('Elbow')}</text>
+                </g>
+
+                <g transform="translate(155, 422)" className="text-[8px] font-bold">
+                  <rect x="-45" y="-7" width="90" height="14" rx="3" fill="white" stroke="#dc2626" strokeWidth="1.5" />
+                  <text y="3" textAnchor="middle" className="fill-rose-600 font-extrabold" fontSize="8">Close End: {formatVal('Close end')}</text>
+                </g>
+
+                {/* Finger Badges */}
+                <g transform={`translate(${xThumb}, 185)`} className="text-[8px] font-bold">
+                  <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#ea580c" strokeWidth="1" />
+                  <text y="3" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="8">Thumb: {formatVal('Thumb')}</text>
+                </g>
+
+                <g transform={`translate(${xLeftFinger}, 92)`} className="text-[8px] font-bold">
+                  <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#0891b2" strokeWidth="1" />
+                  <text y="3" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="8">Index: {formatVal('Index finger')}</text>
+                </g>
+                
+                <g transform={`translate(${xMiddleFinger}, 54)`} className="text-[8px] font-bold">
+                  <rect x="-34" y="-7" width="68" height="14" rx="3" fill="white" stroke="#4f46e5" strokeWidth="1.5" />
+                  <text y="3" textAnchor="middle" className="fill-indigo-600 font-extrabold" fontSize="8">Middle: {formatVal('Middle finger')}</text>
+                </g>
+
+                <g transform={`translate(${xRightFinger}, 97)`} className="text-[8px] font-bold">
+                  <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#059669" strokeWidth="1" />
+                  <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">Ring: {formatVal('Ring finger')}</text>
+                </g>
+
+                <g transform={`translate(${xSmallFinger}, 137)`} className="text-[8px] font-bold">
+                  <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#db2777" strokeWidth="1" />
+                  <text y="3" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="8">Little: {formatVal('Little finger')}</text>
+                </g>
+
+                {/* Length Ruler Labels */}
+                <g transform="translate(65, 150)" className="text-[7.5px] font-bold">
+                  <rect x="-55" y="-6" width="110" height="12" rx="2" fill="white" stroke="#4f46e5" strokeWidth="0.5" />
+                  <text y="2.5" textAnchor="middle" className="fill-indigo-600 font-bold" fontSize="7.5">Middle to Wrist: {formatVal('Length middle finger to wrist')}</text>
+                </g>
+
+                <g transform="translate(268, 335)" className="text-[7.5px] font-bold">
+                  <rect x="-52" y="-6" width="104" height="12" rx="2" fill="white" stroke="#dc2626" strokeWidth="0.5" />
+                  <text y="2.5" textAnchor="middle" className="fill-rose-600 font-bold" fontSize="7.5">Wrist to Scar: {formatVal('Length wrist to end of scar')}</text>
+                </g>
+              </svg>
+            </div>
+          );
+        }
 
       case 'All Gloves/Glove With Sleeve':
         {
@@ -2125,6 +2548,70 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
               <text y="8" textAnchor="middle" className="fill-rose-700 font-black" fontSize="7">{formatVal('Waist to Close End')}</text>
             </g>
           </svg>
+        );
+
+      case 'Belly Belt':
+        return (
+          <div className="flex flex-col items-center w-full">
+            <svg viewBox="0 0 320 320" className="w-full h-full max-h-[500px]" style={{ minHeight: '320px' }}>
+              <defs>
+                <marker id="arrow-rose-bbelt-reg" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626" />
+                </marker>
+              </defs>
+
+              <g transform="translate(160, 20)">
+                <rect x="-65" y="-10" width="130" height="20" rx="10" fill="#f8fafc" stroke="#1e293b" strokeWidth="1" />
+                <text y="3.5" textAnchor="middle" fill="#1e293b" fontSize="9" fontWeight="900" fontFamily="sans-serif" letterSpacing="0.5">
+                  BELLY BELT
+                </text>
+              </g>
+
+              <path 
+                d="M 100,70 Q 160,75 220,70 C 230,115 235,160 228,210 Q 160,215 92,210 C 85,160 90,115 100,70 Z" 
+                fill="#eff6ff" 
+                stroke="#2563eb" 
+                strokeWidth="2.5" 
+                strokeLinejoin="round" 
+                strokeLinecap="round" 
+              />
+
+              <rect x="150" y="73" width="20" height="139" rx="2" fill="#dbeafe" stroke="#3b82f6" strokeWidth="1" />
+              <line x1="160" y1="73" x2="160" y2="212" stroke="#2563eb" strokeWidth="1" strokeDasharray="3 3" />
+              {[85, 105, 125, 145, 165, 185, 200].map((yVal, idx) => (
+                <circle key={idx} cx="160" cy={yVal} r="2" fill="#1d4ed8" />
+              ))}
+
+              <path d="M 100,73 Q 160,78 220,73" stroke="#7c3aed" strokeWidth="2" strokeDasharray="3 3" fill="none" />
+              <path d="M 92,140 Q 160,145 228,140" stroke="#d97706" strokeWidth="2" strokeDasharray="3 3" fill="none" />
+              <path d="M 92,210 Q 160,215 228,210" stroke="#10b981" strokeWidth="2" fill="none" />
+
+              <line x1="100" y1="70" x2="45" y2="70" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+              <line x1="92" y1="210" x2="45" y2="210" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+              <line x1="45" y1="70" x2="45" y2="210" stroke="#dc2626" strokeWidth="1.5" markerStart="url(#arrow-rose-bbelt-reg)" markerEnd="url(#arrow-rose-bbelt-reg)" />
+
+              <g transform="translate(160, 60)" className="text-[8px] font-bold">
+                <rect x="-45" y="-7" width="90" height="14" rx="3" fill="white" stroke="#7c3aed" strokeWidth="1.5" />
+                <text y="3" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="8">Diaphrom: {formatVal('Diaphrom')}</text>
+              </g>
+
+              <g transform="translate(160, 140)" className="text-[8px] font-bold">
+                <rect x="-40" y="-7" width="80" height="14" rx="3" fill="white" stroke="#d97706" strokeWidth="1.5" />
+                <text y="3" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="8">Belly: {formatVal('Belly')}</text>
+              </g>
+
+              <g transform="translate(160, 222)" className="text-[8px] font-bold">
+                <rect x="-40" y="-7" width="80" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="1.5" />
+                <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">Waist: {formatVal('Waist')}</text>
+              </g>
+
+              <g transform="translate(45, 140)" className="text-[7.5px] font-bold">
+                <rect x="-42" y="-12" width="84" height="24" rx="3" fill="white" stroke="#dc2626" strokeWidth="0.8" />
+                <text y="-2" textAnchor="middle" className="fill-rose-600 font-bold" fontSize="6.5">Diaphrom to Waist</text>
+                <text y="7" textAnchor="middle" className="fill-rose-600 font-extrabold" fontSize="7.5">{formatVal('Width diapharm to waist')}</text>
+              </g>
+            </svg>
+          </div>
         );
 
       case 'All Trouser':
@@ -2863,25 +3350,25 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                     </div>
                   )}
 
-                  {/* Notes snippet (🔴 RED COLOR GROUP) */}
+                  {/* Notes snippet */}
                   <div className="space-y-3">
-                    <span className="text-[9px] font-black text-red-500 uppercase tracking-widest block">Clinical & Configuration Notes / ضروری ہدایات (🔴 RED COLOR GROUP)</span>
+                    <span className="text-[9px] font-black text-red-500 uppercase tracking-widest block">Clinical & Configuration Notes</span>
                     <div className="space-y-3 bg-red-50/40 border border-red-100 p-4 rounded-2xl max-h-[160px] overflow-y-auto">
                       {getAssessmentDoctorNotes(selectedAssessment) && (
                         <div className="space-y-1">
-                          <span className="text-[9px] font-black text-red-600 uppercase tracking-widest block">Doctor Notes / ڈاکٹر نوٹس</span>
+                          <span className="text-[9px] font-black text-red-600 uppercase tracking-widest block">Doctor Notes</span>
                           <p className="text-xs text-red-700 font-extrabold whitespace-pre-wrap font-sans bg-white/45 p-2 rounded-xl border border-red-100/20">{getAssessmentDoctorNotes(selectedAssessment)}</p>
                         </div>
                       )}
                       {selectedAssessment.notes && (
                         <div className={`space-y-1 ${getAssessmentDoctorNotes(selectedAssessment) ? 'pt-2.5 border-t border-red-100/40' : ''}`}>
-                          <span className="text-[9px] font-black text-red-600 uppercase tracking-widest block">Garment Configuration Note / پیمائش کے نوٹ</span>
+                          <span className="text-[9px] font-black text-red-600 uppercase tracking-widest block">Garment Configuration Note</span>
                           <p className="text-xs text-red-700 font-extrabold whitespace-pre-wrap font-sans bg-white/45 p-2 rounded-xl border border-red-100/20">{selectedAssessment.notes}</p>
                         </div>
                       )}
                       {selectedAssessment.sub_options?.['Custom Design Notes'] && (
                         <div className={`space-y-1 ${(getAssessmentDoctorNotes(selectedAssessment) || selectedAssessment.notes) ? 'pt-2.5 border-t border-red-100/40' : ''}`}>
-                          <span className="text-[9px] font-black text-red-600 uppercase tracking-widest block">Custom Design Notes / ڈیزائن نوٹس</span>
+                          <span className="text-[9px] font-black text-red-600 uppercase tracking-widest block">Custom Design Notes</span>
                           <p className="text-xs text-red-700 font-extrabold whitespace-pre-wrap font-sans bg-white/45 p-2 rounded-xl border border-red-100/20">{selectedAssessment.sub_options['Custom Design Notes']}</p>
                         </div>
                       )}
@@ -2901,10 +3388,16 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
 
                     // Get spec matrix fields
                     const fields = GARMENT_FIELDS[selectedAssessment.garment_type] || [];
+                    const seenFieldIds = new Set<string>();
                     const coreMeasurements = Object.entries(selectedAssessment.sub_options || {})
                       .filter(([key, val]) => {
                         const lowerKey = key.toLowerCase();
-                        return fields.some(f => f.id.toLowerCase() === lowerKey || f.label.toLowerCase() === lowerKey) && val !== undefined && String(val).trim() !== '';
+                        const matchedField = fields.find(f => f.id.toLowerCase() === lowerKey || f.label.toLowerCase() === lowerKey);
+                        if (!matchedField) return false;
+                        if (seenFieldIds.has(matchedField.id)) return false;
+                        if (val === undefined || String(val).trim() === '') return false;
+                        seenFieldIds.add(matchedField.id);
+                        return true;
                       });
 
                     const garmentTypeVal = selectedAssessment.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (selectedAssessment.garment_type || 'N/A');
@@ -2932,7 +3425,7 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                             </svg>
                           </div>
                           <div>
-                            <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Live WhatsApp Message Preview / واٹس ایپ پیغام</h4>
+                            <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Live WhatsApp Message Preview</h4>
                           </div>
                         </div>
 
@@ -2941,35 +3434,35 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                             <div className="absolute right-0 top-0 w-2.5 h-2.5 bg-[#d9fdd3] border-t border-r border-[#c1e2b8]" style={{ transform: 'translateX(3px) rotate(45deg)', transformOrigin: 'top left', clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
 
                             <p className="font-extrabold text-slate-900 border-b border-[#c1e2b8] pb-1.5 mb-2 text-[10px] sm:text-[11px]">
-                              🩺 *CLINICAL ASSESSMENT SUMMARY / خلاصہ طبی معائنہ*
+                              🩺 *CLINICAL ASSESSMENT SUMMARY*
                             </p>
 
-                            {/* Patient Details (🟢 GREEN COLOR GROUP) */}
+                            {/* Patient Details */}
                             <div className="text-emerald-700 bg-emerald-50/70 p-2 rounded-lg border border-emerald-100 mb-2 space-y-1">
                               <p className="font-black uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-emerald-200/50 pb-0.5 mb-0.5">
-                                *👤 PATIENT DETAILS / معلومات مریض* (🟢 *GREEN COLOR GROUP*)
+                                *👤 PATIENT DETAILS*
                               </p>
                               <p className="font-black">🟢 File ID: *<span className="underline">{selectedAssessment.id}</span>*</p>
-                              <p className="font-black">🟢 Name / نام: *<span className="underline">{selectedAssessment.patient_name}</span>*</p>
-                              {resolvedPhone && <p className="font-black">🟢 Mob No / موبائل: *<span>{resolvedPhone}</span>*</p>}
+                              <p className="font-black">🟢 Name: *<span className="underline">{selectedAssessment.patient_name}</span>*</p>
+                              {resolvedPhone && <p className="font-black">🟢 Mob No: *<span>{resolvedPhone}</span>*</p>}
                               <p className="font-black">🟢 Age / Gender: *<span>{selectedAssessment.age ? `${selectedAssessment.age} Yrs` : 'N/A'} / {selectedAssessment.gender || 'N/A'}</span>*</p>
-                              <p className="font-black">🟢 Date / تاریخ: *<span>{new Date(selectedAssessment.created_at).toLocaleDateString()}</span>*</p>
+                              <p className="font-black">🟢 Date: *<span>{new Date(selectedAssessment.created_at).toLocaleDateString()}</span>*</p>
                             </div>
 
-                            {/* Address Details (🔵 BLUE COLOR GROUP) */}
+                            {/* Address Details */}
                             {resolvedAddress && (
                               <div className="text-blue-700 bg-blue-50/70 p-2 rounded-lg border border-blue-100 mb-2 space-y-1">
                                 <p className="font-black uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-blue-200/50 pb-0.5 mb-0.5">
-                                  *🔵 ADDRESS / پتہ* (🔵 *BLUE COLOR GROUP*)
+                                  *🔵 ADDRESS*
                                 </p>
-                                <p className="font-black">🔵 Address / پتہ: *<span>{resolvedAddress}</span>*</p>
+                                <p className="font-black">🔵 Address: *<span>{resolvedAddress}</span>*</p>
                               </div>
                             )}
 
                             {/* Garment Configuration */}
                             <div className="mb-2 space-y-1 p-2 bg-white/40 rounded-lg border border-slate-200/50">
                               <p className="font-black text-slate-900 uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-slate-200 pb-0.5 mb-0.5">
-                                *📦 GARMENT CONFIGURATION / گارمنٹ کنفیگریشن*
+                                *📦 GARMENT CONFIGURATION*
                               </p>
                               <p className="font-extrabold text-slate-800">• Garment Type: *<span className="font-black text-slate-900">{selectedAssessment.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : selectedAssessment.garment_type}</span>*</p>
                               <p className="font-extrabold text-slate-800">• Silicone Option: *<span className="font-black text-slate-900">{selectedAssessment.silicone_pasting}</span>*</p>
@@ -2980,7 +3473,7 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                             {coreMeasurements.length > 0 && (
                               <div className="mb-2 space-y-1 p-2 bg-white/40 rounded-lg border border-slate-200/50">
                                 <p className="font-black text-slate-900 uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-slate-200 pb-0.5 mb-0.5">
-                                  *📐 CORE MEASUREMENTS / پیمائش*
+                                  *📐 CORE MEASUREMENTS*
                                 </p>
                                 <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
                                   {coreMeasurements.map(([key, val]) => (
@@ -2993,7 +3486,7 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                             {/* Custom Options */}
                             <div className="mb-2 space-y-1 p-2 bg-white/40 rounded-lg border border-slate-200/50">
                               <p className="font-black text-slate-900 uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-slate-200 pb-0.5 mb-0.5">
-                                *✍️ CUSTOM DESIGN OPTIONS / اضافی تفصیلات*
+                                *✍️ CUSTOM DESIGN OPTIONS*
                               </p>
                               <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
                                 <p className="font-bold text-slate-800">• Garment Type: *<span className="font-black text-slate-900">{garmentTypeVal}</span>*</p>
@@ -3004,11 +3497,11 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                               </div>
                             </div>
 
-                            {/* Notes (🔴 RED COLOR GROUP) */}
+                            {/* Notes */}
                             {(resolvedDoctorNotes || selectedAssessment.notes || selectedAssessment.sub_options?.['Custom Design Notes']) && (
                               <div className="text-red-700 bg-red-50/70 p-2 rounded-lg border border-red-100 mb-1 space-y-2">
                                 <p className="font-black uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-red-200 pb-0.5 mb-0.5">
-                                  *🔴 🩺 NOTES & CASE HISTORY / نوٹس اور ہسٹری* (🔴 *RED COLOR GROUP*)
+                                  *🔴 🩺 NOTES & CASE HISTORY*
                                 </p>
                                 {resolvedDoctorNotes && (
                                   <div className="space-y-0.5">
@@ -3214,7 +3707,9 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                       <option value="Arm sleeve Left Hand">Arm sleeve Left Hand</option>
                       <option value="Connecting Sleeves/Arm Sleeve">Connecting Sleeves/Arm Sleeve</option>
                       <option value="All Jacket">All Jacket</option>
+                      <option value="Sports Bra">Sports Bra</option>
                       <option value="Belly Binder">Belly Binder</option>
+                      <option value="Belly Belt">Belly Belt</option>
                       <option value="All Trouser">All Trouser</option>
                       <option value="All Leg Sleeves">All Leg Sleeves</option>
                       <option value="All Socks">All Socks</option>
@@ -3227,7 +3722,9 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                         'Arm sleeve Left Hand',
                         'Connecting Sleeves/Arm Sleeve',
                         'All Jacket',
+                        'Sports Bra',
                         'Belly Binder',
+                        'Belly Belt',
                         'All Trouser',
                         'All Leg Sleeves',
                         'All Socks',
@@ -3265,88 +3762,104 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
 
               {/* Measurements Editing Section */}
               <div className="space-y-4 pt-2 border-t border-slate-100">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                    <ClipboardCheck className="w-4 h-4 text-slate-500" /> Measurements Data / پیمائش کی تفصیلات
-                  </h4>
-                  <span className="text-[10px] text-slate-400 font-extrabold">
-                    {Object.keys(editFormData.measurements).length} Points
-                  </span>
-                </div>
-
                 {(() => {
                   const predefinedFields = GARMENT_FIELDS[editFormData.garment_type] || [];
-                  const predefinedIds = predefinedFields.map(f => f.id);
-                  const predefinedLabels = predefinedFields.map(f => f.label);
-                  const allKeys = Array.from(new Set([
-                    ...predefinedIds,
-                    ...Object.keys(editFormData.measurements),
-                    ...Object.keys(editFormData.sub_options).filter(k => k !== 'Custom Design Notes' && k !== 'doctorNotes' && k !== 'Hand Selection')
-                  ]));
+                  const getCanonicalKey = (k: string) => {
+                    const match = predefinedFields.find(f => f.id === k || f.label === k);
+                    return match ? match.id : k;
+                  };
 
-                  if (allKeys.length === 0) {
-                    return (
-                      <p className="text-xs text-slate-400 italic">No measurements recorded yet for this garment.</p>
-                    );
-                  }
+                  const keysSet = new Set<string>();
+
+                  predefinedFields.forEach(f => {
+                    keysSet.add(f.id);
+                  });
+
+                  Object.keys(editFormData.measurements).forEach(k => {
+                    keysSet.add(getCanonicalKey(k));
+                  });
+
+                  Object.keys(editFormData.sub_options).forEach(k => {
+                    if (k !== 'Custom Design Notes' && k !== 'doctorNotes' && k !== 'Hand Selection') {
+                      keysSet.add(getCanonicalKey(k));
+                    }
+                  });
+
+                  const allKeys = Array.from(keysSet);
 
                   return (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
-                      {allKeys.map((key) => {
-                        const predefined = predefinedFields.find(f => f.id === key || f.label === key);
-                        const labelText = predefined ? predefined.label : key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                        const val = editFormData.measurements[key] ?? 
-                                    (predefined ? editFormData.measurements[predefined.id] : undefined) ?? 
-                                    (predefined ? editFormData.measurements[predefined.label] : undefined) ?? 
-                                    editFormData.sub_options[key] ?? 
-                                    (predefined ? editFormData.sub_options[predefined.label] : undefined) ?? 
-                                    '';
+                    <>
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                          <ClipboardCheck className="w-4 h-4 text-slate-500" /> Measurements Data / پیمائش کی تفصیلات
+                        </h4>
+                        <span className="text-[10px] text-slate-400 font-extrabold">
+                          {allKeys.length} Points
+                        </span>
+                      </div>
 
-                        return (
-                          <div key={key} className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
-                            <div className="flex-1 min-w-0">
-                              <label className="block text-[10px] font-black uppercase text-slate-500 truncate mb-0.5" title={labelText}>
-                                {labelText}
-                              </label>
-                              <input 
-                                type="text"
-                                value={val}
-                                placeholder={predefined?.placeholder || 'e.g. 25 cm'}
-                                onChange={(e) => {
-                                  const newVal = e.target.value;
-                                  setEditFormData(prev => {
-                                    const nextMeas = { ...prev.measurements, [key]: newVal };
-                                    if (predefined) {
-                                      nextMeas[predefined.id] = newVal;
-                                      nextMeas[predefined.label] = newVal;
-                                    }
-                                    const nextSub = { ...prev.sub_options, [key]: newVal };
-                                    if (predefined) {
-                                      nextSub[predefined.id] = newVal;
-                                      nextSub[predefined.label] = newVal;
-                                    }
-                                    return {
-                                      ...prev,
-                                      measurements: nextMeas,
-                                      sub_options: nextSub
-                                    };
-                                  });
-                                }}
-                                className="w-full px-2 py-1 rounded-lg border border-slate-200 text-xs font-extrabold text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                              />
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveMeasurementField(key)}
-                              className="p-1.5 text-slate-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors shrink-0 mt-3"
-                              title="Delete measurement field"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
+                      {allKeys.length === 0 ? (
+                        <p className="text-xs text-slate-400 italic">No measurements recorded yet for this garment.</p>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
+                          {allKeys.map((key) => {
+                            const predefined = predefinedFields.find(f => f.id === key || f.label === key);
+                            const labelText = predefined ? predefined.label : key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            const val = editFormData.measurements[key] ?? 
+                                        (predefined ? editFormData.measurements[predefined.id] : undefined) ?? 
+                                        (predefined ? editFormData.measurements[predefined.label] : undefined) ?? 
+                                        editFormData.sub_options[key] ?? 
+                                        (predefined ? editFormData.sub_options[predefined.id] : undefined) ?? 
+                                        (predefined ? editFormData.sub_options[predefined.label] : undefined) ?? 
+                                        '';
+
+                            return (
+                              <div key={key} className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <label className="block text-[10px] font-black uppercase text-slate-500 truncate mb-0.5" title={labelText}>
+                                    {labelText}
+                                  </label>
+                                  <input 
+                                    type="text"
+                                    value={val}
+                                    placeholder={predefined?.placeholder || 'e.g. 25 cm'}
+                                    onChange={(e) => {
+                                      const newVal = e.target.value;
+                                      setEditFormData(prev => {
+                                        const nextMeas = { ...prev.measurements, [key]: newVal };
+                                        if (predefined) {
+                                          nextMeas[predefined.id] = newVal;
+                                          nextMeas[predefined.label] = newVal;
+                                        }
+                                        const nextSub = { ...prev.sub_options, [key]: newVal };
+                                        if (predefined) {
+                                          nextSub[predefined.id] = newVal;
+                                          nextSub[predefined.label] = newVal;
+                                        }
+                                        return {
+                                          ...prev,
+                                          measurements: nextMeas,
+                                          sub_options: nextSub
+                                        };
+                                      });
+                                    }}
+                                    className="w-full px-2 py-1 rounded-lg border border-slate-200 text-xs font-extrabold text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveMeasurementField(key)}
+                                  className="p-1.5 text-slate-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors shrink-0 mt-3"
+                                  title="Delete measurement field"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
                   );
                 })()}
 

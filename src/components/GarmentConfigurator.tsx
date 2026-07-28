@@ -17,6 +17,8 @@ type GarmentType =
   | 'Compression Socks' 
   | 'Arm Sleeves' 
   | 'Gloves' 
+  | 'Glove With Sleeve' 
+  | 'Sports Bra' 
   | 'Leggings' 
   | 'Full Body Garments' 
   | 'Burn Pressure Garments' 
@@ -35,6 +37,8 @@ const GARMENT_TYPES: GarmentType[] = [
   'Compression Socks',
   'Arm Sleeves',
   'Gloves',
+  'Glove With Sleeve',
+  'Sports Bra',
   'Leggings',
   'Full Body Garments',
   'Burn Pressure Garments',

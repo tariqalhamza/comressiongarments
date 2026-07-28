@@ -98,11 +98,15 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
       else if (label === 'Little finger') fallbackKey = 'Small finger';
       else if (label === 'Total length middle finger to wrist') fallbackKey = 'Total length medal finger to wrist';
       else if (label === 'Total length middle finger to end of scar') fallbackKey = 'Total length medal finger to end of scar';
-      else if (label === 'Diaphrom') fallbackKey = 'Diaphrarm';
+      else if (label === 'Diaphrom' || label === 'Diaphrarm') fallbackKey = 'Diaphrarm';
+      else if (label === 'Chest') fallbackKey = 'Chest';
+      else if (label === 'Armpit' || label === 'Arm Pit') fallbackKey = 'Armpit';
+      else if (label === 'Shoulder') fallbackKey = 'Shoulder';
+      else if (label === 'Total length' || label === 'Total Length') fallbackKey = 'Total length';
       else if (label === 'West (Waist)' || label === 'West' || label === 'Waist') fallbackKey = 'Waist';
       else if (label === 'Open End') fallbackKey = 'Open end thigh';
       else if (label === 'Close End (Leg end)') fallbackKey = 'Close end thigh';
-      else if (label === 'Length Diaphrom to West' || label === 'Length Diaphrom to Waist') fallbackKey = 'length diaphragm to waist';
+      else if (label === 'Width diapharm to waist' || label === 'Width diaphrom to waist' || label === 'Length Diaphrom to West' || label === 'Length Diaphrom to Waist') fallbackKey = 'length diaphragm to waist';
       else if (label === 'Short Length' || label === 'Waist to Close End') fallbackKey = 'Waist to Close End';
       else if (label === 'Belly') fallbackKey = 'Diaphrarm';
       else if (label === 'Hips') fallbackKey = 'Hips';
@@ -274,6 +278,90 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
           </svg>
         );
 
+      case 'Sports Bra':
+        return (
+          <div className="flex flex-col items-center w-full">
+            <svg viewBox="0 0 320 320" className="w-full h-full max-h-[500px]" style={{ minHeight: '320px' }}>
+              <defs>
+                <marker id="arrow-blue-sb-asm" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb" />
+                </marker>
+                <marker id="arrow-emerald-sb-asm" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981" />
+                </marker>
+                <marker id="arrow-amber-sb-asm" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#d97706" />
+                </marker>
+                <marker id="arrow-purple-sb-asm" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed" />
+                </marker>
+                <marker id="arrow-rose-sb-asm" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626" />
+                </marker>
+              </defs>
+
+              {/* Title Badge Indicator */}
+              <g transform="translate(160, 20)">
+                <rect x="-65" y="-10" width="130" height="20" rx="10" fill="#f8fafc" stroke="#1e293b" strokeWidth="1" />
+                <text y="3.5" textAnchor="middle" fill="#1e293b" fontSize="9" fontWeight="900" fontFamily="sans-serif" letterSpacing="0.5">
+                  SPORTS BRA
+                </text>
+              </g>
+
+              {/* Sports Bra Contour path */}
+              <path 
+                d="M 100,55 L 125,55 C 132,105 188,105 195,55 L 220,55 C 238,125 240,140 230,150 L 225,240 C 180,245 140,245 95,240 L 90,150 C 80,140 82,125 100,55 Z" 
+                fill="#eff6ff" 
+                stroke="#2563eb" 
+                strokeWidth="2.5" 
+                strokeLinejoin="round" 
+                strokeLinecap="round" 
+              />
+
+              {/* Inner Seam & Bottom Band */}
+              <path d="M 92,215 C 138,220 182,220 228,215" stroke="#2563eb" strokeWidth="2" strokeDasharray="3 3" fill="none" />
+              <line x1="160" y1="95" x2="160" y2="240" stroke="#93c5fd" strokeWidth="2" strokeDasharray="2 2" />
+
+              {/* Measurement Lines */}
+              <line x1="100" y1="55" x2="220" y2="55" stroke="#7c3aed" strokeWidth="2" strokeDasharray="3 3" />
+              <line x1="88" y1="140" x2="232" y2="140" stroke="#0891b2" strokeWidth="2" fill="none" />
+              <line x1="92" y1="180" x2="228" y2="180" stroke="#10b981" strokeWidth="2" fill="none" />
+              <line x1="95" y1="230" x2="225" y2="230" stroke="#d97706" strokeWidth="2.5" fill="none" />
+
+              {/* Total Length Vertical Ruler */}
+              <line x1="100" y1="55" x2="45" y2="55" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+              <line x1="95" y1="240" x2="45" y2="240" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+              <line x1="45" y1="55" x2="45" y2="240" stroke="#dc2626" strokeWidth="1.5" markerStart="url(#arrow-rose-sb-asm)" markerEnd="url(#arrow-rose-sb-asm)" />
+
+              {/* Overlays / Badges */}
+              <g transform="translate(160, 55)" className="text-[8px] font-bold">
+                <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#7c3aed" strokeWidth="1.5" />
+                <text y="3" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="8">Shoulder: {formatVal('Shoulder')}</text>
+              </g>
+
+              <g transform="translate(160, 140)" className="text-[8px] font-bold">
+                <rect x="-40" y="-7" width="80" height="14" rx="3" fill="white" stroke="#0891b2" strokeWidth="1.5" />
+                <text y="3" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="8">Armpit: {formatVal('Armpit')}</text>
+              </g>
+
+              <g transform="translate(160, 180)" className="text-[8px] font-bold">
+                <rect x="-40" y="-7" width="80" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="1.5" />
+                <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">Chest: {formatVal('Chest')}</text>
+              </g>
+
+              <g transform="translate(160, 230)" className="text-[8px] font-bold">
+                <rect x="-45" y="-7" width="90" height="14" rx="3" fill="white" stroke="#d97706" strokeWidth="1.5" />
+                <text y="3" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="8">Diaphrarm: {formatVal('Diaphrarm')}</text>
+              </g>
+
+              <g transform="translate(45, 147)" className="text-[7.5px] font-bold">
+                <rect x="-42" y="-6" width="84" height="12" rx="2" fill="white" stroke="#dc2626" strokeWidth="0.5" />
+                <text y="2.5" textAnchor="middle" className="fill-rose-600 font-bold" fontSize="7.5">Total Length: {formatVal('Total length')}</text>
+              </g>
+            </svg>
+          </div>
+        );
+
       case 'All Jacket':
         return (
           <svg viewBox="0 0 320 320" className="w-full h-full max-h-[320px]" style={{ minHeight: '260px' }}>
@@ -359,6 +447,173 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
             </g>
           </svg>
         );
+
+      case 'Glove With Sleeve':
+        {
+          const handSelectionVal = assessment.sub_options?.['Hand Selection'] || 'Right Hand Glove';
+          const isBoth = handSelectionVal === 'Both Hand Glove';
+          const activeHand = isBoth ? activeBothHandView : (handSelectionVal === 'Left Hand Glove' ? 'Left' : 'Right');
+          const isLeftHand = activeHand === 'Left';
+          const xThumb = isLeftHand ? 277 : 43;
+          const xLeftFinger = isLeftHand ? 209 : 111;
+          const xMiddleFinger = isLeftHand ? 172 : 148;
+          const xRightFinger = isLeftHand ? 139 : 181;
+          const xSmallFinger = isLeftHand ? 110 : 210;
+
+          return (
+            <div className="flex flex-col items-center w-full">
+              {isBoth && (
+                <div className="flex gap-2 mb-4 bg-slate-100 p-1.5 rounded-2xl no-print">
+                  <button
+                    type="button"
+                    onClick={() => setActiveBothHandView('Right')}
+                    className={cn(
+                      "px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                      activeBothHandView === 'Right'
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    )}
+                  >
+                    Right Hand View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveBothHandView('Left')}
+                    className={cn(
+                      "px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                      activeBothHandView === 'Left'
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    )}
+                  >
+                    Left Hand View
+                  </button>
+                </div>
+              )}
+              <svg viewBox="0 0 320 440" className="w-full h-full max-h-[780px]" style={{ minHeight: '500px' }}>
+                <defs>
+                  <marker id="arrow-blue-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb" />
+                  </marker>
+                  <marker id="arrow-emerald-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981" />
+                  </marker>
+                  <marker id="arrow-amber-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#d97706" />
+                  </marker>
+                  <marker id="arrow-purple-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed" />
+                  </marker>
+                  <marker id="arrow-rose-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626" />
+                  </marker>
+                </defs>
+
+                {/* Hand Selection Badge Indicator */}
+                <g transform="translate(160, 18)">
+                  <rect x="-85" y="-10" width="170" height="20" rx="10" fill="#f8fafc" stroke="#1e293b" strokeWidth="1" />
+                  <text y="3.5" textAnchor="middle" fill="#1e293b" fontSize="9" fontWeight="900" fontFamily="sans-serif" letterSpacing="0.5">
+                    {`GLOVE WITH SLEEVE (${handSelectionVal.toUpperCase()})`}
+                  </text>
+                </g>
+
+                {/* Flipped group for hand outline if Left Hand Glove is selected */}
+                <g transform={isLeftHand ? "translate(320, 0) scale(-1, 1)" : ""}>
+                  {/* Long Glove With Sleeve Contour path */}
+                  <path 
+                    d="M 110,410 C 108,380 110,345 112,320 C 112,295 112,260 111,245 C 111,235 90,220 85,205 C 75,188 45,182 35,170 C 22,158 32,142 48,150 C 68,160 85,164 98,170 L 102,82 Q 112,62 122,82 L 125,144 Q 128,148 131,144 L 138,50 Q 148,30 158,50 L 159,144 Q 162,148 165,144 L 171,62 Q 181,42 191,62 L 191,147 Q 194,151 197,147 L 202,94 Q 210,80 218,94 C 221,134 216,235 199,265 C 197,290 196,330 196,370 C 196,395 198,410 198,410 Q 154,420 110,410 Z" 
+                    fill="#eff6ff" 
+                    stroke="#2563eb" 
+                    strokeWidth="2.5" 
+                    strokeLinejoin="round" 
+                    strokeLinecap="round" 
+                  />
+                  
+                  {/* Internal Circumference lines */}
+                  <path d="M 98,205 Q 148,210 198,205" stroke="#2563eb" strokeWidth="2.5" fill="none" />
+                  <path d="M 111,265 Q 154,268 197,265" stroke="#10b981" strokeWidth="2.5" fill="none" />
+                  <path d="M 112,340 Q 154,343 196,340" stroke="#f59e0b" strokeWidth="2.5" fill="none" />
+                  <path d="M 110,410 Q 154,413 198,410" stroke="#dc2626" strokeWidth="2.5" fill="none" />
+
+                  {/* Finger Joint Loops */}
+                  <path d="M 137,92 Q 145,95 153,92" stroke="#4f46e5" strokeWidth="2" fill="none" />
+                  <path d="M 104,112 Q 111,115 118,112" stroke="#0891b2" strokeWidth="2" fill="none" />
+                  <path d="M 169,102 Q 177,105 185,102" stroke="#059669" strokeWidth="2" fill="none" />
+                  <path d="M 199,124 Q 206,126 213,124" stroke="#db2777" strokeWidth="2" fill="none" />
+                  <path d="M 33,163 Q 43,157 52,146" stroke="#ea580c" strokeWidth="2" fill="none" />
+
+                  {/* Length 1: Middle Finger to Wrist (y=40 to y=265) */}
+                  <line x1="148" y1="40" x2="65" y2="40" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+                  <line x1="111" y1="265" x2="65" y2="265" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+                  <line x1="65" y1="40" x2="65" y2="265" stroke="#4f46e5" strokeWidth="1.5" markerStart="url(#arrow-purple-cl)" markerEnd="url(#arrow-purple-cl)" />
+
+                  {/* Length 2: Wrist to end of scar / Close end (y=265 to y=410) */}
+                  <line x1="197" y1="265" x2="275" y2="265" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+                  <line x1="198" y1="410" x2="275" y2="410" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+                  <line x1="275" y1="265" x2="275" y2="410" stroke="#dc2626" strokeWidth="1.5" markerStart="url(#arrow-rose-cl)" markerEnd="url(#arrow-rose-cl)" />
+                </g>
+
+                {/* Overlays / Badges */}
+                <g transform="translate(155, 235)" className="text-[8px] font-bold">
+                  <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#2563eb" strokeWidth="1.5" />
+                  <text y="3" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="8">Palm: {formatVal('Palm')}</text>
+                </g>
+
+                <g transform="translate(155, 290)" className="text-[8px] font-bold">
+                  <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="1.5" />
+                  <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">Wrist: {formatVal('Wrist')}</text>
+                </g>
+
+                <g transform="translate(155, 360)" className="text-[8px] font-bold">
+                  <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#f59e0b" strokeWidth="1.5" />
+                  <text y="3" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="8">Elbow: {formatVal('Elbow')}</text>
+                </g>
+
+                <g transform="translate(155, 422)" className="text-[8px] font-bold">
+                  <rect x="-45" y="-7" width="90" height="14" rx="3" fill="white" stroke="#dc2626" strokeWidth="1.5" />
+                  <text y="3" textAnchor="middle" className="fill-rose-600 font-extrabold" fontSize="8">Close End: {formatVal('Close end')}</text>
+                </g>
+
+                {/* Finger Badges */}
+                <g transform={`translate(${xThumb}, 185)`} className="text-[8px] font-bold">
+                  <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#ea580c" strokeWidth="1" />
+                  <text y="3" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="8">Thumb: {formatVal('Thumb')}</text>
+                </g>
+
+                <g transform={`translate(${xLeftFinger}, 92)`} className="text-[8px] font-bold">
+                  <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#0891b2" strokeWidth="1" />
+                  <text y="3" textAnchor="middle" className="fill-cyan-600 font-extrabold" fontSize="8">Index: {formatVal('Index finger')}</text>
+                </g>
+                
+                <g transform={`translate(${xMiddleFinger}, 54)`} className="text-[8px] font-bold">
+                  <rect x="-34" y="-7" width="68" height="14" rx="3" fill="white" stroke="#4f46e5" strokeWidth="1.5" />
+                  <text y="3" textAnchor="middle" className="fill-indigo-600 font-extrabold" fontSize="8">Middle: {formatVal('Middle finger')}</text>
+                </g>
+
+                <g transform={`translate(${xRightFinger}, 97)`} className="text-[8px] font-bold">
+                  <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#059669" strokeWidth="1" />
+                  <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">Ring: {formatVal('Ring finger')}</text>
+                </g>
+
+                <g transform={`translate(${xSmallFinger}, 137)`} className="text-[8px] font-bold">
+                  <rect x="-32" y="-7" width="64" height="14" rx="3" fill="white" stroke="#db2777" strokeWidth="1" />
+                  <text y="3" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="8">Little: {formatVal('Little finger')}</text>
+                </g>
+
+                {/* Length Ruler Labels */}
+                <g transform="translate(65, 150)" className="text-[7.5px] font-bold">
+                  <rect x="-55" y="-6" width="110" height="12" rx="2" fill="white" stroke="#4f46e5" strokeWidth="0.5" />
+                  <text y="2.5" textAnchor="middle" className="fill-indigo-600 font-bold" fontSize="7.5">Middle to Wrist: {formatVal('Length middle finger to wrist')}</text>
+                </g>
+
+                <g transform="translate(268, 335)" className="text-[7.5px] font-bold">
+                  <rect x="-52" y="-6" width="104" height="12" rx="2" fill="white" stroke="#dc2626" strokeWidth="0.5" />
+                  <text y="2.5" textAnchor="middle" className="fill-rose-600 font-bold" fontSize="7.5">Wrist to Scar: {formatVal('Length wrist to end of scar')}</text>
+                </g>
+              </svg>
+            </div>
+          );
+        }
 
       case 'All Gloves/Glove With Sleeve':
         {
@@ -596,6 +851,70 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
               <text y="8" textAnchor="middle" className="fill-rose-700 font-black" fontSize="7">{formatVal('Waist to Close End')}</text>
             </g>
           </svg>
+        );
+
+      case 'Belly Belt':
+        return (
+          <div className="flex flex-col items-center w-full">
+            <svg viewBox="0 0 320 320" className="w-full h-full max-h-[500px]" style={{ minHeight: '320px' }}>
+              <defs>
+                <marker id="arrow-rose-bbelt-asm" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626" />
+                </marker>
+              </defs>
+
+              <g transform="translate(160, 20)">
+                <rect x="-65" y="-10" width="130" height="20" rx="10" fill="#f8fafc" stroke="#1e293b" strokeWidth="1" />
+                <text y="3.5" textAnchor="middle" fill="#1e293b" fontSize="9" fontWeight="900" fontFamily="sans-serif" letterSpacing="0.5">
+                  BELLY BELT
+                </text>
+              </g>
+
+              <path 
+                d="M 100,70 Q 160,75 220,70 C 230,115 235,160 228,210 Q 160,215 92,210 C 85,160 90,115 100,70 Z" 
+                fill="#eff6ff" 
+                stroke="#2563eb" 
+                strokeWidth="2.5" 
+                strokeLinejoin="round" 
+                strokeLinecap="round" 
+              />
+
+              <rect x="150" y="73" width="20" height="139" rx="2" fill="#dbeafe" stroke="#3b82f6" strokeWidth="1" />
+              <line x1="160" y1="73" x2="160" y2="212" stroke="#2563eb" strokeWidth="1" strokeDasharray="3 3" />
+              {[85, 105, 125, 145, 165, 185, 200].map((yVal, idx) => (
+                <circle key={idx} cx="160" cy={yVal} r="2" fill="#1d4ed8" />
+              ))}
+
+              <path d="M 100,73 Q 160,78 220,73" stroke="#7c3aed" strokeWidth="2" strokeDasharray="3 3" fill="none" />
+              <path d="M 92,140 Q 160,145 228,140" stroke="#d97706" strokeWidth="2" strokeDasharray="3 3" fill="none" />
+              <path d="M 92,210 Q 160,215 228,210" stroke="#10b981" strokeWidth="2" fill="none" />
+
+              <line x1="100" y1="70" x2="45" y2="70" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+              <line x1="92" y1="210" x2="45" y2="210" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 2" />
+              <line x1="45" y1="70" x2="45" y2="210" stroke="#dc2626" strokeWidth="1.5" markerStart="url(#arrow-rose-bbelt-asm)" markerEnd="url(#arrow-rose-bbelt-asm)" />
+
+              <g transform="translate(160, 60)" className="text-[8px] font-bold">
+                <rect x="-45" y="-7" width="90" height="14" rx="3" fill="white" stroke="#7c3aed" strokeWidth="1.5" />
+                <text y="3" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="8">Diaphrom: {formatVal('Diaphrom')}</text>
+              </g>
+
+              <g transform="translate(160, 140)" className="text-[8px] font-bold">
+                <rect x="-40" y="-7" width="80" height="14" rx="3" fill="white" stroke="#d97706" strokeWidth="1.5" />
+                <text y="3" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="8">Belly: {formatVal('Belly')}</text>
+              </g>
+
+              <g transform="translate(160, 222)" className="text-[8px] font-bold">
+                <rect x="-40" y="-7" width="80" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="1.5" />
+                <text y="3" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="8">Waist: {formatVal('Waist')}</text>
+              </g>
+
+              <g transform="translate(45, 140)" className="text-[7.5px] font-bold">
+                <rect x="-42" y="-12" width="84" height="24" rx="3" fill="white" stroke="#dc2626" strokeWidth="0.8" />
+                <text y="-2" textAnchor="middle" className="fill-rose-600 font-bold" fontSize="6.5">Diaphrom to Waist</text>
+                <text y="7" textAnchor="middle" className="fill-rose-600 font-extrabold" fontSize="7.5">{formatVal('Width diapharm to waist')}</text>
+              </g>
+            </svg>
+          </div>
         );
 
       case 'All Trouser':
