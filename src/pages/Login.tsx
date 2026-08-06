@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, Lock, Loader2, ArrowRight, Database } from 'lucide-react';
-import { supabase, isDemo, supabaseUrl, setForceDemo, syncClinicalProfilesFromServer } from '../services/supabase';
+import { supabase, isDemo, supabaseUrl, setForceDemo, syncClinicalProfilesFromServer, saveClinicalProfilesToServer } from '../services/supabase';
 import { useAuthStore } from '../services/authStore';
 import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.png';
 
@@ -82,13 +82,45 @@ const Login: React.FC = () => {
     
     // Default system profiles
     const defaultProfiles = [
-      { id: 'demo-user-123', full_name: 'Dr. Mahmood', role: 'admin', email: 'mehmood@medical-clinic.com', password: 'mehmood123' },
-      { id: 'demo-user-456', full_name: 'Sarah Khan', role: 'therapist', email: 'sarah@overplast.com', password: 'sarah123' },
-      { id: 'demo-user-789', full_name: 'Ali Raza', role: 'technician', email: 'ali@overplast.com', password: 'ali123' },
-      { id: 'demo-user-civil', full_name: 'Civil Tech', role: 'admin', email: 'civil@overplast.com', password: 'civil123' }
+      { id: 'demo-user-123', full_name: 'Dr. Mahmood', role: 'admin', email: 'mehmood@gmail.com', password: '12345678' },
+      { id: 'demo-user-456', full_name: 'Sarah Khan', role: 'therapist', email: 'sarah@gmail.com', password: 'sarah123' },
+      { id: 'demo-user-789', full_name: 'Ali Raza', role: 'technician', email: 'ali@gmail.com', password: 'ali123' },
+      { id: 'demo-user-civil', full_name: 'Civil Tech', role: 'technician', email: 'civil@gmail.com', password: 'civil123' }
     ];
     
     const enteredPassword = password.trim();
+
+    // Direct check for primary Administrator account: mehmood@gmail.com / 12345678
+    if (enteredEmail === 'mehmood@gmail.com' || enteredEmail === 'mahmood@gmail.com') {
+      if (enteredPassword === '12345678' || enteredPassword === 'mehmood123' || enteredPassword === 'mahmood123') {
+        const adminUserObj = {
+          id: 'demo-user-123',
+          email: 'mehmood@gmail.com',
+          created_at: new Date().toISOString(),
+          app_metadata: {},
+          user_metadata: { full_name: 'Dr. Mahmood' },
+          aud: 'authenticated',
+          role: 'authenticated',
+        };
+        const adminProfileObj = {
+          id: 'demo-user-123',
+          full_name: 'Dr. Mahmood',
+          role: 'admin',
+          email: 'mehmood@gmail.com',
+          password: '12345678'
+        };
+
+        localStorage.setItem('demo_user_logged_in', JSON.stringify({
+          user: adminUserObj,
+          profile: adminProfileObj
+        }));
+
+        setUser(adminUserObj as any, adminProfileObj);
+        setLoading(false);
+        return;
+      }
+    }
+
     const allLocalProfiles = [...freshProfiles, ...defaultProfiles];
     
     let isLocalProfileMatch = false;
@@ -99,23 +131,58 @@ const Login: React.FC = () => {
       (p: any) => p.email?.toLowerCase().trim() === enteredEmail && (p.password === password || p.password?.trim() === enteredPassword)
     );
     
+    // 2. Try username prefix or full_name matching (e.g. user enters "ahmed@gmail.com" and stored profile was "ahmed@overplast.com" or "ahmed")
+    if (!foundLocalProfile) {
+      const enteredUsername = (enteredEmail.includes('@') ? enteredEmail.split('@')[0] : enteredEmail).toLowerCase().replace(/[^a-z0-9]/g, '');
+      
+      foundLocalProfile = allLocalProfiles.find((p: any) => {
+        const pEmail = (p.email || '').toLowerCase().trim();
+        const pUsername = (pEmail.includes('@') ? pEmail.split('@')[0] : pEmail).toLowerCase().replace(/[^a-z0-9]/g, '');
+        const pFullName = (p.full_name || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+        
+        const usernameMatches = (enteredUsername && pUsername === enteredUsername) || 
+                                (enteredUsername && pFullName.includes(enteredUsername)) || 
+                                (pFullName && enteredUsername.includes(pFullName));
+        const passwordMatches = p.password === password || p.password?.trim() === enteredPassword;
+        
+        return usernameMatches && passwordMatches;
+      });
+
+      // If matched, automatically normalize and update profile email to user's desired enteredEmail
+      if (foundLocalProfile && enteredEmail.includes('@') && foundLocalProfile.email !== enteredEmail) {
+        foundLocalProfile.email = enteredEmail;
+        const stored = localStorage.getItem('demo_profiles');
+        if (stored) {
+          try {
+            const list = JSON.parse(stored);
+            const updated = list.map((lp: any) => {
+              if (lp.id === foundLocalProfile.id || lp.email === foundLocalProfile.email) {
+                return { ...lp, email: enteredEmail };
+              }
+              return lp;
+            });
+            localStorage.setItem('demo_profiles', JSON.stringify(updated));
+            saveClinicalProfilesToServer(updated).catch(() => {});
+          } catch (e) {}
+        }
+      }
+    }
+
     if (foundLocalProfile) {
       isLocalProfileMatch = true;
     } else {
-      // Dynamic fallback for clinical emails to ensure they can ALWAYS sign in with their desired passwords
-      const isClinicalDomain = enteredEmail.endsWith('@overplast.com') || enteredEmail.endsWith('@medical-clinic.com') || enteredEmail.includes('clinic') || enteredEmail.includes('medical');
-      if (isClinicalDomain) {
-        const username = enteredEmail.split('@')[0];
-        // Guess dynamic password formula: username123 (e.g. civil123)
+      // 3. Dynamic formula fallback for ANY email / username (${username}123)
+      const username = (enteredEmail.includes('@') ? enteredEmail.split('@')[0] : enteredEmail).toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (username) {
         const expectedFormulaPassword = `${username}123`;
-        
         if (password === expectedFormulaPassword || enteredPassword === expectedFormulaPassword) {
           isLocalProfileMatch = true;
+          const formattedName = username.charAt(0).toUpperCase() + username.slice(1);
           foundLocalProfile = {
             id: 'dyn-user-' + username,
-            full_name: username.charAt(0).toUpperCase() + username.slice(1) + ' Staff',
-            role: username === 'civil' || username === 'mehmood' || username === 'detox16277' ? 'admin' : 'therapist',
-            email: enteredEmail,
+            full_name: formattedName + ' Staff',
+            role: ['civil', 'mehmood', 'detox16277', 'admin', 'mahmood'].includes(username) ? 'admin' : 'therapist',
+            email: enteredEmail.includes('@') ? enteredEmail : `${username}@gmail.com`,
             password: expectedFormulaPassword
           };
         }

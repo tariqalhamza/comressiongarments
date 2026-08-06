@@ -12,6 +12,9 @@ export interface Patient {
   clinic_id: string;
   full_name: string;
   created_by?: string;
+  created_by_email?: string;
+  created_by_name?: string;
+  therapist_id?: string;
   age: number;
   gender: 'male' | 'female' | 'other';
   height?: number;

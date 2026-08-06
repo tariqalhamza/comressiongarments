@@ -35,6 +35,7 @@ import { compressImage } from '../lib/imageUtils';
 import { Patient } from '../types';
 import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.png';
 import { useAuthStore } from '../services/authStore';
+import { extractAssessmentMeasurements, buildAssessmentWhatsAppText } from '../utils/measurementUtils';
 
 // --- Types ---
 type StepId = 'garment-select' | 'garment-type' | 'measurement-drawing' | 'review';
@@ -1124,7 +1125,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                   </button>
                 </div>
               )}
-              <svg viewBox="0 0 320 440" className="w-full h-full max-h-[780px]" style={{ minHeight: '500px' }}>
+              <svg viewBox="0 0 330 445" className="w-full h-auto max-h-[720px] max-w-[500px] select-none mx-auto">
                 <defs>
                   <marker id="arrow-blue-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
                     <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb" />
@@ -1144,7 +1145,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                 </defs>
 
                 {/* Hand Selection Badge Indicator */}
-                <g transform="translate(160, 18)">
+                <g transform="translate(165, 18)">
                   <rect x="-85" y="-10" width="170" height="20" rx="10" fill="#f8fafc" stroke="#1e293b" strokeWidth="1" />
                   <text y="3.5" textAnchor="middle" fill="#1e293b" fontSize="9" fontWeight="900" fontFamily="sans-serif" letterSpacing="0.5">
                     {`GLOVE WITH SLEEVE (${handSelectionVal.toUpperCase()})`}
@@ -2980,85 +2981,33 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
       return;
     }
 
-    let messageText = `🩺 *CLINICAL ASSESSMENT SUMMARY*\n\n`;
-    messageText += `*👤 PATIENT DETAILS*\n`;
-    messageText += `🟢 File ID: *${patient.patientId || 'N/A'}*\n`;
-    messageText += `🟢 Name: *${patient.name || 'N/A'}*\n`;
-    if (patient.phone) {
-      messageText += `🟢 Mob No: *${patient.phone}*\n`;
-    }
-    messageText += `🟢 Age / Gender: *${patient.age > 0 ? `${patient.age} Yrs` : 'N/A'} / ${patient.gender || 'N/A'}*\n`;
-    messageText += `🟢 Date: *${patient.date || new Date().toLocaleDateString()}*\n`;
-    if (patient.address) {
-      messageText += `🔵 *ADDRESS*\n`;
-      messageText += `🔵 Address: *${patient.address}*\n`;
-    }
-    messageText += `\n`;
+    const currentAssessment = {
+      patientId: patient.patientId,
+      id: patient.patientId,
+      patient_name: patient.name,
+      name: patient.name,
+      phone: patient.phone,
+      address: patient.address,
+      age: patient.age,
+      gender: patient.gender,
+      date: patient.date || new Date().toLocaleDateString(),
+      created_at: patient.date || new Date().toISOString(),
+      garment_type: garment.type,
+      silicone_pasting: garment.siliconePasting,
+      siliconePasting: garment.siliconePasting,
+      compression: garment.compression,
+      measurements: measurements,
+      sub_options: garment.subOptions,
+      doctorNotes: patient.notes,
+      notes: garmentNotes
+    };
 
-    messageText += `*📦 GARMENT CONFIGURATION*\n`;
-    messageText += `• Garment Type: *${garment.type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (garment.type || 'N/A')}*\n`;
-    messageText += `• Silicone Option: *${garment.siliconePasting || 'N/A'}*\n`;
-    messageText += `• Compression Force: *${garment.compression || 'N/A'}*\n`;
-    messageText += `\n`;
-
-    // Add normal measurements if they exist and are filled
-    const activeMeasurements = measurements.filter(m => m.value && m.value.trim() !== '');
-    if (activeMeasurements.length > 0) {
-      messageText += `*📐 CORE MEASUREMENTS*\n`;
-      activeMeasurements.forEach(m => {
-        messageText += `• ${m.label}: *${m.value}*\n`;
-      });
-      messageText += `\n`;
-    }
-
-    // Add sub-options / hand measurements if they exist
-    const garmentTypeVal = garment.type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (garment.type || 'N/A');
-    const colorVal = garment.subOptions?.['Color'] || garment.subOptions?.['color'] || 'Standard';
-
-    const fields = GARMENT_FIELDS[garment.type] || [];
-    const remainingSubOptions = garment.subOptions
-      ? Object.entries(garment.subOptions).filter(([key, val]) => {
-          const k = key.toLowerCase();
-          const isField = fields.some(f => f.id.toLowerCase() === k || f.label.toLowerCase() === k);
-          return !isField &&
-                 k !== 'custom design notes' &&
-                 k !== 'doctornotes' &&
-                 k !== 'color' &&
-                 k !== 'garment type' &&
-                 k !== 'hand selection' &&
-                 typeof val === 'string' &&
-                 val.trim() !== '';
-        })
-      : [];
-
-    messageText += `*✍️ CUSTOM DESIGN OPTIONS*\n`;
-    messageText += `• Garment Type: *${garmentTypeVal}*\n`;
-    messageText += `• Color: *${colorVal}*\n`;
-    remainingSubOptions.forEach(([key, val]) => {
-      messageText += `• ${key}: *${val}*\n`;
+    const messageText = buildAssessmentWhatsAppText({
+      assessment: currentAssessment,
+      resolvedPhone: patient.phone,
+      resolvedAddress: patient.address,
+      resolvedDoctorNotes: patient.notes
     });
-    messageText += `\n`;
-
-    // 1. Doctor's Notes & Case History
-    if (patient.notes) {
-      messageText += `🔴 *🩺 DOCTOR'S NOTES & CASE HISTORY*\n`;
-      messageText += `🔴 "${patient.notes}"\n\n`;
-    }
-
-    // 2. Garment Configuration Note
-    if (garmentNotes) {
-      messageText += `🔴 *📝 GARMENT CONFIGURATION NOTE*\n`;
-      messageText += `🔴 "${garmentNotes}"\n\n`;
-    }
-
-    // 3. Custom Design Notes
-    const customDesignNotes = garment.subOptions?.['Custom Design Notes'];
-    if (customDesignNotes) {
-      messageText += `🔴 *✍️ CUSTOM DESIGN NOTES*\n`;
-      messageText += `🔴 "${customDesignNotes}"\n\n`;
-    }
-
-    messageText += `*Generated via Overplast Live Calibration Portal*`;
 
     // Try sharing via Web Share API with files if image is available, supported and allowed
     const photoUrl = photos && photos.length > 0 ? photos[photos.length - 1] : null;
@@ -3248,6 +3197,11 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
         patient_name: patient.name,
         hospital_name: patient.hospitalName || 'Health Institute',
         doctor_ref: patient.doctorRef || 'N/A',
+        assessor_name: profile?.full_name || user?.email || undefined,
+        created_by: user?.id || profile?.id || undefined,
+        created_by_email: user?.email || profile?.email || undefined,
+        created_by_name: profile?.full_name || (user as any)?.user_metadata?.full_name || undefined,
+        therapist_id: user?.id || profile?.id || undefined,
         garment_type: garment.type,
         silicone_pasting: garment.siliconePasting,
         compression: garment.compression,
@@ -4382,127 +4336,139 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
 
                       <div id="whatsapp-chat-bubble-new" className="flex justify-center bg-[#efeae2] rounded-[1.8rem] p-4 sm:p-6 border border-slate-200 max-h-[480px] overflow-y-auto shadow-inner relative" style={{ backgroundImage: 'radial-gradient(#dfd9d0 1.2px, transparent 1.2px)', backgroundSize: '16px 16px' }}>
                         {/* WhatsApp Chat Bubble */}
-                        <div className="w-full max-w-lg bg-[#d9fdd3] rounded-2xl rounded-tr-none p-5 shadow-md border border-[#c1e2b8] relative text-xs text-slate-800 leading-relaxed font-sans">
-                          {/* Chat bubble pointer */}
-                          <div className="absolute right-0 top-0 w-3 h-3 bg-[#d9fdd3] border-t border-r border-[#c1e2b8]" style={{ transform: 'translateX(4px) rotate(45deg)', transformOrigin: 'top left', clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
+                        {(() => {
+                          const currentAssessment = {
+                            id: patient.patientId,
+                            patientId: patient.patientId,
+                            patient_name: patient.name,
+                            name: patient.name,
+                            phone: patient.phone,
+                            address: patient.address,
+                            age: patient.age,
+                            gender: patient.gender,
+                            date: patient.date || new Date().toLocaleDateString(),
+                            garment_type: garment.type,
+                            silicone_pasting: garment.siliconePasting,
+                            compression: garment.compression,
+                            measurements: measurements,
+                            sub_options: garment.subOptions,
+                            doctorNotes: patient.notes,
+                            notes: garmentNotes
+                          };
+                          const extractedData = extractAssessmentMeasurements(currentAssessment);
 
-                          {/* Message Header */}
-                          <p className="font-extrabold text-slate-900 border-b border-[#c1e2b8] pb-2 mb-3 text-[11px] sm:text-xs">
-                            🩺 *CLINICAL ASSESSMENT SUMMARY*
-                          </p>
+                          return (
+                            <div className="w-full max-w-lg bg-[#d9fdd3] rounded-2xl rounded-tr-none p-5 shadow-md border border-[#c1e2b8] relative text-xs text-slate-800 leading-relaxed font-sans">
+                              {/* Chat bubble pointer */}
+                              <div className="absolute right-0 top-0 w-3 h-3 bg-[#d9fdd3] border-t border-r border-[#c1e2b8]" style={{ transform: 'translateX(4px) rotate(45deg)', transformOrigin: 'top left', clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
 
-                          {/* Patient Details */}
-                          <div className="text-emerald-700 bg-emerald-50/70 p-3 rounded-xl border border-emerald-100 mb-3 space-y-1.5">
-                            <p className="font-black uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-emerald-200/50 pb-1 mb-1">
-                              *👤 PATIENT DETAILS*
-                            </p>
-                            <p className="font-black text-xs sm:text-sm">🟢 File ID: *<span className="underline">{patient.patientId || 'N/A'}</span>*</p>
-                            <p className="font-black text-xs sm:text-sm">🟢 Name: *<span className="underline">{patient.name || 'N/A'}</span>*</p>
-                            {patient.phone && <p className="font-black text-xs sm:text-sm">🟢 Mob No: *<span>{patient.phone}</span>*</p>}
-                            <p className="font-black text-xs sm:text-sm">🟢 Age / Gender: *<span>{patient.age > 0 ? `${patient.age} Yrs` : 'N/A'} / {patient.gender || 'N/A'}</span>*</p>
-                            <p className="font-black text-xs sm:text-sm">🟢 Date: *<span>{patient.date || new Date().toLocaleDateString()}</span>*</p>
-                          </div>
-
-                          {/* Address Details */}
-                          {patient.address && (
-                            <div className="text-blue-700 bg-blue-50/70 p-3 rounded-xl border border-blue-100 mb-3 space-y-1.5">
-                              <p className="font-black uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-blue-200/50 pb-1 mb-1">
-                                *🔵 ADDRESS*
+                              {/* Message Header */}
+                              <p className="font-extrabold text-slate-900 border-b border-[#c1e2b8] pb-2 mb-3 text-[11px] sm:text-xs">
+                                🩺 *CLINICAL ASSESSMENT SUMMARY*
                               </p>
-                              <p className="font-black text-xs sm:text-sm">🔵 Address: *<span>{patient.address}</span>*</p>
-                            </div>
-                          )}
 
-                          {/* Garment Configuration */}
-                          <div className="mb-3 space-y-1 p-3 bg-white/40 rounded-xl border border-slate-200/50">
-                            <p className="font-black text-slate-900 uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-slate-200 pb-1 mb-1">
-                              *📦 GARMENT CONFIGURATION*
-                            </p>
-                            <p className="font-extrabold text-slate-800 text-xs">• Garment Type: *<span className="font-black text-slate-900">{garment.type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (garment.type || 'N/A')}</span>*</p>
-                            <p className="font-extrabold text-slate-800 text-xs">• Silicone Option: *<span className="font-black text-slate-900">{garment.siliconePasting || 'N/A'}</span>*</p>
-                            <p className="font-extrabold text-slate-800 text-xs">• Compression Force: *<span className="font-black text-slate-900">{garment.compression || 'N/A'}</span>*</p>
-                          </div>
-
-                          {/* Core Measurements */}
-                          {measurements.filter(m => m.value && m.value.trim() !== '').length > 0 && (
-                            <div className="mb-3 space-y-1 p-3 bg-white/40 rounded-xl border border-slate-200/50">
-                              <p className="font-black text-slate-900 uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-slate-200 pb-1 mb-1">
-                                *📐 CORE MEASUREMENTS*
-                              </p>
-                              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                                {measurements.filter(m => m.value && m.value.trim() !== '').map(m => (
-                                  <p key={m.id} className="font-bold text-slate-800 text-xs">• {m.label}: *<span className="font-black text-slate-900">{m.value}</span>*</p>
-                                ))}
+                              {/* Patient Details */}
+                              <div className="text-emerald-700 bg-emerald-50/70 p-3 rounded-xl border border-emerald-100 mb-3 space-y-1.5">
+                                <p className="font-black uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-emerald-200/50 pb-1 mb-1">
+                                  *👤 PATIENT DETAILS*
+                                </p>
+                                <p className="font-black text-xs sm:text-sm">🟢 File ID: *<span className="underline">{patient.patientId || 'N/A'}</span>*</p>
+                                <p className="font-black text-xs sm:text-sm">🟢 Name: *<span className="underline">{patient.name || 'N/A'}</span>*</p>
+                                {patient.phone && <p className="font-black text-xs sm:text-sm">🟢 Mob No: *<span>{patient.phone}</span>*</p>}
+                                <p className="font-black text-xs sm:text-sm">🟢 Age / Gender: *<span>{patient.age > 0 ? `${patient.age} Yrs` : 'N/A'} / {patient.gender || 'N/A'}</span>*</p>
+                                <p className="font-black text-xs sm:text-sm">🟢 Date: *<span>{patient.date || new Date().toLocaleDateString()}</span>*</p>
                               </div>
-                            </div>
-                          )}
 
-                          {/* Custom Design Options */}
-                          {(() => {
-                            const garmentTypeVal = garment.type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (garment.type || 'N/A');
-                            const colorVal = garment.subOptions?.['Color'] || garment.subOptions?.['color'] || 'Standard';
-                            const remainingSubOptions = garment.subOptions
-                              ? Object.entries(garment.subOptions).filter(([key, val]) => {
-                                  const k = key.toLowerCase();
-                                  return k !== 'custom design notes' &&
-                                         k !== 'doctornotes' &&
-                                         k !== 'color' &&
-                                         k !== 'garment type' &&
-                                         typeof val === 'string' &&
-                                         val.trim() !== '';
-                                })
-                              : [];
+                              {/* Address Details */}
+                              {patient.address && (
+                                <div className="text-blue-700 bg-blue-50/70 p-3 rounded-xl border border-blue-100 mb-3 space-y-1.5">
+                                  <p className="font-black uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-blue-200/50 pb-1 mb-1">
+                                    *🔵 ADDRESS*
+                                  </p>
+                                  <p className="font-black text-xs sm:text-sm">🔵 Address: *<span>{patient.address}</span>*</p>
+                                </div>
+                              )}
 
-                            return (
+                              {/* Garment Configuration */}
+                              <div className="mb-3 space-y-1 p-3 bg-white/40 rounded-xl border border-slate-200/50">
+                                <p className="font-black text-slate-900 uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-slate-200 pb-1 mb-1">
+                                  *📦 GARMENT CONFIGURATION*
+                                </p>
+                                <p className="font-extrabold text-slate-800 text-xs">• Garment Type: *<span className="font-black text-slate-900">{extractedData.garmentType}</span>*</p>
+                                <p className="font-extrabold text-slate-800 text-xs">• Silicone Option: *<span className="font-black text-slate-900">{extractedData.silicone}</span>*</p>
+                                <p className="font-extrabold text-slate-800 text-xs">• Compression Force: *<span className="font-black text-slate-900">{extractedData.compression}</span>*</p>
+                              </div>
+
+                              {/* Core Measurements */}
+                              {extractedData.coreMeasurements.length > 0 && (
+                                <div className="mb-3 space-y-1 p-3 bg-white/40 rounded-xl border border-slate-200/50">
+                                  <p className="font-black text-slate-900 uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-slate-200 pb-1 mb-1">
+                                    *📐 CORE MEASUREMENTS*
+                                  </p>
+                                  <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                                    {extractedData.coreMeasurements.map(([label, val]) => (
+                                      <p key={label} className="font-bold text-slate-800 text-xs">• {label}: *<span className="font-black text-slate-900">{val}</span>*</p>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Custom Design Options */}
                               <div className="mb-3 space-y-1 p-3 bg-white/40 rounded-xl border border-slate-200/50">
                                 <p className="font-black text-slate-900 uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-slate-200 pb-1 mb-1">
                                   *✍️ CUSTOM DESIGN OPTIONS*
                                 </p>
                                 <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                                  <p className="font-bold text-slate-800 text-xs">• Garment Type: *<span className="font-black text-slate-900">{garmentTypeVal}</span>*</p>
-                                  <p className="font-bold text-slate-800 text-xs">• Color: *<span className="font-black text-slate-900">{colorVal}</span>*</p>
-                                  {remainingSubOptions.map(([key, val]) => (
-                                    <p key={key} className="font-bold text-slate-800 text-xs">• {key}: *<span className="font-black text-slate-900">{val}</span>*</p>
-                                  ))}
+                                  <p className="font-bold text-slate-800 text-xs">• Garment Type: *<span className="font-black text-slate-900">{extractedData.garmentType}</span>*</p>
+                                  {extractedData.handSelection && (
+                                    <p className="font-bold text-slate-800 text-xs">• Hand Selection: *<span className="font-black text-slate-900">{extractedData.handSelection}</span>*</p>
+                                  )}
+                                  <p className="font-bold text-slate-800 text-xs">• Color: *<span className="font-black text-slate-900">{extractedData.color}</span>*</p>
+                                  {extractedData.customDesignOptions.map(([key, val]) => {
+                                    if (key === 'Hand Selection') return null;
+                                    return (
+                                      <p key={key} className="font-bold text-slate-800 text-xs">• {key}: *<span className="font-black text-slate-900">{val}</span>*</p>
+                                    );
+                                  })}
                                 </div>
                               </div>
-                            );
-                          })()}
 
-                          {/* Notes */}
-                          {(patient.notes || garmentNotes || garment.subOptions?.['Custom Design Notes']) && (
-                            <div className="text-red-700 bg-red-50/70 p-3 rounded-xl border border-red-100 mb-1 space-y-2.5">
-                              <p className="font-black uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-red-200 pb-1 mb-1">
-                                *🔴 🩺 NOTES & CASE HISTORY*
-                              </p>
-                              {patient.notes && (
-                                <div className="space-y-0.5">
-                                  <p className="font-black text-[9px] sm:text-[10px] uppercase text-rose-650">*🩺 Doctor's Notes & Case History:*</p>
-                                  <p className="font-black text-xs sm:text-sm italic">🔴 "*"{patient.notes}"*"</p>
+                              {/* Notes */}
+                              {(patient.notes || garmentNotes || extractedData.customDesignNotes) && (
+                                <div className="text-red-700 bg-red-50/70 p-3 rounded-xl border border-red-100 mb-1 space-y-2.5">
+                                  <p className="font-black uppercase text-[9px] sm:text-[10px] tracking-wider border-b border-red-200 pb-1 mb-1">
+                                    *🔴 🩺 NOTES & CASE HISTORY*
+                                  </p>
+                                  {patient.notes && (
+                                    <div className="space-y-0.5">
+                                      <p className="font-black text-[9px] sm:text-[10px] uppercase text-rose-650">*🩺 Doctor's Notes & Case History:*</p>
+                                      <p className="font-black text-xs sm:text-sm italic">🔴 "*"{patient.notes}"*"</p>
+                                    </div>
+                                  )}
+                                  {garmentNotes && (
+                                    <div className="space-y-0.5 border-t border-rose-200/30 pt-1.5">
+                                      <p className="font-black text-[9px] sm:text-[10px] uppercase text-rose-650">*📝 Garment Configuration Note:*</p>
+                                      <p className="font-black text-xs sm:text-sm italic">🔴 "*"{garmentNotes}"*"</p>
+                                    </div>
+                                  )}
+                                  {extractedData.customDesignNotes && (
+                                    <div className="space-y-0.5 border-t border-rose-200/30 pt-1.5">
+                                      <p className="font-black text-[9px] sm:text-[10px] uppercase text-rose-650">*✍️ Custom Design Notes:*</p>
+                                      <p className="font-black text-xs sm:text-sm italic">🔴 "*"{extractedData.customDesignNotes}"*"</p>
+                                    </div>
+                                  )}
                                 </div>
                               )}
-                              {garmentNotes && (
-                                <div className="space-y-0.5 border-t border-rose-200/30 pt-1.5">
-                                  <p className="font-black text-[9px] sm:text-[10px] uppercase text-rose-650">*📝 Garment Configuration Note:*</p>
-                                  <p className="font-black text-xs sm:text-sm italic">🔴 "*"{garmentNotes}"*"</p>
-                                </div>
-                              )}
-                              {garment.subOptions?.['Custom Design Notes'] && (
-                                <div className="space-y-0.5 border-t border-rose-200/30 pt-1.5">
-                                  <p className="font-black text-[9px] sm:text-[10px] uppercase text-rose-650">*✍️ Custom Design Notes:*</p>
-                                  <p className="font-black text-xs sm:text-sm italic">🔴 "*"{garment.subOptions['Custom Design Notes']}"*"</p>
-                                </div>
-                              )}
+
+                              {/* Bubble Footer */}
+                              <div className="flex items-center justify-end gap-1 text-[8.5px] text-slate-500 font-bold uppercase mt-2.5 select-none border-t border-[#c1e2b8]/50 pt-1.5">
+                                <span>*Generated via Overplast Live Calibration Portal*</span>
+                                <span className="text-[7.5px] text-slate-400 font-medium font-mono">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                <span className="text-blue-500 font-black">✓✓</span>
+                              </div>
                             </div>
-                          )}
-
-                          {/* Bubble Footer */}
-                          <div className="flex items-center justify-end gap-1 text-[8.5px] text-slate-500 font-bold uppercase mt-2.5 select-none border-t border-[#c1e2b8]/50 pt-1.5">
-                            <span>*Generated via Overplast Live Calibration Portal*</span>
-                            <span className="text-[7.5px] text-slate-400 font-medium font-mono">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                            <span className="text-blue-500 font-black">✓✓</span>
-                          </div>
-                        </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>

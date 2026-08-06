@@ -16,6 +16,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   profile: null,
   loading: true,
   setUser: (user, profile = null) => {
+    updateCurrentUserContext(
+      user?.id || null,
+      user?.email || profile?.email || null,
+      profile?.role || 'therapist',
+      profile?.full_name || (user as any)?.user_metadata?.full_name || undefined
+    );
     set({ user, profile, loading: false });
     // Keep local safety session cache updated whenever setUser is called
     if (user && profile) {
@@ -112,6 +118,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           finalProfile.full_name = savedCustom.name || 'Mahmood Admin';
         }
       }
+      updateCurrentUserContext(uid, finalProfile.email || email, finalProfile.role, finalProfile.full_name);
       set({ profile: finalProfile });
       return;
     }
@@ -144,6 +151,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             3000
           ).catch(e => console.warn("Failed async admin promotion:", e));
         }
+        updateCurrentUserContext(uid, finalProfile.email || email, finalProfile.role, finalProfile.full_name);
         set({ profile: finalProfile });
       } else {
         throw new Error(error?.message || 'Profile not returned from Supabase');
@@ -171,6 +179,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         3000
       ).catch(e => console.warn("Background profiles insertion failed/timedout:", e));
         
+      updateCurrentUserContext(uid, (fallbackProfile as any).email || email, finalRole, fallbackProfile.full_name);
       set({ profile: fallbackProfile });
     }
   }

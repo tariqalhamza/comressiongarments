@@ -27,7 +27,6 @@ import {
   Pencil,
   RefreshCw,
   Download,
-  FileSpreadsheet,
   Database,
   Terminal,
   Copy,
@@ -40,7 +39,7 @@ import { cn } from '../lib/utils';
 import { compressImage } from '../lib/imageUtils';
 import AssessmentSummaryModal from '../components/AssessmentSummaryModal';
 import { useAuthStore } from '../services/authStore';
-import { exportPatientToExcel, exportPatientToPDF } from '../utils/exportUtils';
+import { exportPatientToPDF } from '../utils/exportUtils';
 
 interface RegistrationProps {
   onStartAssessment: (patient: Patient) => void;
@@ -396,7 +395,10 @@ const Registration: React.FC<RegistrationProps> = ({
         medical_condition: formData.affectedArea.trim() || 'General',
         photo_url: formData.photoUrl || '',
         clinic_id: 'default',
-        created_by: user?.id || loggedInProfile?.id || undefined
+        created_by: user?.id || loggedInProfile?.id || undefined,
+        created_by_email: user?.email || loggedInProfile?.email || undefined,
+        created_by_name: loggedInProfile?.full_name || (user as any)?.user_metadata?.full_name || undefined,
+        therapist_id: user?.id || loggedInProfile?.id || undefined
       };
 
       await dbService.patients.create(newPatientPayload);
@@ -1470,9 +1472,9 @@ CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL U
 
                   </div>
 
-                  {/* Excel and PDF Download Action Buttons */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-slate-100/70">
-                    {isAdmin && (
+                  {/* PDF Download Action Button (Admin only) */}
+                  {isAdmin && (
+                    <div className="pt-2 border-t border-slate-100/70">
                       <button
                         type="button"
                         onClick={(e) => {
@@ -1492,40 +1494,14 @@ CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL U
                           );
                           exportPatientToPDF(patientItem, matchedAssessment || null);
                         }}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-50 hover:bg-slate-900 border border-slate-250 hover:border-slate-800 text-slate-800 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95 z-20"
+                        className="w-full flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-50 hover:bg-slate-900 border border-slate-250 hover:border-slate-800 text-slate-800 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95 z-20"
                         title="Download PDF clinical dossier / پی ڈی ایف رپورٹ حاصل کریں"
                       >
                         <Download className="w-3.5 h-3.5 text-red-500 shrink-0" />
                         <span>Download PDF / پی ڈی ایف</span>
                       </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const matchedAssessment = savedAssessments.find(
-                          asm => {
-                            if (asm.patient_id && asm.patient_id !== 'anonymous') {
-                              return asm.patient_id === patientItem.id;
-                            }
-                            const asmTime = new Date(asm.created_at).getTime();
-                            const patientTime = new Date(patientItem.created_at).getTime();
-                            return (
-                              asm.patient_name.toLowerCase().trim() === patientItem.full_name.toLowerCase().trim() &&
-                              asmTime >= patientTime - 60000
-                            );
-                          }
-                        );
-                        exportPatientToExcel(patientItem, matchedAssessment || null);
-                      }}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-50 hover:bg-emerald-700 border border-slate-250 hover:border-emerald-600 text-slate-800 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95 z-20"
-                      title="Download Excel spreadsheet / ایکسل شیٹ حاصل کریں"
-                    >
-                      <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span>Download Excel / ایکسل</span>
-                    </button>
-                  </div>
+                    </div>
+                  )}
 
                 </div>
 

@@ -542,7 +542,7 @@ const SmartDiagram: React.FC<{
                   </button>
                 </div>
               )}
-              <svg viewBox="0 0 320 440" className="w-full h-full max-h-[780px]" style={{ minHeight: '500px' }}>
+              <svg viewBox="0 0 330 445" className="w-full h-auto max-h-[440px] max-w-[340px] select-none mx-auto">
                 <defs>
                   <marker id="arrow-blue-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
                     <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb" />
@@ -562,7 +562,7 @@ const SmartDiagram: React.FC<{
                 </defs>
 
                 {/* Hand Selection Badge Indicator */}
-                <g transform="translate(160, 18)">
+                <g transform="translate(165, 18)">
                   <rect x="-85" y="-10" width="170" height="20" rx="10" fill="#f8fafc" stroke="#1e293b" strokeWidth="1" />
                   <text y="3.5" textAnchor="middle" fill="#1e293b" fontSize="9" fontWeight="900" fontFamily="sans-serif" letterSpacing="0.5">
                     {`GLOVE WITH SLEEVE (${handSelectionVal.toUpperCase()})`}

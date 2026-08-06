@@ -25,7 +25,7 @@ import html2canvas from 'html2canvas';
 import { cn } from '../lib/utils';
 import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.png';
 import { useAuthStore } from '../services/authStore';
-import { GARMENT_FIELDS } from './ClinicalAssessment';
+import { GARMENT_FIELDS, extractAssessmentMeasurements, buildAssessmentWhatsAppText } from '../utils/measurementUtils';
 
 interface RegisteredAssessment {
   id: string;
@@ -1466,148 +1466,12 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
     };
     const resolvedDoctorNotes = getDoctorNotes();
 
-    let messageText = `🩺 *CLINICAL ASSESSMENT SUMMARY*\n\n`;
-    messageText += `*👤 PATIENT DETAILS*\n`;
-    messageText += `🟢 File ID: *${assessment.id || 'N/A'}*\n`;
-    messageText += `🟢 Name: *${assessment.patient_name || 'N/A'}*\n`;
-    if (resolvedPhone) {
-      messageText += `🟢 Mob No: *${resolvedPhone}*\n`;
-    }
-    messageText += `🟢 Age / Gender: *${assessment.age && assessment.age > 0 ? `${assessment.age} Yrs` : 'N/A'} / ${assessment.gender || 'N/A'}*\n`;
-    messageText += `🟢 Date: *${assessment.created_at ? new Date(assessment.created_at).toLocaleDateString() : new Date().toLocaleDateString()}*\n`;
-    if (resolvedAddress) {
-      messageText += `🔵 *ADDRESS*\n`;
-      messageText += `🔵 Address: *${resolvedAddress}*\n`;
-    }
-    messageText += `\n`;
-
-    messageText += `*📦 GARMENT CONFIGURATION*\n`;
-    messageText += `• Garment Type: *${assessment.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (assessment.garment_type || 'N/A')}*\n`;
-    messageText += `• Silicone Option: *${assessment.silicone_pasting || 'N/A'}*\n`;
-    messageText += `• Compression Force: *${assessment.compression || 'N/A'}*\n`;
-    messageText += `\n`;
-
-    // Extract core measurements from measurements & sub_options without duplicates
-    const fields = GARMENT_FIELDS[assessment.garment_type] || [];
-    const seenFieldIds = new Set<string>();
-    const coreMeasurementsList: [string, string][] = [];
-
-    // Combine measurements source (measurements object/array and sub_options)
-    const combinedMeasDict: Record<string, string> = {};
-    if (Array.isArray(assessment.measurements)) {
-      assessment.measurements.forEach((item: any) => {
-        if (item && typeof item === 'object') {
-          const k = item.id || item.label || item.name;
-          if (k && item.value !== undefined && item.value !== null && String(item.value).trim() !== '') {
-            combinedMeasDict[k] = String(item.value);
-          }
-        }
-      });
-    } else if (assessment.measurements && typeof assessment.measurements === 'object') {
-      Object.entries(assessment.measurements).forEach(([k, v]) => {
-        if (v !== undefined && v !== null && String(v).trim() !== '') {
-          combinedMeasDict[k] = String(v);
-        }
-      });
-    }
-
-    if (assessment.sub_options && typeof assessment.sub_options === 'object') {
-      Object.entries(assessment.sub_options).forEach(([k, v]) => {
-        if (v !== undefined && v !== null && String(v).trim() !== '') {
-          if (!combinedMeasDict[k]) {
-            combinedMeasDict[k] = String(v);
-          }
-        }
-      });
-    }
-
-    // Process fields in predefined order first
-    fields.forEach(field => {
-      const lowerId = field.id.toLowerCase();
-      const lowerLabel = field.label.toLowerCase();
-      const matchedKey = Object.keys(combinedMeasDict).find(k => k.toLowerCase() === lowerId || k.toLowerCase() === lowerLabel);
-      if (matchedKey && combinedMeasDict[matchedKey] !== undefined && String(combinedMeasDict[matchedKey]).trim() !== '') {
-        seenFieldIds.add(field.id);
-        coreMeasurementsList.push([field.label, String(combinedMeasDict[matchedKey]).trim()]);
-      }
+    const messageText = buildAssessmentWhatsAppText({
+      assessment,
+      resolvedPhone,
+      resolvedAddress,
+      resolvedDoctorNotes
     });
-
-    // Also check any extra measurement keys that match fields
-    Object.entries(combinedMeasDict).forEach(([k, v]) => {
-      const lowerKey = k.toLowerCase();
-      const matchedField = fields.find(f => f.id.toLowerCase() === lowerKey || f.label.toLowerCase() === lowerKey);
-      if (matchedField && !seenFieldIds.has(matchedField.id) && v !== undefined && String(v).trim() !== '') {
-        seenFieldIds.add(matchedField.id);
-        coreMeasurementsList.push([matchedField.label, String(v).trim()]);
-      }
-    });
-
-    if (coreMeasurementsList.length > 0) {
-      messageText += `*📐 CORE MEASUREMENTS*\n`;
-      coreMeasurementsList.forEach(([label, val]) => {
-        messageText += `• ${label}: *${val}*\n`;
-      });
-      messageText += `\n`;
-    }
-
-    // Custom Design Options
-    const garmentTypeVal = assessment.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (assessment.garment_type || 'N/A');
-    const colorVal = assessment.sub_options?.['Color'] || assessment.sub_options?.['color'] || 'Standard';
-
-    const customOptionsList: [string, string][] = [];
-    const seenCustomKeys = new Set<string>();
-
-    if (assessment.sub_options) {
-      Object.entries(assessment.sub_options).forEach(([key, val]) => {
-        const lowerKey = key.toLowerCase();
-        const isField = fields.some(f => f.id.toLowerCase() === lowerKey || f.label.toLowerCase() === lowerKey);
-        if (
-          !isField &&
-          key !== 'Custom Design Notes' &&
-          key !== 'doctorNotes' &&
-          lowerKey !== 'color' &&
-          lowerKey !== 'garment type' &&
-          lowerKey !== 'hand selection' &&
-          val !== undefined &&
-          val !== null &&
-          String(val).trim() !== ''
-        ) {
-          if (!seenCustomKeys.has(lowerKey)) {
-            seenCustomKeys.add(lowerKey);
-            customOptionsList.push([key, String(val).trim()]);
-          }
-        }
-      });
-    }
-
-    messageText += `*✍️ CUSTOM DESIGN OPTIONS*\n`;
-    messageText += `• Garment Type: *${garmentTypeVal}*\n`;
-    messageText += `• Color: *${colorVal}*\n`;
-    customOptionsList.forEach(([key, val]) => {
-      messageText += `• ${key}: *${val}*\n`;
-    });
-    messageText += `\n`;
-
-    // 1. Doctor's Notes & Case History
-    if (resolvedDoctorNotes) {
-      messageText += `🔴 *🩺 DOCTOR'S NOTES & CASE HISTORY*\n`;
-      messageText += `🔴 "${resolvedDoctorNotes}"\n\n`;
-    }
-
-    // 2. Garment Configuration Note
-    if (assessment.notes) {
-      messageText += `🔴 *📝 GARMENT CONFIGURATION NOTE*\n`;
-      messageText += `🔴 "${assessment.notes}"\n\n`;
-    }
-
-    // 3. Custom Design Notes
-    const customDesignNotes = assessment.sub_options ? (assessment.sub_options as any)['Custom Design Notes'] : null;
-    if (customDesignNotes) {
-      messageText += `🔴 *✍️ CUSTOM DESIGN NOTES*\n`;
-      messageText += `🔴 "${customDesignNotes}"\n\n`;
-    }
-
-    messageText += `*Generated via Overplast Live Calibration Portal*`;
 
     const encodedText = encodeURIComponent(messageText);
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
@@ -2127,7 +1991,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
                   </button>
                 </div>
               )}
-              <svg viewBox="0 0 320 440" className="w-full h-full max-h-[780px]" style={{ minHeight: '500px' }}>
+              <svg viewBox="0 0 330 445" className="w-full h-auto max-h-[440px] max-w-[340px] select-none mx-auto">
                 <defs>
                   <marker id="arrow-blue-cl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
                     <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb" />
@@ -2147,7 +2011,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
                 </defs>
 
                 {/* Hand Selection Badge Indicator */}
-                <g transform="translate(160, 18)">
+                <g transform="translate(165, 18)">
                   <rect x="-85" y="-10" width="170" height="20" rx="10" fill="#f8fafc" stroke="#1e293b" strokeWidth="1" />
                   <text y="3.5" textAnchor="middle" fill="#1e293b" fontSize="9" fontWeight="900" fontFamily="sans-serif" letterSpacing="0.5">
                     {`GLOVE WITH SLEEVE (${handSelectionVal.toUpperCase()})`}
@@ -3313,7 +3177,7 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                     {/* Live Diagram Schematic Drawing */}
                     <div className="bg-slate-50 rounded-2xl p-4 border border-dashed border-slate-200 flex flex-col items-center justify-center relative">
                       <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Live Garment Template / بصری خاکہ</div>
-                      <div className="w-full h-full max-h-[310px] flex justify-center bg-white rounded-xl p-3 shadow-inner border border-slate-100">
+                      <div className="w-full flex justify-center bg-white rounded-xl p-3 shadow-inner border border-slate-100 overflow-hidden">
                         {renderAssessmentDrawingSvg(selectedAssessment)}
                       </div>
                     </div>
@@ -3386,35 +3250,7 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                     const resolvedAddress = (nameKey && patientAddresses[nameKey]) || (idKey && patientAddresses[idKey]) || selectedAssessment.city || 'N/A';
                     const resolvedDoctorNotes = selectedAssessment.sub_options?.doctorNotes || (nameKey && patientNotes[nameKey]) || (idKey && patientNotes[idKey]) || '';
 
-                    // Get spec matrix fields
-                    const fields = GARMENT_FIELDS[selectedAssessment.garment_type] || [];
-                    const seenFieldIds = new Set<string>();
-                    const coreMeasurements = Object.entries(selectedAssessment.sub_options || {})
-                      .filter(([key, val]) => {
-                        const lowerKey = key.toLowerCase();
-                        const matchedField = fields.find(f => f.id.toLowerCase() === lowerKey || f.label.toLowerCase() === lowerKey);
-                        if (!matchedField) return false;
-                        if (seenFieldIds.has(matchedField.id)) return false;
-                        if (val === undefined || String(val).trim() === '') return false;
-                        seenFieldIds.add(matchedField.id);
-                        return true;
-                      });
-
-                    const garmentTypeVal = selectedAssessment.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (selectedAssessment.garment_type || 'N/A');
-                    const colorVal = selectedAssessment.sub_options?.['Color'] || selectedAssessment.sub_options?.['color'] || 'Standard';
-
-                    const customOptions = Object.entries(selectedAssessment.sub_options || {})
-                      .filter(([key, val]) => {
-                        const lowerKey = key.toLowerCase();
-                        const isField = fields.some(f => f.id.toLowerCase() === lowerKey || f.label.toLowerCase() === lowerKey);
-                        return !isField && 
-                          key !== 'Custom Design Notes' && 
-                          key !== 'doctorNotes' && 
-                          lowerKey !== 'color' && 
-                          lowerKey !== 'garment type' && 
-                          typeof val === 'string' && 
-                          val.trim() !== '';
-                      });
+                    const extractedData = extractAssessmentMeasurements(selectedAssessment);
 
                     return (
                       <div className="bg-slate-50 border border-slate-200 p-4 sm:p-5 rounded-3xl space-y-4 shadow-sm">
@@ -3464,20 +3300,20 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                               <p className="font-black text-slate-900 uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-slate-200 pb-0.5 mb-0.5">
                                 *📦 GARMENT CONFIGURATION*
                               </p>
-                              <p className="font-extrabold text-slate-800">• Garment Type: *<span className="font-black text-slate-900">{selectedAssessment.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : selectedAssessment.garment_type}</span>*</p>
-                              <p className="font-extrabold text-slate-800">• Silicone Option: *<span className="font-black text-slate-900">{selectedAssessment.silicone_pasting}</span>*</p>
-                              <p className="font-extrabold text-slate-800">• Compression Force: *<span className="font-black text-slate-900">{selectedAssessment.compression}</span>*</p>
+                              <p className="font-extrabold text-slate-800">• Garment Type: *<span className="font-black text-slate-900">{extractedData.garmentType}</span>*</p>
+                              <p className="font-extrabold text-slate-800">• Silicone Option: *<span className="font-black text-slate-900">{extractedData.silicone}</span>*</p>
+                              <p className="font-extrabold text-slate-800">• Compression Force: *<span className="font-black text-slate-900">{extractedData.compression}</span>*</p>
                             </div>
 
                             {/* Core Measurements */}
-                            {coreMeasurements.length > 0 && (
+                            {extractedData.coreMeasurements.length > 0 && (
                               <div className="mb-2 space-y-1 p-2 bg-white/40 rounded-lg border border-slate-200/50">
                                 <p className="font-black text-slate-900 uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-slate-200 pb-0.5 mb-0.5">
                                   *📐 CORE MEASUREMENTS*
                                 </p>
                                 <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                                  {coreMeasurements.map(([key, val]) => (
-                                    <p key={key} className="font-bold text-slate-800">• {key}: *<span className="font-black text-slate-900">{val}</span>*</p>
+                                  {extractedData.coreMeasurements.map(([label, val]) => (
+                                    <p key={label} className="font-bold text-slate-800">• {label}: *<span className="font-black text-slate-900">{val}</span>*</p>
                                   ))}
                                 </div>
                               </div>
@@ -3489,36 +3325,42 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                                 *✍️ CUSTOM DESIGN OPTIONS*
                               </p>
                               <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                                <p className="font-bold text-slate-800">• Garment Type: *<span className="font-black text-slate-900">{garmentTypeVal}</span>*</p>
-                                <p className="font-bold text-slate-800">• Color: *<span className="font-black text-slate-900">{colorVal}</span>*</p>
-                                {customOptions.map(([key, val]) => (
-                                  <p key={key} className="font-bold text-slate-800">• {key}: *<span className="font-black text-slate-900">{val}</span>*</p>
-                                ))}
+                                <p className="font-bold text-slate-800">• Garment Type: *<span className="font-black text-slate-900">{extractedData.garmentType}</span>*</p>
+                                {extractedData.handSelection && (
+                                  <p className="font-bold text-slate-800">• Hand Selection: *<span className="font-black text-slate-900">{extractedData.handSelection}</span>*</p>
+                                )}
+                                <p className="font-bold text-slate-800">• Color: *<span className="font-black text-slate-900">{extractedData.color}</span>*</p>
+                                {extractedData.customDesignOptions.map(([key, val]) => {
+                                  if (key === 'Hand Selection') return null;
+                                  return (
+                                    <p key={key} className="font-bold text-slate-800">• {key}: *<span className="font-black text-slate-900">{val}</span>*</p>
+                                  );
+                                })}
                               </div>
                             </div>
 
                             {/* Notes */}
-                            {(resolvedDoctorNotes || selectedAssessment.notes || selectedAssessment.sub_options?.['Custom Design Notes']) && (
+                            {(resolvedDoctorNotes || extractedData.doctorNotes || extractedData.garmentNotes || extractedData.customDesignNotes) && (
                               <div className="text-red-700 bg-red-50/70 p-2 rounded-lg border border-red-100 mb-1 space-y-2">
                                 <p className="font-black uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-red-200 pb-0.5 mb-0.5">
                                   *🔴 🩺 NOTES & CASE HISTORY*
                                 </p>
-                                {resolvedDoctorNotes && (
+                                {(resolvedDoctorNotes || extractedData.doctorNotes) && (
                                   <div className="space-y-0.5">
                                     <p className="font-black text-[8px] sm:text-[9px] uppercase text-rose-650">*🩺 Doctor's Notes & Case History:*</p>
-                                    <p className="font-black italic">🔴 "*"{resolvedDoctorNotes}"*"</p>
+                                    <p className="font-black italic">🔴 "*"{resolvedDoctorNotes || extractedData.doctorNotes}"*"</p>
                                   </div>
                                 )}
-                                {selectedAssessment.notes && (
+                                {extractedData.garmentNotes && (
                                   <div className="space-y-0.5 border-t border-rose-200/30 pt-1">
                                     <p className="font-black text-[8px] sm:text-[9px] uppercase text-rose-650">*📝 Garment Configuration Note:*</p>
-                                    <p className="font-black italic">🔴 "*"{selectedAssessment.notes}"*"</p>
+                                    <p className="font-black italic">🔴 "*"{extractedData.garmentNotes}"*"</p>
                                   </div>
                                 )}
-                                {selectedAssessment.sub_options?.['Custom Design Notes'] && (
+                                {extractedData.customDesignNotes && (
                                   <div className="space-y-0.5 border-t border-rose-200/30 pt-1">
                                     <p className="font-black text-[8px] sm:text-[9px] uppercase text-rose-650">*✍️ Custom Design Notes:*</p>
-                                    <p className="font-black italic">🔴 "*"{selectedAssessment.sub_options['Custom Design Notes']}"*"</p>
+                                    <p className="font-black italic">🔴 "*"{extractedData.customDesignNotes}"*"</p>
                                   </div>
                                 )}
                               </div>

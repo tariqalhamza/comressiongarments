@@ -11,8 +11,8 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Middleware for parsing large payloads (images)
-  app.use(express.json({ limit: '10mb' }));
+  // Middleware for parsing large payloads (images and clinical data)
+  app.use(express.json({ limit: '50mb' }));
 
   // Shared Database config read/write endpoints to sync credentials across all devices
   const CONFIG_FILE_PATH = path.join(process.cwd(), "supabase-config.json");
@@ -61,6 +61,44 @@ async function startServer() {
   // Clinical user profiles sync endpoints for multi-device login persistence
   const PROFILES_FILE_PATH = path.join(process.cwd(), "clinical-profiles.json");
 
+  const sanitizeProfilesList = (list: any[]) => {
+    if (!Array.isArray(list)) return [];
+    return list.map((p) => {
+      if (!p || typeof p !== "object") return p;
+      let email = (p.email || "").trim();
+      const fullName = (p.full_name || "").trim();
+      const fullNameLower = fullName.toLowerCase();
+      const isAdminOrMahmood = p.role === "admin" || fullNameLower.includes("mahmood") || fullNameLower.includes("mehmood");
+
+      if (isAdminOrMahmood) {
+        return {
+          ...p,
+          full_name: p.full_name || "Dr. Mahmood",
+          role: "admin",
+          email: email && !email.includes("overplast") && email !== "ahmed@gmail.com" ? email : "mehmood@gmail.com",
+          password: p.password && p.password !== "ahmed123" && p.password !== "mehmood123" ? p.password : "12345678"
+        };
+      }
+
+      let namePart = (p.full_name || "user").trim().split(" ").pop() || "user";
+      let cleanName = namePart.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+      if (!email) {
+        email = `${cleanName || "user"}@gmail.com`;
+      } else if (email.toLowerCase().endsWith("@overplast.com") && email.toLowerCase() !== "demo@overplast.com") {
+        email = email.replace(/@overplast\.com$/i, "@gmail.com");
+      }
+
+      let password = p.password || `${cleanName || "user"}123`;
+
+      return {
+        ...p,
+        email,
+        password
+      };
+    });
+  };
+
   app.get("/api/get-profiles", (req, res) => {
     try {
       let profiles = [];
@@ -68,7 +106,8 @@ async function startServer() {
         const fileContent = fs.readFileSync(PROFILES_FILE_PATH, "utf-8");
         profiles = JSON.parse(fileContent);
       }
-      res.json(profiles);
+      const sanitized = sanitizeProfilesList(profiles);
+      res.json(sanitized);
     } catch (error) {
       console.error("Failed to read clinical profiles:", error);
       res.json([]);
@@ -81,11 +120,46 @@ async function startServer() {
       if (!Array.isArray(profiles)) {
         return res.status(400).json({ error: "Invalid data format. Expected array." });
       }
-      fs.writeFileSync(PROFILES_FILE_PATH, JSON.stringify(profiles, null, 2), "utf-8");
+      const sanitized = sanitizeProfilesList(profiles);
+      fs.writeFileSync(PROFILES_FILE_PATH, JSON.stringify(sanitized, null, 2), "utf-8");
       res.json({ success: true, message: "Clinical profiles updated successfully on server." });
     } catch (error) {
       console.error("Failed to save clinical profiles:", error);
       res.status(500).json({ error: "Failed to save clinical profiles on server" });
+    }
+  });
+
+  // Clinical data (patients, assessments, orders) server persistence endpoints
+  const CLINICAL_DATA_FILE_PATH = path.join(process.cwd(), "clinical-data.json");
+
+  app.get("/api/get-clinical-data", (req, res) => {
+    try {
+      if (fs.existsSync(CLINICAL_DATA_FILE_PATH)) {
+        const content = fs.readFileSync(CLINICAL_DATA_FILE_PATH, "utf-8");
+        const parsed = JSON.parse(content);
+        return res.json(parsed);
+      }
+      res.json({ patients: [], assessments: [], orders: [] });
+    } catch (error) {
+      console.error("Failed to read clinical data:", error);
+      res.json({ patients: [], assessments: [], orders: [] });
+    }
+  });
+
+  app.post("/api/save-clinical-data", (req, res) => {
+    try {
+      const { patients, assessments, orders } = req.body;
+      const dataToSave = {
+        patients: Array.isArray(patients) ? patients : [],
+        assessments: Array.isArray(assessments) ? assessments : [],
+        orders: Array.isArray(orders) ? orders : [],
+        updated_at: new Date().toISOString()
+      };
+      fs.writeFileSync(CLINICAL_DATA_FILE_PATH, JSON.stringify(dataToSave, null, 2), "utf-8");
+      res.json({ success: true, message: "Clinical data saved successfully on server." });
+    } catch (error) {
+      console.error("Failed to save clinical data on server:", error);
+      res.status(500).json({ error: "Failed to save clinical data on server" });
     }
   });
 

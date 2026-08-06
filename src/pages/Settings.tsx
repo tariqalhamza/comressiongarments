@@ -47,14 +47,51 @@ const Settings: React.FC = () => {
   const [newUserFullName, setNewUserFullName] = useState('');
   const [newUserRole, setNewUserRole] = useState<'therapist' | 'technician'>('therapist');
 
+  const sanitizeProfileItem = (p: any) => {
+    if (!p || typeof p !== 'object') return p;
+    let email = (p.email || '').trim();
+    const fullName = (p.full_name || '').trim();
+    const fullNameLower = fullName.toLowerCase();
+    const isAdminOrMahmood = p.role === 'admin' || fullNameLower.includes('mahmood') || fullNameLower.includes('mehmood');
+
+    if (isAdminOrMahmood) {
+      return {
+        ...p,
+        full_name: p.full_name || 'Dr. Mahmood',
+        role: 'admin',
+        email: email && !email.includes('overplast') && email !== 'ahmed@gmail.com' ? email : 'mehmood@gmail.com',
+        password: p.password && p.password !== 'ahmed123' && p.password !== 'mehmood123' ? p.password : '12345678'
+      };
+    }
+
+    const namePart = (p.full_name || 'user').trim().split(' ').pop() || 'user';
+    const cleanName = namePart.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    if (!email) {
+      email = `${cleanName || 'user'}@gmail.com`;
+    } else if (email.toLowerCase().endsWith('@overplast.com') && email.toLowerCase() !== 'demo@overplast.com') {
+      email = email.replace(/@overplast\.com$/i, '@gmail.com');
+    }
+
+    const password = p.password || `${cleanName || 'user'}123`;
+
+    return {
+      ...p,
+      email,
+      password
+    };
+  };
+
   const loadProfiles = async () => {
     setLoadingProfiles(true);
     try {
       // Sync latest clinical profiles from server first to remain coordinated across multiple devices
       const serverProfiles = await syncClinicalProfilesFromServer();
 
+      let combinedProfiles: any[] = [];
+
       if (isDemo) {
-        setProfilesList(serverProfiles);
+        combinedProfiles = serverProfiles;
       } else {
         try {
           // Wrapped in a 4.5s timeout. If Supabase is sleeping or paused, it will fail fast we fall back cleanly.
@@ -76,29 +113,57 @@ const Settings: React.FC = () => {
           // First add all server-synced profiles
           serverProfiles.forEach((lp: any) => {
             if (lp && lp.id) {
-              mergedMap.set(lp.id, lp);
+              mergedMap.set(lp.id, sanitizeProfileItem(lp));
             }
           });
           
           // Then override/update with DB profiles to get latest db metadata
           dbData.forEach((dbUser: any) => {
             if (dbUser && dbUser.id) {
-              const localUser = mergedMap.get(dbUser.id);
-              mergedMap.set(dbUser.id, {
+              // Try match by ID first, then by email, then by full_name
+              let localUser = mergedMap.get(dbUser.id);
+              if (!localUser) {
+                const dbEmailLower = (dbUser.email || '').toLowerCase().trim();
+                const dbNameLower = (dbUser.full_name || '').toLowerCase().trim();
+                localUser = serverProfiles.find((lp: any) => 
+                  (dbEmailLower && lp.email?.toLowerCase().trim() === dbEmailLower) ||
+                  (dbNameLower && lp.full_name?.toLowerCase().trim() === dbNameLower)
+                );
+              }
+
+              const mergedItem = sanitizeProfileItem({
                 ...localUser,
                 ...dbUser,
                 email: dbUser.email || localUser?.email || '',
                 password: dbUser.password || localUser?.password || ''
               });
+
+              mergedMap.set(dbUser.id, mergedItem);
             }
           });
           
-          const enriched = Array.from(mergedMap.values());
-          setProfilesList(enriched);
+          combinedProfiles = Array.from(mergedMap.values());
         } catch (dbErr: any) {
           console.warn('Supabase profile retrieval timed out or failed. Sourcing from local fallback storage:', dbErr);
-          setProfilesList(serverProfiles);
+          combinedProfiles = serverProfiles;
         }
+      }
+
+      // Sanitize all profile emails (convert any @overplast.com to @gmail.com)
+      const sanitized = combinedProfiles.map(sanitizeProfileItem);
+      setProfilesList(sanitized);
+
+      // Persist the sanitized profiles back to localStorage and server
+      localStorage.setItem('demo_profiles', JSON.stringify(sanitized));
+      saveClinicalProfilesToServer(sanitized).catch(() => {});
+
+      // If connected to Supabase live, update any database records that were using @overplast.com
+      if (!isDemo) {
+        sanitized.forEach((usr: any) => {
+          if (usr.id && usr.email) {
+            supabase.from('profiles').update({ email: usr.email, password: usr.password }).eq('id', usr.id).then(() => {}, () => {});
+          }
+        });
       }
     } catch (err: any) {
       console.error('Error fetching clinical profiles:', err);
@@ -112,68 +177,100 @@ const Settings: React.FC = () => {
   const [userToDelete, setUserToDelete] = useState<{ id: string; name: string } | null>(null);
   const [editingPasswordUserId, setEditingPasswordUserId] = useState<string | null>(null);
   const [tempPasswordValue, setTempPasswordValue] = useState('');
+  const [editingEmailUserId, setEditingEmailUserId] = useState<string | null>(null);
+  const [tempEmailValue, setTempEmailValue] = useState('');
 
   const getOrGenerateUserPassword = (usr: any) => {
-    if (usr.password) return usr.password;
+    const fullNameLower = (usr?.full_name || '').toLowerCase().trim();
+    if (usr?.role === 'admin' || fullNameLower.includes('mahmood') || fullNameLower.includes('mehmood')) {
+      if (usr.password && usr.password !== 'ahmed123' && usr.password !== 'mehmood123') return usr.password;
+      return '12345678';
+    }
+    if (usr?.password) return usr.password;
     
     // Construct a sensible plain-text fallback password using the user's name
-    const namePart = (usr.full_name || 'user').trim().split(' ').pop() || 'user';
+    const namePart = (usr?.full_name || 'user').trim().split(' ').pop() || 'user';
     const cleanName = namePart.toLowerCase().replace(/[^a-z0-9]/g, '');
     const fallbackPassword = `${cleanName || 'user'}123`;
-    
-    // Attempt to persist this generated fallback password back to localStorage
-    try {
-      const stored = localStorage.getItem('demo_profiles');
-      if (stored) {
-        const currentProfiles = JSON.parse(stored);
-        let wasUpdated = false;
-        const newProfiles = currentProfiles.map((p: any) => {
-          if (p.id === usr.id && !p.password) {
-            p.password = fallbackPassword;
-            wasUpdated = true;
-          }
-          return p;
-        });
-        if (wasUpdated) {
-          localStorage.setItem('demo_profiles', JSON.stringify(newProfiles));
-        }
-      }
-    } catch (e) {
-      console.error("Auto saving fallback password failed:", e);
-    }
-    
     return fallbackPassword;
   };
 
   const getOrGenerateUserEmail = (usr: any) => {
-    if (usr.email) return usr.email;
+    const fullNameLower = (usr?.full_name || '').toLowerCase().trim();
+    if (usr?.role === 'admin' || fullNameLower.includes('mahmood') || fullNameLower.includes('mehmood')) {
+      if (usr?.email && !usr.email.includes('overplast') && usr.email !== 'ahmed@gmail.com') {
+        return usr.email;
+      }
+      return 'mehmood@gmail.com';
+    }
+
+    let email = (usr?.email || '').trim();
+    if (email) {
+      if (email.toLowerCase().endsWith('@overplast.com') && email.toLowerCase() !== 'demo@overplast.com') {
+        return email.replace(/@overplast\.com$/i, '@gmail.com');
+      }
+      return email;
+    }
     
-    const namePart = (usr.full_name || 'user').trim().split(' ').pop() || 'user';
+    const namePart = (usr?.full_name || 'user').trim().split(' ').pop() || 'user';
     const cleanName = namePart.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const fallbackEmail = `${cleanName || 'user'}@overplast.com`;
+    const fallbackEmail = `${cleanName || 'user'}@gmail.com`;
+    return fallbackEmail;
+  };
+
+  const handleUpdateUserEmail = (userId: string, newEmail: string) => {
+    const trimmedEmail = newEmail.trim().toLowerCase();
+    if (!trimmedEmail) return;
     
-    // Attempt to persist this generated fallback email back to localStorage
-    try {
-      const stored = localStorage.getItem('demo_profiles');
-      if (stored) {
+    // 1. Update list UI state inline
+    setProfilesList(prev => prev.map(p => {
+      if (p.id === userId) {
+        return { ...p, email: trimmedEmail };
+      }
+      return p;
+    }));
+    
+    // 2. Sync to localStorage demo_profiles
+    const stored = localStorage.getItem('demo_profiles');
+    if (stored) {
+      try {
         const currentProfiles = JSON.parse(stored);
-        let wasUpdated = false;
-        const newProfiles = currentProfiles.map((p: any) => {
-          if (p.id === usr.id && !p.email) {
-            p.email = fallbackEmail;
-            wasUpdated = true;
+        const updated = currentProfiles.map((p: any) => {
+          if (p.id === userId) {
+            return { ...p, email: trimmedEmail };
           }
           return p;
         });
-        if (wasUpdated) {
-          localStorage.setItem('demo_profiles', JSON.stringify(newProfiles));
-        }
+        localStorage.setItem('demo_profiles', JSON.stringify(updated));
+        
+        // Push updated profiles list to the server for multi-device sync
+        saveClinicalProfilesToServer(updated).catch(e => console.error("Server profiles sync error on email update:", e));
+      } catch (e) {
+        console.error("Error updating user storage email:", e);
       }
-    } catch (e) {
-      console.error("Auto saving fallback email failed:", e);
+    }
+
+    // 3. Persist email update to Supabase database if connected live
+    if (!isDemo) {
+      supabase
+        .from('profiles')
+        .update({ email: trimmedEmail })
+        .eq('id', userId)
+        .then(
+          ({ error }) => {
+            if (error) {
+              console.warn("Failed to persist email update in Supabase database:", error);
+            } else {
+              console.log("Successfully persisted updated email in Supabase database for user:", userId);
+            }
+          },
+          (dbErr) => {
+            console.warn("Error updating email in database:", dbErr);
+          }
+        );
     }
     
-    return fallbackEmail;
+    setEditingEmailUserId(null);
   };
 
   const handleUpdateUserPassword = (userId: string, newPassword: string) => {
@@ -922,7 +1019,7 @@ const Settings: React.FC = () => {
                           <input 
                             type="email"
                             required
-                            placeholder="e.g. sarah@overplast.com"
+                            placeholder="e.g. sarah@gmail.com"
                             value={newUserEmail}
                             onChange={(e) => setNewUserEmail(e.target.value)}
                             className="w-full bg-white border border-slate-100 rounded-2xl px-5 py-3 text-xs font-bold focus:ring-2 focus:ring-blue-100 outline-none text-slate-800"
@@ -1015,9 +1112,51 @@ const Settings: React.FC = () => {
                                   )}
                                 </p>
                                 <div className="mt-1 space-y-1">
-                                  <p className="text-[10px] text-slate-500 font-semibold truncate font-mono">
-                                    <span className="text-slate-400 font-medium">Email:</span> {getOrGenerateUserEmail(usr)}
-                                  </p>
+                                  <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold font-mono">
+                                    <span className="text-slate-500 font-bold text-[10px]">Email:</span>
+                                    {editingEmailUserId === usr.id ? (
+                                      <div className="flex items-center gap-1.5">
+                                        <input
+                                          type="email"
+                                          value={tempEmailValue}
+                                          onChange={(e) => setTempEmailValue(e.target.value)}
+                                          placeholder="e.g. user@gmail.com"
+                                          className="bg-slate-50 border border-slate-300 px-1.5 py-0.5 rounded text-slate-800 text-[10px] w-48 outline-none focus:ring-1 focus:ring-blue-500/50"
+                                          autoFocus
+                                        />
+                                        <button
+                                          onClick={() => handleUpdateUserEmail(usr.id, tempEmailValue)}
+                                          className="text-emerald-700 hover:text-emerald-800 font-black cursor-pointer px-1.5 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[9px] uppercase tracking-wider"
+                                        >
+                                          Save
+                                        </button>
+                                        <button
+                                          onClick={() => setEditingEmailUserId(null)}
+                                          className="text-slate-500 hover:text-slate-600 font-black cursor-pointer px-1.5 py-0.5 rounded bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[9px] uppercase tracking-wider"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-2">
+                                        <span 
+                                          className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-800 border border-slate-200/50 cursor-pointer select-all font-bold" 
+                                          title="Click to copy"
+                                        >
+                                          {getOrGenerateUserEmail(usr)}
+                                        </span>
+                                        <button
+                                          onClick={() => {
+                                            setEditingEmailUserId(usr.id);
+                                            setTempEmailValue(usr.email || getOrGenerateUserEmail(usr));
+                                          }}
+                                          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-extrabold text-[8px] uppercase tracking-wider"
+                                        >
+                                          Edit
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
                                   <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold font-mono">
                                     <span className="text-rose-500 font-extrabold text-[10px]">Password:</span> 
                                     {editingPasswordUserId === usr.id ? (
