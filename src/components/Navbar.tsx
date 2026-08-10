@@ -1,6 +1,6 @@
 import React from 'react';
 import { Bell, Search, User, Plus, Menu, ChevronRight, Shield, Database, LogOut } from 'lucide-react';
-import { useAuthStore } from '../services/authStore';
+import { useAuthStore, normalizeAdminFullName } from '../services/authStore';
 import { motion } from 'motion/react';
 import { isDemo } from '../services/supabase';
 
@@ -12,9 +12,13 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ title, onToggleSidebar, isSidebarOpen }) => {
   const { user, profile, signOut } = useAuthStore();
-  const isSuperEmail = ['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com'].includes(user?.email?.toLowerCase().trim() || '');
+  const isSuperEmail = ['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com', 'mahmood@gmail.com'].includes(user?.email?.toLowerCase().trim() || profile?.email?.toLowerCase().trim() || '');
   const isAdmin = profile?.role === 'admin' || isSuperEmail;
   const displayRole = isAdmin ? 'Administrator' : profile?.role === 'technician' ? 'Technician' : 'Therapist';
+
+  const rawName = profile?.full_name || (user as any)?.user_metadata?.full_name;
+  const email = user?.email || profile?.email || '';
+  const displayName = normalizeAdminFullName(rawName, email, isAdmin ? 'admin' : (profile?.role || 'therapist'));
 
   return (
     <header className="h-20 flex items-center justify-between px-4 sm:px-8 bg-white border-b border-slate-100 sticky top-0 z-10 select-none">
@@ -62,7 +66,7 @@ const Navbar: React.FC<NavbarProps> = ({ title, onToggleSidebar, isSidebarOpen }
           <div className="flex items-center gap-2 sm:gap-3 ml-1 sm:ml-2">
             <div className="text-right hidden sm:block">
               <p className="text-xs font-black text-slate-900 leading-none">
-                {profile?.full_name || user?.email?.split('@')[0] || 'Medical Staff'}
+                {displayName}
               </p>
               <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-1">
                 {displayRole}

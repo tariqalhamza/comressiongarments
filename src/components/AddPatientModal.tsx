@@ -4,6 +4,7 @@ import { dbService } from '../services/supabase';
 import { Patient } from '../types';
 import { compressImage } from '../lib/imageUtils';
 import { cn } from '../lib/utils';
+import { useAuthStore } from '../services/authStore';
 
 interface AddPatientModalProps {
   isOpen: boolean;
@@ -17,6 +18,10 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onSu
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [hasProvidedPhotos, setHasProvidedPhotos] = useState<'yes' | 'no'>(patient?.photo_url ? 'yes' : 'no');
+
+  const { user, profile } = useAuthStore();
+  const isSuperEmail = ['mehmood@gmail.com', 'detox16277@gmail.com'].includes(user?.email?.toLowerCase().trim() || profile?.email?.toLowerCase().trim() || '');
+  const isAdmin = profile?.role === 'admin' || isSuperEmail;
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -106,7 +111,13 @@ const AddPatientModal: React.FC<AddPatientModalProps> = ({ isOpen, onClose, onSu
         email: '',
         diagnosis: 'Patient Registration',
         medical_condition: 'General',
-        clinic_id: 'default'
+        clinic_id: 'default',
+        created_by: user?.id || profile?.id || undefined,
+        created_by_email: user?.email || profile?.email || undefined,
+        created_by_name: profile?.full_name || (user as any)?.user_metadata?.full_name || undefined,
+        created_by_role: profile?.role || (isAdmin ? 'admin' : 'therapist'),
+        therapist_id: user?.id || profile?.id || undefined,
+        therapist_name: profile?.full_name || undefined
       };
       
       const timeout = setTimeout(() => {

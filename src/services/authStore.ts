@@ -11,22 +11,67 @@ interface AuthState {
   fetchProfile: (uid: string) => Promise<void>;
 }
 
+export const normalizeAdminFullName = (name?: string | null, email?: string | null, role?: string | null): string => {
+  const mailLower = (email || '').toLowerCase().trim();
+  const isSuper = ['mehmood@gmail.com', 'detox16277@gmail.com', 'mahmood@gmail.com', 'demo@overplast.com'].includes(mailLower);
+  const nameStr = (name || '').trim();
+  const nameLower = nameStr.toLowerCase();
+
+  const isOldAdminName = !nameStr ||
+                         nameLower.includes('dr. mahmood') || 
+                         nameLower.includes('dr. mehmood') || 
+                         nameLower.includes('dr mahmood') || 
+                         nameLower.includes('dr mehmood') || 
+                         nameLower === 'mahmood admin' || 
+                         nameLower === 'mehmood admin' || 
+                         nameLower === 'mahmood' || 
+                         nameLower === 'mehmood' ||
+                         nameLower === 'medical staff' ||
+                         nameLower === 'clinic staff';
+
+  if (isSuper || role === 'admin') {
+    if (isOldAdminName) {
+      return 'Mahmood Ahmed';
+    }
+    return nameStr;
+  }
+  if (isOldAdminName && (nameLower.includes('mahmood') || nameLower.includes('mehmood'))) {
+    return 'Mahmood Ahmed';
+  }
+  return nameStr || (email ? (email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1)) : 'Clinic Staff');
+};
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   profile: null,
   loading: true,
   setUser: (user, profile = null) => {
+    let cleanProfile = profile;
+    if (cleanProfile) {
+      const email = user?.email || cleanProfile.email || '';
+      const role = cleanProfile.role || 'therapist';
+      const cleanName = normalizeAdminFullName(cleanProfile.full_name || (user as any)?.user_metadata?.full_name, email, role);
+      cleanProfile = {
+        ...cleanProfile,
+        full_name: cleanName
+      };
+    }
+    
+    const finalName = cleanProfile?.full_name || (user as any)?.user_metadata?.full_name;
+    const finalRole = cleanProfile?.role || 'therapist';
+    const finalEmail = user?.email || cleanProfile?.email || null;
+
     updateCurrentUserContext(
       user?.id || null,
-      user?.email || profile?.email || null,
-      profile?.role || 'therapist',
-      profile?.full_name || (user as any)?.user_metadata?.full_name || undefined
+      finalEmail,
+      finalRole,
+      finalName ? normalizeAdminFullName(finalName, finalEmail, finalRole) : undefined
     );
-    set({ user, profile, loading: false });
+    set({ user, profile: cleanProfile, loading: false });
     // Keep local safety session cache updated whenever setUser is called
-    if (user && profile) {
+    if (user && cleanProfile) {
       try {
-        localStorage.setItem('demo_user_logged_in', JSON.stringify({ user, profile }));
+        localStorage.setItem('demo_user_logged_in', JSON.stringify({ user, profile: cleanProfile }));
       } catch (cacheErr) {
         console.warn("Could not cache user session locally:", cacheErr);
       }
@@ -58,7 +103,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   fetchProfile: async (uid: string) => {
     const user = get().user;
     const email = user?.email || '';
-    const isSuperAdmin = ['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com'].includes(email.toLowerCase().trim());
+    const isSuperAdmin = ['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com', 'mahmood@gmail.com'].includes(email.toLowerCase().trim());
 
     // Helper to load custom backup profile fields from localStorage robustly (by uid, email, and global)
     const getSavedCustomFields = (id: string, mail: string) => {
@@ -102,22 +147,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const profiles = storedProfiles ? JSON.parse(storedProfiles) : [];
       const dbProfile = profiles.find((p: any) => p.id === uid || p.email?.toLowerCase().trim() === email.toLowerCase().trim());
       
+      const rawRole = isSuperAdmin ? 'admin' : (dbProfile?.role || currentProfile?.role || 'therapist');
+      const rawName = normalizeAdminFullName(
+        savedCustom.name || dbProfile?.full_name || currentProfile?.full_name,
+        email,
+        rawRole
+      );
+
       const finalProfile = {
         ...(dbProfile || currentProfile || {
           id: uid,
-          full_name: isSuperAdmin ? 'Mahmood Admin' : 'Clinic Staff',
-          role: isSuperAdmin ? 'admin' : 'therapist',
+          full_name: rawName,
+          role: rawRole,
           email: email
         }),
-        ...savedCustom
+        ...savedCustom,
+        full_name: rawName,
+        role: rawRole
       };
       
-      if (isSuperAdmin) {
-        finalProfile.role = 'admin';
-        if (finalProfile.full_name === 'Clinic Staff') {
-          finalProfile.full_name = savedCustom.name || 'Mahmood Admin';
-        }
-      }
       updateCurrentUserContext(uid, finalProfile.email || email, finalProfile.role, finalProfile.full_name);
       set({ profile: finalProfile });
       return;
@@ -135,10 +183,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       );
 
       if (!error && data) {
+        const finalRole = isSuperAdmin ? 'admin' : (data?.role || 'therapist');
+        const finalName = normalizeAdminFullName(
+          savedCustom.name || data.full_name,
+          email,
+          finalRole
+        );
         const finalProfile = { 
           ...data, 
           ...savedCustom,
-          full_name: savedCustom.name || data.full_name || 'Administrator'
+          role: finalRole,
+          full_name: finalName
         };
         if (isSuperAdmin && data.role !== 'admin') {
           finalProfile.role = 'admin';
@@ -160,10 +215,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.warn("Supabase profile fetch timed out/failed. Falling back to robust local offline storage profile.", err);
       
       const finalRole = isSuperAdmin ? 'admin' : 'therapist';
+      const finalName = normalizeAdminFullName(
+        savedCustom.name || user?.user_metadata?.full_name,
+        email,
+        finalRole
+      );
       const fallbackProfile = {
         id: uid,
-        full_name: savedCustom.name || user?.user_metadata?.full_name || 'Administrator',
+        full_name: finalName,
         role: finalRole,
+        email: email,
         ...savedCustom
       };
       
@@ -217,13 +278,34 @@ const initializeAuth = () => {
         } catch {}
       }
 
+      const isSuper = ['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com', 'mahmood@gmail.com'].includes(email.toLowerCase().trim());
+      const role = isSuper ? 'admin' : (parsed.profile?.role || 'therapist');
+      const cleanName = normalizeAdminFullName(
+        savedCustom.name || parsed.profile?.full_name || (parsed.user as any)?.user_metadata?.full_name,
+        email,
+        role
+      );
+
       const mergedProfile = {
         ...parsed.profile,
         ...savedCustom,
-        full_name: savedCustom.name || parsed.profile?.full_name || 'Administrator'
+        role,
+        full_name: cleanName
       };
 
-      store.setUser(parsed.user, mergedProfile);
+      const cleanUser = parsed.user ? {
+        ...parsed.user,
+        user_metadata: {
+          ...(parsed.user.user_metadata || {}),
+          full_name: cleanName
+        }
+      } : null;
+
+      try {
+        localStorage.setItem('demo_user_logged_in', JSON.stringify({ user: cleanUser, profile: mergedProfile }));
+      } catch {}
+
+      store.setUser(cleanUser, mergedProfile);
     } catch (e) {
       console.error('Failed to parse safety session:', e);
       store.setUser(null);
@@ -306,13 +388,34 @@ const initializeAuth = () => {
             } catch {}
           }
 
+          const isSuper = ['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com', 'mahmood@gmail.com'].includes(email.toLowerCase().trim());
+          const role = isSuper ? 'admin' : (parsed.profile?.role || 'therapist');
+          const cleanName = normalizeAdminFullName(
+            savedCustom.name || parsed.profile?.full_name || (parsed.user as any)?.user_metadata?.full_name,
+            email,
+            role
+          );
+
           const mergedProfile = {
             ...parsed.profile,
             ...savedCustom,
-            full_name: savedCustom.name || parsed.profile?.full_name || 'Administrator'
+            role,
+            full_name: cleanName
           };
 
-          storeState.setUser(parsed.user, mergedProfile);
+          const cleanUser = parsed.user ? {
+            ...parsed.user,
+            user_metadata: {
+              ...(parsed.user.user_metadata || {}),
+              full_name: cleanName
+            }
+          } : null;
+
+          try {
+            localStorage.setItem('demo_user_logged_in', JSON.stringify({ user: cleanUser, profile: mergedProfile }));
+          } catch {}
+
+          storeState.setUser(cleanUser, mergedProfile);
           return;
         } catch {}
       }
@@ -329,7 +432,8 @@ if (typeof useAuthStore.subscribe === 'function') {
     updateCurrentUserContext(
       state.user?.id || null,
       state.user?.email || null,
-      state.profile?.role || 'therapist'
+      state.profile?.role || 'therapist',
+      state.profile?.full_name || undefined
     );
   });
 }

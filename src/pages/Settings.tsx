@@ -17,10 +17,18 @@ import {
   Info,
   Users,
   UserPlus,
-  ShieldAlert
+  ShieldAlert,
+  Cloud,
+  Key,
+  RefreshCw,
+  CheckCircle2,
+  XCircle,
+  Copy,
+  ExternalLink,
+  Server
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { isDemo, clearDemoData, supabase, supabaseUrl, supabaseAnonKey, promiseWithTimeout, saveClinicalProfilesToServer, syncClinicalProfilesFromServer } from '../services/supabase';
+import { isDemo, clearDemoData, supabase, supabaseUrl, supabaseAnonKey, promiseWithTimeout, saveClinicalProfilesToServer, syncClinicalProfilesFromServer, testSupabaseConnection, syncAllLocalPatientsToSupabase } from '../services/supabase';
 import { useAuthStore } from '../services/authStore';
 import { createClient } from '@supabase/supabase-js';
 
@@ -55,9 +63,13 @@ const Settings: React.FC = () => {
     const isAdminOrMahmood = p.role === 'admin' || fullNameLower.includes('mahmood') || fullNameLower.includes('mehmood');
 
     if (isAdminOrMahmood) {
+      let cleanName = (p.full_name || '').trim();
+      if (!cleanName || cleanName.toLowerCase().includes('dr. mahmood') || cleanName.toLowerCase().includes('dr. mehmood') || cleanName.toLowerCase().includes('dr mahmood') || cleanName.toLowerCase().includes('dr mehmood') || cleanName === 'Mahmood Admin' || cleanName === 'Mahmood' || cleanName === 'Mehmood') {
+        cleanName = 'Mahmood Ahmed';
+      }
       return {
         ...p,
-        full_name: p.full_name || 'Dr. Mahmood',
+        full_name: cleanName,
         role: 'admin',
         email: email && !email.includes('overplast') && email !== 'ahmed@gmail.com' ? email : 'mehmood@gmail.com',
         password: p.password && p.password !== 'ahmed123' && p.password !== 'mehmood123' ? p.password : '12345678'
@@ -594,6 +606,174 @@ const Settings: React.FC = () => {
   const [supabaseUrlInput, setSupabaseUrlInput] = useState(localStorage.getItem('VITE_SUPABASE_URL') || '');
   const [supabaseAnonKeyInput, setSupabaseAnonKeyInput] = useState(localStorage.getItem('VITE_SUPABASE_ANON_KEY') || '');
   const [isSavingDb, setIsSavingDb] = useState(false);
+  const [testingDb, setTestingDb] = useState(false);
+  const [testResult, setTestResult] = useState<any>(null);
+  const [copiedSql, setCopiedSql] = useState(false);
+
+  // Live Patient Sync States
+  const [isSyncingAllPatients, setIsSyncingAllPatients] = useState(false);
+  const [syncPatientsReport, setSyncPatientsReport] = useState<any>(null);
+  const [liveSupabasePatients, setLiveSupabasePatients] = useState<any[]>([]);
+  const [loadingLivePatients, setLoadingLivePatients] = useState(false);
+
+  const handleTestConnection = async () => {
+    setTestingDb(true);
+    setTestResult(null);
+    try {
+      const res = await testSupabaseConnection();
+      setTestResult(res);
+    } catch (e: any) {
+      setTestResult({
+        success: false,
+        message: e.message || 'Connection test encountered an error',
+        steps: []
+      });
+    } finally {
+      setTestingDb(false);
+    }
+  };
+
+  const handleSyncAllPatientsNow = async () => {
+    setIsSyncingAllPatients(true);
+    setSyncPatientsReport(null);
+    try {
+      const report = await syncAllLocalPatientsToSupabase();
+      setSyncPatientsReport(report);
+      // Also refresh live table viewer
+      await handleFetchLivePatients();
+    } catch (e: any) {
+      setSyncPatientsReport({
+        total: 0,
+        synced: 0,
+        failed: 1,
+        errors: [e.message || String(e)],
+        patients: []
+      });
+    } finally {
+      setIsSyncingAllPatients(false);
+    }
+  };
+
+  const handleFetchLivePatients = async () => {
+    if (isDemo) return;
+    setLoadingLivePatients(true);
+    try {
+      const { data, error } = await supabase.from('patients').select('*').order('created_at', { ascending: false });
+      if (!error && Array.isArray(data)) {
+        setLiveSupabasePatients(data);
+      }
+    } catch (e) {
+      console.warn("Failed to query live Supabase patients table:", e);
+    } finally {
+      setLoadingLivePatients(false);
+    }
+  };
+
+  const sqlQuickCode = `-- OVERPLAST LIVE DATABASE SCHEMA & RLS SETUP
+CREATE TABLE IF NOT EXISTS patients (
+  id TEXT PRIMARY KEY,
+  full_name TEXT NOT NULL,
+  age INTEGER,
+  gender TEXT,
+  phone TEXT,
+  address TEXT,
+  city TEXT,
+  doctor_name TEXT,
+  hospital TEXT,
+  diagnosis TEXT,
+  medical_condition TEXT,
+  height NUMERIC,
+  weight NUMERIC,
+  email TEXT,
+  photo_url TEXT,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_by TEXT,
+  created_by_email TEXT,
+  created_by_name TEXT,
+  therapist_id TEXT,
+  clinic_id TEXT
+);
+ALTER TABLE patients DISABLE ROW LEVEL SECURITY;
+
+-- If table already exists, ensure all columns and RLS are open:
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS created_by TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS created_by_email TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS created_by_name TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS therapist_id TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS clinic_id TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS hospital TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS diagnosis TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS medical_condition TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS height NUMERIC;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS weight NUMERIC;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ALTER TABLE patients DISABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS orders (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT,
+  patient_name TEXT,
+  garment_type TEXT,
+  measurements JSONB,
+  status TEXT DEFAULT 'pending',
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_by TEXT,
+  created_by_email TEXT,
+  created_by_name TEXT
+);
+ALTER TABLE orders DISABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS assessments (
+  id TEXT PRIMARY KEY,
+  patient_id TEXT,
+  patient_name TEXT,
+  phone TEXT,
+  gender TEXT,
+  age INTEGER,
+  garment_type TEXT,
+  silicone_pasting TEXT,
+  compression TEXT,
+  measurements JSONB,
+  sub_options JSONB,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_by TEXT,
+  created_by_email TEXT,
+  created_by_name TEXT,
+  assessor_name TEXT,
+  therapist_id TEXT
+);
+ALTER TABLE assessments DISABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS profiles (
+  id TEXT PRIMARY KEY,
+  email TEXT,
+  full_name TEXT,
+  role TEXT DEFAULT 'therapist',
+  password TEXT,
+  phone TEXT,
+  license_number TEXT,
+  specialty TEXT,
+  department TEXT,
+  bio TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;`;
+
+  const handleCopySql = () => {
+    navigator.clipboard.writeText(sqlQuickCode);
+    setCopiedSql(true);
+    setTimeout(() => setCopiedSql(false), 3000);
+  };
+
+  const handleClearData = () => {
+    clearDemoData();
+    window.location.reload();
+  };
 
   const handleSaveDb = async () => {
     setIsSavingDb(true);
@@ -651,7 +831,7 @@ const Settings: React.FC = () => {
 
   // Administrator Profile State
   const [adminProfile, setAdminProfile] = useState({
-    name: 'Mahmood',
+    name: 'Mahmood Ahmed',
     email: 'mehmood@medical-clinic.com',
     phone: '300 1234567',
     license: 'ML-772211-M',
@@ -689,9 +869,15 @@ const Settings: React.FC = () => {
         }
       }
 
+      let resolvedName = savedCustom.name || loggedInProfile.full_name || 'Mahmood Ahmed';
+      const nameLower = (resolvedName || '').toLowerCase();
+      if (!resolvedName || nameLower.includes('dr. mahmood') || nameLower.includes('dr. mehmood') || nameLower.includes('dr mahmood') || nameLower.includes('dr mehmood') || nameLower === 'mahmood' || nameLower === 'mehmood' || nameLower === 'mahmood admin' || nameLower === 'mehmood admin' || nameLower === 'clinic staff') {
+        resolvedName = 'Mahmood Ahmed';
+      }
+
       setAdminProfile(prev => ({
         ...prev,
-        name: savedCustom.name || loggedInProfile.full_name || prev.name,
+        name: resolvedName,
         email: savedCustom.email || email || prev.email,
         phone: savedCustom.phone || loggedInProfile.phone || prev.phone || '300 1234567',
         license: savedCustom.license || loggedInProfile.license_number || prev.license || 'ML-772211-M',
@@ -1260,7 +1446,289 @@ const Settings: React.FC = () => {
             </div>
           )}
 
+          {activeTab === 'database' && isAdmin && (
+            <div className="space-y-6">
+              {/* Main Database & Cloud Sync Card */}
+              <div className="medical-card p-8 bg-white border border-slate-200/80 shadow-sm rounded-3xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+                      <Database className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                        Database & Cloud Sync
+                        <span className={cn(
+                          "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider",
+                          !isDemo 
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
+                            : "bg-amber-50 text-amber-700 border border-amber-200"
+                        )}>
+                          {!isDemo ? '● Live Supabase Connected' : '○ Local Demo Cache'}
+                        </span>
+                      </h3>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">
+                        Supabase live cloud database se patients, assessments, aur accounts ko sync karein
+                      </p>
+                    </div>
+                  </div>
 
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleTestConnection}
+                      disabled={testingDb}
+                      className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-md shadow-slate-200 cursor-pointer disabled:opacity-50"
+                    >
+                      {testingDb ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Server className="w-3.5 h-3.5" />
+                      )}
+                      {testingDb ? 'Testing Live...' : 'Test Connection'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Diagnostics Result Card */}
+                {testResult && (
+                  <div className={cn(
+                    "mt-6 p-4 rounded-2xl border text-xs font-medium space-y-3 animate-in fade-in duration-300",
+                    testResult.success 
+                      ? "bg-emerald-50/70 border-emerald-200 text-emerald-900" 
+                      : "bg-rose-50/70 border-rose-200 text-rose-900"
+                  )}>
+                    <div className="flex items-center gap-2 font-black text-sm">
+                      {testResult.success ? (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                      ) : (
+                        <XCircle className="w-5 h-5 text-rose-600 shrink-0" />
+                      )}
+                      <span>{testResult.message}</span>
+                    </div>
+
+                    {testResult.steps && testResult.steps.length > 0 && (
+                      <div className="space-y-1.5 pt-2 border-t border-slate-200/50">
+                        {testResult.steps.map((st: any, idx: number) => (
+                          <div key={idx} className="flex items-start gap-2 text-[11px]">
+                            {st.success ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
+                            ) : (
+                              <AlertTriangle className="w-3.5 h-3.5 text-rose-600 mt-0.5 shrink-0" />
+                            )}
+                            <div>
+                              <strong className="font-bold">{st.name}:</strong> <span className="opacity-90">{st.detail}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Supabase Connection Credentials Form */}
+                <div className="mt-6 space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Cloud className="w-4 h-4 text-blue-600" />
+                        Supabase Project URL
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">e.g. https://your-project-id.supabase.co</span>
+                    </label>
+                    <input
+                      type="url"
+                      value={supabaseUrlInput}
+                      onChange={(e) => setSupabaseUrlInput(e.target.value)}
+                      placeholder="https://xxxxxxxxxxxx.supabase.co"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-mono font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Key className="w-4 h-4 text-amber-600" />
+                        Supabase Anon Public API Key
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">Project Settings ➔ API ➔ anon public</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={supabaseAnonKeyInput}
+                      onChange={(e) => setSupabaseAnonKeyInput(e.target.value)}
+                      placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-mono font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-4 pt-4">
+                    <button
+                      onClick={handleSaveDb}
+                      disabled={isSavingDb}
+                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-blue-500/20 cursor-pointer transition-all disabled:opacity-50"
+                    >
+                      {isSavingDb ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Check className="w-4 h-4" />
+                      )}
+                      {isSavingDb ? 'Connecting & Syncing...' : 'Save & Connect Database'}
+                    </button>
+
+                    <button
+                      onClick={handleClearData}
+                      className="px-4 py-3 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 border border-slate-200 text-slate-600 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Clear Local Demo Cache
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Force Patient Sync & Live Supabase Rows Card */}
+              <div className="medical-card p-6 sm:p-8 bg-white border border-slate-200/80 shadow-sm rounded-3xl space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                  <div>
+                    <h4 className="text-base font-black text-slate-900 flex items-center gap-2">
+                      <Users className="w-5 h-5 text-blue-600" />
+                      Patient Data Sync & Live Table Verification
+                    </h4>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      Tamam local saved patients ko ek click me live Supabase cloud database me upload karein aur verification karein.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                      onClick={handleFetchLivePatients}
+                      disabled={loadingLivePatients || isDemo}
+                      className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {loadingLivePatients ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Database className="w-3.5 h-3.5" />
+                      )}
+                      Check Live Table
+                    </button>
+
+                    <button
+                      onClick={handleSyncAllPatientsNow}
+                      disabled={isSyncingAllPatients || isDemo}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-md shadow-emerald-500/20 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {isSyncingAllPatients ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Cloud className="w-3.5 h-3.5" />
+                      )}
+                      {isSyncingAllPatients ? 'Syncing Patients...' : 'Sync All Patients to Cloud'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Patient Sync Report */}
+                {syncPatientsReport && (
+                  <div className={cn(
+                    "p-4 rounded-2xl border text-xs font-medium space-y-2 animate-in fade-in duration-200",
+                    syncPatientsReport.failed === 0 
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-900" 
+                      : "bg-amber-50 border-amber-200 text-amber-900"
+                  )}>
+                    <div className="flex items-center gap-2 font-black text-sm">
+                      {syncPatientsReport.failed === 0 ? (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                      ) : (
+                        <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                      )}
+                      <span>
+                        Sync Complete: {syncPatientsReport.synced} of {syncPatientsReport.total} patient(s) successfully uploaded to Supabase.
+                      </span>
+                    </div>
+
+                    {syncPatientsReport.errors && syncPatientsReport.errors.length > 0 && (
+                      <div className="space-y-1 pt-2 border-t border-amber-200/60 text-[11px] text-amber-800">
+                        <strong>Error details:</strong>
+                        {syncPatientsReport.errors.map((err: string, i: number) => (
+                          <div key={i} className="font-mono">{err}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Live Patients in Supabase Table Preview */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                    <span>Live Supabase `patients` Table Data:</span>
+                    <span className="text-[11px] font-mono text-slate-500">
+                      {liveSupabasePatients.length} record(s) currently in Supabase
+                    </span>
+                  </div>
+
+                  {liveSupabasePatients.length === 0 ? (
+                    <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl text-center text-xs text-slate-500">
+                      Abhi tak live table me query nahi kiya gaya ya table khali hai. Upar "Check Live Table" ya "Sync All Patients to Cloud" par click karein.
+                    </div>
+                  ) : (
+                    <div className="max-h-60 overflow-y-auto border border-slate-200 rounded-2xl divide-y divide-slate-100">
+                      {liveSupabasePatients.map((p: any, idx: number) => (
+                        <div key={p.id || idx} className="p-3 bg-white hover:bg-slate-50 flex items-center justify-between text-xs transition-colors">
+                          <div>
+                            <div className="font-black text-slate-900 flex items-center gap-2">
+                              {p.full_name || 'Unnamed Patient'}
+                              <span className="text-[10px] font-mono font-normal text-slate-400">({p.gender || 'N/A'}, {p.age ? `${p.age} yrs` : 'Age N/A'})</span>
+                            </div>
+                            <div className="text-[10px] text-slate-500 font-mono flex items-center gap-3 mt-0.5">
+                              <span>Phone: {p.phone || 'N/A'}</span>
+                              <span>Doctor: {p.doctor_name || 'N/A'}</span>
+                              <span>ID: {p.id?.slice(0, 8)}...</span>
+                            </div>
+                          </div>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <Check className="w-3 h-3" /> Live in Cloud
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Supabase SQL Helper Card */}
+              <div className="medical-card p-6 bg-slate-900 text-white rounded-3xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Database className="w-5 h-5 text-emerald-400" />
+                    <h4 className="text-sm font-black tracking-tight">Supabase SQL Editor Setup Script</h4>
+                  </div>
+                  <button
+                    onClick={handleCopySql}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-slate-700 cursor-pointer transition-all"
+                  >
+                    {copiedSql ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-slate-300" />
+                        Copy SQL Code
+                      </>
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-slate-300 font-medium">
+                  Agar aap ke Supabase me tables create nahi hui hain ya Row Level Security (RLS) data block kar rahi hai, to upar diya gaya SQL code copy karein aur apne <strong>Supabase Dashboard ➔ SQL Editor ➔ New query</strong> me paste kar ke <strong>Run</strong> daba dein.
+                </p>
+                <pre className="bg-slate-950 p-4 rounded-2xl text-[10px] font-mono text-emerald-300 overflow-x-auto max-h-48 border border-slate-800">
+                  {sqlQuickCode}
+                </pre>
+              </div>
+            </div>
+          )}
         </main>
       </div>
 

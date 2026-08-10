@@ -71,9 +71,13 @@ async function startServer() {
       const isAdminOrMahmood = p.role === "admin" || fullNameLower.includes("mahmood") || fullNameLower.includes("mehmood");
 
       if (isAdminOrMahmood) {
+        let cleanName = (p.full_name || "").trim();
+        if (!cleanName || cleanName.toLowerCase().includes("dr. mahmood") || cleanName.toLowerCase().includes("dr. mehmood") || cleanName.toLowerCase().includes("dr mahmood") || cleanName.toLowerCase().includes("dr mehmood") || cleanName === "Mahmood Admin" || cleanName === "Mahmood" || cleanName === "Mehmood") {
+          cleanName = "Mahmood Ahmed";
+        }
         return {
           ...p,
-          full_name: p.full_name || "Dr. Mahmood",
+          full_name: cleanName,
           role: "admin",
           email: email && !email.includes("overplast") && email !== "ahmed@gmail.com" ? email : "mehmood@gmail.com",
           password: p.password && p.password !== "ahmed123" && p.password !== "mehmood123" ? p.password : "12345678"
@@ -132,27 +136,106 @@ async function startServer() {
   // Clinical data (patients, assessments, orders) server persistence endpoints
   const CLINICAL_DATA_FILE_PATH = path.join(process.cwd(), "clinical-data.json");
 
+  // Helper to execute direct remote Supabase REST deletions from the backend
+  async function deleteFromSupabaseRemote(table: string, column: string, value: string) {
+    try {
+      let url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
+      let key = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+      
+      if (fs.existsSync(CONFIG_FILE_PATH)) {
+        try {
+          const fileContent = fs.readFileSync(CONFIG_FILE_PATH, "utf-8");
+          const parsed = JSON.parse(fileContent);
+          if (parsed.url) url = parsed.url;
+          if (parsed.key) key = parsed.key;
+        } catch {}
+      }
+
+      if (!url || !key || url.includes('placeholder') || url.includes('your_supabase_project_url')) {
+        return;
+      }
+
+      const cleanUrl = url.replace(/\/$/, "");
+      const endpoint = `${cleanUrl}/rest/v1/${table}?${encodeURIComponent(column)}=eq.${encodeURIComponent(value)}`;
+
+      const response = await fetch(endpoint, {
+        method: "DELETE",
+        headers: {
+          "apikey": key,
+          "Authorization": `Bearer ${key}`,
+          "Content-Type": "application/json",
+          "Prefer": "return=minimal"
+        }
+      });
+
+      console.log(`[Supabase Server Remote Delete] Table: ${table}, ${column}=${value}, status: ${response.status}`);
+    } catch (err) {
+      console.warn(`[Supabase Server Delete Warning] Table ${table}:`, err);
+    }
+  }
+
   app.get("/api/get-clinical-data", (req, res) => {
     try {
       if (fs.existsSync(CLINICAL_DATA_FILE_PATH)) {
         const content = fs.readFileSync(CLINICAL_DATA_FILE_PATH, "utf-8");
         const parsed = JSON.parse(content);
-        return res.json(parsed);
+        return res.json({
+          patients: Array.isArray(parsed.patients) ? parsed.patients : [],
+          assessments: Array.isArray(parsed.assessments) ? parsed.assessments : [],
+          orders: Array.isArray(parsed.orders) ? parsed.orders : [],
+          deleted_patient_ids: Array.isArray(parsed.deleted_patient_ids) ? parsed.deleted_patient_ids : [],
+          deleted_assessment_ids: Array.isArray(parsed.deleted_assessment_ids) ? parsed.deleted_assessment_ids : [],
+          deleted_order_ids: Array.isArray(parsed.deleted_order_ids) ? parsed.deleted_order_ids : []
+        });
       }
-      res.json({ patients: [], assessments: [], orders: [] });
+      res.json({ patients: [], assessments: [], orders: [], deleted_patient_ids: [], deleted_assessment_ids: [], deleted_order_ids: [] });
     } catch (error) {
       console.error("Failed to read clinical data:", error);
-      res.json({ patients: [], assessments: [], orders: [] });
+      res.json({ patients: [], assessments: [], orders: [], deleted_patient_ids: [], deleted_assessment_ids: [], deleted_order_ids: [] });
     }
   });
 
   app.post("/api/save-clinical-data", (req, res) => {
     try {
       const { patients, assessments, orders } = req.body;
+
+      let currentDeletedPatients: string[] = [];
+      let currentDeletedAssessments: string[] = [];
+      let currentDeletedOrders: string[] = [];
+
+      if (fs.existsSync(CLINICAL_DATA_FILE_PATH)) {
+        try {
+          const content = fs.readFileSync(CLINICAL_DATA_FILE_PATH, "utf-8");
+          const parsed = JSON.parse(content);
+          if (Array.isArray(parsed.deleted_patient_ids)) currentDeletedPatients = parsed.deleted_patient_ids;
+          if (Array.isArray(parsed.deleted_assessment_ids)) currentDeletedAssessments = parsed.deleted_assessment_ids;
+          if (Array.isArray(parsed.deleted_order_ids)) currentDeletedOrders = parsed.deleted_order_ids;
+        } catch {}
+      }
+
+      const delPatientSet = new Set(currentDeletedPatients.map(id => String(id).trim()));
+      const delAsmSet = new Set(currentDeletedAssessments.map(id => String(id).trim()));
+      const delOrderSet = new Set(currentDeletedOrders.map(id => String(id).trim()));
+
+      const cleanPatients = Array.isArray(patients) 
+        ? patients.filter((p: any) => p && p.id && !delPatientSet.has(String(p.id).trim())) 
+        : [];
+      
+      const cleanAssessments = Array.isArray(assessments)
+        ? assessments.filter((a: any) => a && a.id && !delAsmSet.has(String(a.id).trim()) && (!a.patient_id || !delPatientSet.has(String(a.patient_id).trim())))
+        : [];
+
+      const cleanOrders = Array.isArray(orders)
+        ? orders.filter((o: any) => o && o.id && !delOrderSet.has(String(o.id).trim()) && (!o.patient_id || !delPatientSet.has(String(o.patient_id).trim())))
+        : [];
+
       const dataToSave = {
-        patients: Array.isArray(patients) ? patients : [],
-        assessments: Array.isArray(assessments) ? assessments : [],
-        orders: Array.isArray(orders) ? orders : [],
+        patients: cleanPatients,
+        assessments: cleanAssessments,
+        orders: cleanOrders,
+        deleted_patient_ids: Array.from(delPatientSet),
+        deleted_assessment_ids: Array.from(delAsmSet),
+        deleted_order_ids: Array.from(delOrderSet),
         updated_at: new Date().toISOString()
       };
       fs.writeFileSync(CLINICAL_DATA_FILE_PATH, JSON.stringify(dataToSave, null, 2), "utf-8");
@@ -160,6 +243,147 @@ async function startServer() {
     } catch (error) {
       console.error("Failed to save clinical data on server:", error);
       res.status(500).json({ error: "Failed to save clinical data on server" });
+    }
+  });
+
+  app.post("/api/delete-patient", async (req, res) => {
+    try {
+      const { id } = req.body;
+      if (!id) return res.status(400).json({ error: "Missing patient id" });
+      const targetId = String(id).trim();
+
+      let currentDeletedPatients: string[] = [];
+      let currentDeletedAssessments: string[] = [];
+      let currentDeletedOrders: string[] = [];
+      let existingPatients: any[] = [];
+      let existingAssessments: any[] = [];
+      let existingOrders: any[] = [];
+
+      if (fs.existsSync(CLINICAL_DATA_FILE_PATH)) {
+        try {
+          const content = fs.readFileSync(CLINICAL_DATA_FILE_PATH, "utf-8");
+          const current = JSON.parse(content);
+          if (Array.isArray(current.patients)) existingPatients = current.patients;
+          if (Array.isArray(current.assessments)) existingAssessments = current.assessments;
+          if (Array.isArray(current.orders)) existingOrders = current.orders;
+          if (Array.isArray(current.deleted_patient_ids)) currentDeletedPatients = current.deleted_patient_ids;
+          if (Array.isArray(current.deleted_assessment_ids)) currentDeletedAssessments = current.deleted_assessment_ids;
+          if (Array.isArray(current.deleted_order_ids)) currentDeletedOrders = current.deleted_order_ids;
+        } catch {}
+      }
+
+      const delSet = new Set(currentDeletedPatients.map(x => String(x).trim()));
+      delSet.add(targetId);
+
+      const patients = existingPatients.filter((p: any) => p && String(p.id).trim() !== targetId);
+      const assessments = existingAssessments.filter((a: any) => a && String(a.patient_id).trim() !== targetId);
+      const orders = existingOrders.filter((o: any) => o && String(o.patient_id).trim() !== targetId);
+
+      const updated = {
+        patients,
+        assessments,
+        orders,
+        deleted_patient_ids: Array.from(delSet),
+        deleted_assessment_ids: currentDeletedAssessments,
+        deleted_order_ids: currentDeletedOrders,
+        updated_at: new Date().toISOString()
+      };
+      fs.writeFileSync(CLINICAL_DATA_FILE_PATH, JSON.stringify(updated, null, 2), "utf-8");
+
+      // Cascade delete across all tables in remote Supabase database
+      await Promise.allSettled([
+        deleteFromSupabaseRemote("orders", "patient_id", targetId),
+        deleteFromSupabaseRemote("assessments", "patient_id", targetId),
+        deleteFromSupabaseRemote("measurements", "patient_id", targetId),
+        deleteFromSupabaseRemote("clinical_assessments", "patient_id", targetId),
+        deleteFromSupabaseRemote("patient_photos", "patient_id", targetId),
+        deleteFromSupabaseRemote("patients", "id", targetId)
+      ]);
+
+      res.json({ success: true, message: "Patient permanently deleted from database and server persistence." });
+    } catch (error) {
+      console.error("Failed to delete patient on server:", error);
+      res.status(500).json({ error: "Failed to delete patient on server" });
+    }
+  });
+
+  app.post("/api/delete-assessment", async (req, res) => {
+    try {
+      const { id } = req.body;
+      if (!id) return res.status(400).json({ error: "Missing assessment id" });
+      const targetId = String(id).trim();
+
+      let currentDeletedAssessments: string[] = [];
+      let existing = { patients: [], assessments: [], orders: [], deleted_patient_ids: [], deleted_assessment_ids: [], deleted_order_ids: [] };
+
+      if (fs.existsSync(CLINICAL_DATA_FILE_PATH)) {
+        try {
+          const content = fs.readFileSync(CLINICAL_DATA_FILE_PATH, "utf-8");
+          existing = JSON.parse(content);
+          if (Array.isArray(existing.deleted_assessment_ids)) currentDeletedAssessments = existing.deleted_assessment_ids;
+        } catch {}
+      }
+
+      const delSet = new Set(currentDeletedAssessments.map(x => String(x).trim()));
+      delSet.add(targetId);
+
+      const assessments = Array.isArray(existing.assessments) ? existing.assessments.filter((a: any) => a && String(a.id).trim() !== targetId) : [];
+
+      const updated = {
+        ...existing,
+        assessments,
+        deleted_assessment_ids: Array.from(delSet),
+        updated_at: new Date().toISOString()
+      };
+      fs.writeFileSync(CLINICAL_DATA_FILE_PATH, JSON.stringify(updated, null, 2), "utf-8");
+
+      // Delete from remote Supabase database
+      await deleteFromSupabaseRemote("assessments", "id", targetId);
+
+      res.json({ success: true, message: "Assessment permanently deleted from database and server persistence." });
+    } catch (error) {
+      console.error("Failed to delete assessment on server:", error);
+      res.status(500).json({ error: "Failed to delete assessment on server" });
+    }
+  });
+
+  app.post("/api/delete-order", async (req, res) => {
+    try {
+      const { id } = req.body;
+      if (!id) return res.status(400).json({ error: "Missing order id" });
+      const targetId = String(id).trim();
+
+      let currentDeletedOrders: string[] = [];
+      let existing = { patients: [], assessments: [], orders: [], deleted_patient_ids: [], deleted_assessment_ids: [], deleted_order_ids: [] };
+
+      if (fs.existsSync(CLINICAL_DATA_FILE_PATH)) {
+        try {
+          const content = fs.readFileSync(CLINICAL_DATA_FILE_PATH, "utf-8");
+          existing = JSON.parse(content);
+          if (Array.isArray(existing.deleted_order_ids)) currentDeletedOrders = existing.deleted_order_ids;
+        } catch {}
+      }
+
+      const delSet = new Set(currentDeletedOrders.map(x => String(x).trim()));
+      delSet.add(targetId);
+
+      const orders = Array.isArray(existing.orders) ? existing.orders.filter((o: any) => o && String(o.id).trim() !== targetId) : [];
+
+      const updated = {
+        ...existing,
+        orders,
+        deleted_order_ids: Array.from(delSet),
+        updated_at: new Date().toISOString()
+      };
+      fs.writeFileSync(CLINICAL_DATA_FILE_PATH, JSON.stringify(updated, null, 2), "utf-8");
+
+      // Delete from remote Supabase database
+      await deleteFromSupabaseRemote("orders", "id", targetId);
+
+      res.json({ success: true, message: "Order permanently deleted from database and server persistence." });
+    } catch (error) {
+      console.error("Failed to delete order on server:", error);
+      res.status(500).json({ error: "Failed to delete order on server" });
     }
   });
 

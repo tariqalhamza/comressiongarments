@@ -257,7 +257,13 @@ const BodyMeasurements: React.FC = () => {
           full_name: patientName,
           measurements: measurements,
           notes: notes,
-          clinic_id: 'default'
+          clinic_id: 'default',
+          created_by: user?.id || loggedInProfile?.id || undefined,
+          created_by_email: user?.email || loggedInProfile?.email || undefined,
+          created_by_name: loggedInProfile?.full_name || (user as any)?.user_metadata?.full_name || undefined,
+          created_by_role: loggedInProfile?.role || (isAdmin ? 'admin' : 'therapist'),
+          therapist_id: user?.id || loggedInProfile?.id || undefined,
+          therapist_name: loggedInProfile?.full_name || undefined
         });
         if (newPatient) setPatientId(newPatient.id);
       }
@@ -285,7 +291,12 @@ const BodyMeasurements: React.FC = () => {
         garment_type: garment.type,
         status: 'Approved',
         config: garment,
-        measurements: measurements
+        measurements: measurements,
+        created_by: user?.id || loggedInProfile?.id || undefined,
+        created_by_email: user?.email || loggedInProfile?.email || undefined,
+        created_by_name: loggedInProfile?.full_name || (user as any)?.user_metadata?.full_name || undefined,
+        created_by_role: loggedInProfile?.role || (isAdmin ? 'admin' : 'therapist'),
+        therapist_id: user?.id || loggedInProfile?.id || undefined
       });
 
       alert("Order submitted to production!");

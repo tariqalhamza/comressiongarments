@@ -7,7 +7,15 @@ import {
   saveLocalAssessments,
   getLocalOrders,
   saveLocalOrders,
-  clearAllLocalData
+  clearAllLocalData,
+  markPatientAsDeleted,
+  isPatientDeleted,
+  unmarkPatientAsDeleted,
+  markAssessmentAsDeleted,
+  unmarkAssessmentAsDeleted,
+  isAssessmentDeleted,
+  markOrderAsDeleted,
+  isOrderDeleted
 } from './localDB';
 
 // Let the app know if we are offline or having issues
@@ -161,6 +169,118 @@ export const updateCurrentUserContext = (id: string | null, email: string | null
   if (fullName) currentUserName = fullName;
 };
 
+export const ADMIN_EMAILS = [
+  'mehmood@gmail.com',
+  'detox16277@gmail.com',
+  'demo@overplast.com',
+  'mahmood@gmail.com'
+];
+
+export const checkIsAdmin = (
+  role?: string | null,
+  email?: string | null,
+  name?: string | null
+): boolean => {
+  const roleClean = (role || '').toLowerCase().trim();
+  const emailClean = (email || '').toLowerCase().trim();
+  const nameClean = (name || '').toLowerCase().trim();
+
+  if (roleClean === 'admin') return true;
+  if (emailClean && ADMIN_EMAILS.includes(emailClean)) return true;
+  if (nameClean && (nameClean.includes('mahmood') || nameClean.includes('mehmood') || nameClean === 'dr. mahmood')) return true;
+  return false;
+};
+
+export const isRecordCreatedByAdmin = (record: any): boolean => {
+  if (!record || typeof record !== 'object') return false;
+
+  // 1. Explicit creator role check
+  const creatorRole = (record.created_by_role || record.creator_role || '').toLowerCase().trim();
+  if (creatorRole === 'admin') return true;
+
+  // 2. Creator email check
+  const creatorEmail = (record.created_by_email || record.email || '').toLowerCase().trim();
+  if (creatorEmail && (ADMIN_EMAILS.includes(creatorEmail) || creatorEmail.includes('mehmood') || creatorEmail.includes('detox16277') || creatorEmail.includes('overplast.com'))) return true;
+
+  // 3. Creator / assessor / therapist name check
+  const creatorName = (record.created_by_name || '').toLowerCase().trim();
+  const assessorName = (record.assessor_name || '').toLowerCase().trim();
+  const therapistName = (record.therapist_name || '').toLowerCase().trim();
+
+  if (creatorName && (creatorName.includes('mahmood') || creatorName.includes('mehmood') || creatorName.includes('admin') || creatorName === 'dr. mahmood')) return true;
+  if (assessorName && (assessorName.includes('mahmood') || assessorName.includes('mehmood') || assessorName.includes('admin') || assessorName === 'dr. mahmood')) return true;
+  if (therapistName && (therapistName.includes('mahmood') || therapistName.includes('mehmood') || therapistName.includes('admin') || therapistName === 'dr. mahmood')) return true;
+
+  // 4. Admin demo user ID
+  if (record.created_by === 'demo-user-123' || record.therapist_id === 'demo-user-123') return true;
+
+  return false;
+};
+
+export const isRecordOwnedByCurrentUser = (
+  record: any,
+  context: { uid: string | null; email: string | null; name: string | null; role: string; isAdmin: boolean },
+  allowedPatientIds?: Set<string>,
+  allowedPatientNames?: Set<string>
+): boolean => {
+  if (!record || typeof record !== 'object') return false;
+
+  // 1. ADMIN SEES EVERYTHING (All staff records + all admin records)
+  if (context.isAdmin) {
+    return true;
+  }
+
+  // 2. REGULAR USERS (Therapist, Technician, etc.):
+  // STRICT RULE: If record was created by Administrator, regular user CANNOT see it!
+  if (isRecordCreatedByAdmin(record)) {
+    return false;
+  }
+
+  const userEmailLower = (context.email || '').toLowerCase().trim();
+  const userNameLower = (context.name || '').toLowerCase().trim();
+  const userId = context.uid || '';
+
+  // If user is completely anonymous/unauthenticated, do not expose any user data
+  if (!userId && !userEmailLower && !userNameLower) {
+    return false;
+  }
+
+  // 3. Direct UID / therapist_id / user_id match
+  if (userId) {
+    if (record.created_by && record.created_by === userId) return true;
+    if (record.therapist_id && record.therapist_id === userId) return true;
+    if (record.user_id && record.user_id === userId) return true;
+  }
+
+  // 4. Direct creator email match
+  if (userEmailLower) {
+    const creatorEmail = (record.created_by_email || '').toLowerCase().trim();
+    if (creatorEmail && creatorEmail === userEmailLower) return true;
+  }
+
+  // 5. Direct creator name / therapist name / assessor name match
+  if (userNameLower) {
+    const creatorName = (record.created_by_name || '').toLowerCase().trim();
+    const assessorName = (record.assessor_name || '').toLowerCase().trim();
+    const therapistName = (record.therapist_name || '').toLowerCase().trim();
+
+    if (creatorName && (creatorName === userNameLower || creatorName.includes(userNameLower) || userNameLower.includes(creatorName))) return true;
+    if (therapistName && (therapistName === userNameLower || therapistName.includes(userNameLower) || userNameLower.includes(therapistName))) return true;
+    if (assessorName && (assessorName === userNameLower || assessorName.includes(userNameLower) || userNameLower.includes(assessorName))) return true;
+  }
+
+  // 6. Correlated Patient Link: If this assessment or order belongs to one of this user's patients
+  if (allowedPatientIds && record.patient_id && allowedPatientIds.has(record.patient_id)) {
+    return true;
+  }
+  if (allowedPatientNames && record.patient_name && allowedPatientNames.has(record.patient_name.toLowerCase().trim())) {
+    return true;
+  }
+
+  // Otherwise, strictly hidden from this user
+  return false;
+};
+
 export const getActiveUserContext = () => {
   let uid = currentUserId;
   let email = currentUserEmail;
@@ -187,12 +307,7 @@ export const getActiveUserContext = () => {
 
   const emailLower = (email || '').toLowerCase().trim();
   const nameLower = (name || '').toLowerCase().trim();
-  const isAdmin = (
-    role === 'admin' ||
-    ['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com', 'mahmood@gmail.com'].includes(emailLower) ||
-    nameLower.includes('mahmood') ||
-    nameLower.includes('mehmood')
-  );
+  const isAdmin = checkIsAdmin(role, emailLower, nameLower);
 
   return { uid, email, role, name, isAdmin };
 };
@@ -219,6 +334,315 @@ try {
   console.warn("Offline context pre-hydration on boot failed:", e);
 }
 
+/**
+ * Adaptive Schema Upsert for Patients:
+ * Automatically negotiates with the user's Supabase schema by detecting missing columns,
+ * handling UUID constraints, and retrying progressively down to universal minimal columns.
+ */
+export const adaptiveUpsertPatient = async (patient: any): Promise<{ data: any; synced: boolean; error?: any }> => {
+  if (isDemo) {
+    return { data: patient, synced: false };
+  }
+
+  const targetId = isValidUUID(patient.id) ? patient.id : generateUUID();
+  
+  // Construct clean payload with appropriate types
+  const payload: Record<string, any> = {
+    id: targetId,
+    full_name: String(patient.full_name || 'Patient').trim(),
+    created_at: patient.created_at || new Date().toISOString()
+  };
+
+  if (patient.age !== undefined && patient.age !== null && String(patient.age).trim() !== '' && !isNaN(Number(patient.age))) {
+    payload.age = Number(patient.age);
+  }
+  if (patient.gender) payload.gender = String(patient.gender);
+  if (patient.phone) payload.phone = String(patient.phone);
+  if (patient.address) payload.address = String(patient.address);
+  if (patient.city) payload.city = String(patient.city);
+  if (patient.doctor_name) payload.doctor_name = String(patient.doctor_name);
+  if (patient.hospital) payload.hospital = String(patient.hospital);
+  if (patient.notes) payload.notes = String(patient.notes);
+  if (patient.photo_url) payload.photo_url = String(patient.photo_url);
+  if (patient.diagnosis) payload.diagnosis = String(patient.diagnosis);
+  if (patient.medical_condition) payload.medical_condition = String(patient.medical_condition);
+  if (patient.height && !isNaN(Number(patient.height))) payload.height = Number(patient.height);
+  if (patient.weight && !isNaN(Number(patient.weight))) payload.weight = Number(patient.weight);
+  if (patient.email) payload.email = String(patient.email);
+
+  if (patient.created_by) payload.created_by = patient.created_by;
+  if (patient.therapist_id) payload.therapist_id = patient.therapist_id;
+  if (patient.clinic_id && isValidUUID(patient.clinic_id)) payload.clinic_id = patient.clinic_id;
+  if (patient.created_by_email) payload.created_by_email = String(patient.created_by_email);
+  if (patient.created_by_name) payload.created_by_name = String(patient.created_by_name);
+  if (patient.created_by_role) payload.created_by_role = String(patient.created_by_role);
+  if (patient.therapist_name) payload.therapist_name = String(patient.therapist_name);
+
+  let currentPayload = { ...payload };
+  let lastError: any = null;
+
+  for (let attempt = 0; attempt < 12; attempt++) {
+    try {
+      const { data, error } = await supabase
+        .from('patients')
+        .upsert(currentPayload, { onConflict: 'id' })
+        .select()
+        .single();
+
+      if (!error && data) {
+        isPatientsTableMissingState = false;
+        return { data: { ...patient, ...data, id: targetId, _isSynced: true }, synced: true };
+      }
+
+      lastError = error;
+      if (!error) break;
+
+      const errMsg = error.message || '';
+      console.warn(`[Supabase Adaptive Patient Insert attempt ${attempt + 1}] Error:`, errMsg);
+
+      if (error.code === '42P01' || errMsg.includes('does not exist')) {
+        isPatientsTableMissingState = true;
+        throw error;
+      }
+
+      // Detect specific missing column from Postgres error message
+      const colMatch = errMsg.match(/column "([^"]+)" of relation "patients" does not exist/i) ||
+                       errMsg.match(/Could not find the '([^']+)' column/i);
+      if (colMatch && colMatch[1]) {
+        const missingCol = colMatch[1];
+        console.log(`[Supabase Auto-Adapt] Stripping unsupported column "${missingCol}" and retrying...`);
+        delete currentPayload[missingCol];
+        continue;
+      }
+
+      // Detect invalid UUID syntax error
+      if (error.code === '22P02' || errMsg.includes('invalid input syntax for type uuid')) {
+        delete currentPayload.created_by;
+        delete currentPayload.clinic_id;
+        delete currentPayload.therapist_id;
+        continue;
+      }
+
+      // Check RLS
+      if (error.code === '42501' || errMsg.includes('row-level security') || errMsg.includes('policy')) {
+        throw new Error(`Row Level Security (RLS) is active on the "patients" table. Please run "ALTER TABLE patients DISABLE ROW LEVEL SECURITY;" in Supabase SQL Editor.`);
+      }
+
+      // Progressive simplification tiers
+      if (attempt === 2) {
+        delete currentPayload.created_by_email;
+        delete currentPayload.created_by_name;
+        delete currentPayload.therapist_id;
+        delete currentPayload.clinic_id;
+        delete currentPayload.created_by;
+        delete currentPayload.diagnosis;
+        delete currentPayload.medical_condition;
+        delete currentPayload.height;
+        delete currentPayload.weight;
+        delete currentPayload.email;
+        continue;
+      }
+
+      if (attempt === 4) {
+        delete currentPayload.city;
+        delete currentPayload.hospital;
+        delete currentPayload.photo_url;
+        continue;
+      }
+
+      if (attempt === 6) {
+        currentPayload = {
+          id: targetId,
+          full_name: String(patient.full_name || 'Patient').trim(),
+          age: Number(patient.age) || undefined,
+          gender: patient.gender || undefined,
+          phone: patient.phone || undefined,
+          address: patient.address || undefined,
+          doctor_name: patient.doctor_name || undefined,
+          notes: patient.notes || undefined,
+          created_at: patient.created_at || new Date().toISOString()
+        };
+        Object.keys(currentPayload).forEach(k => currentPayload[k] === undefined && delete currentPayload[k]);
+        continue;
+      }
+
+      if (attempt === 8) {
+        currentPayload = {
+          id: targetId,
+          full_name: String(patient.full_name || 'Patient').trim(),
+          created_at: patient.created_at || new Date().toISOString()
+        };
+        continue;
+      }
+
+      break;
+    } catch (e: any) {
+      lastError = e;
+      if (e.message?.includes('Row Level Security') || isPatientsTableMissingState) {
+        throw e;
+      }
+    }
+  }
+
+  throw lastError || new Error("Failed to insert patient into Supabase after adaptive schema retries.");
+};
+
+export const syncAllLocalPatientsToSupabase = async (): Promise<{
+  total: number;
+  synced: number;
+  failed: number;
+  errors: string[];
+  patients: Patient[];
+}> => {
+  if (isDemo) {
+    return {
+      total: 0,
+      synced: 0,
+      failed: 0,
+      errors: ['App is in Demo Mode. Please connect real Supabase URL and Anon Key in Settings.'],
+      patients: getLocalStoragePatients()
+    };
+  }
+
+  const localPatients = getLocalStoragePatients().filter(p => p.id !== '1' && p.id !== '2');
+  let synced = 0;
+  let failed = 0;
+  const errors: string[] = [];
+  const updatedPatients: Patient[] = [];
+
+  for (const p of localPatients) {
+    try {
+      const res = await adaptiveUpsertPatient(p);
+      synced++;
+      updatedPatients.push({ ...p, ...res.data, _isSynced: true });
+    } catch (err: any) {
+      failed++;
+      errors.push(`Patient "${p.full_name || p.id}": ${err.message || String(err)}`);
+      updatedPatients.push({ ...p, _isSynced: false });
+    }
+  }
+
+  saveToLocal(updatedPatients);
+  return {
+    total: localPatients.length,
+    synced,
+    failed,
+    errors,
+    patients: updatedPatients
+  };
+};
+
+export const adaptiveUpsertAssessment = async (assessment: any): Promise<{ data: any; synced: boolean }> => {
+  if (isDemo) {
+    return { data: assessment, synced: false };
+  }
+
+  const targetId = assessment.id || ('asm-' + Math.random().toString(36).substr(2, 9));
+  
+  const payload: Record<string, any> = {
+    id: targetId,
+    garment_type: assessment.garment_type || 'Custom Garment',
+    created_at: assessment.created_at || new Date().toISOString()
+  };
+
+  if (assessment.patient_id) payload.patient_id = assessment.patient_id;
+  if (assessment.patient_name) payload.patient_name = assessment.patient_name;
+  if (assessment.hospital_name) payload.hospital_name = assessment.hospital_name;
+  if (assessment.doctor_ref) payload.doctor_ref = assessment.doctor_ref;
+  if (assessment.silicone_pasting) payload.silicone_pasting = assessment.silicone_pasting;
+  if (assessment.compression) payload.compression = assessment.compression;
+  if (assessment.measurements) payload.measurements = assessment.measurements;
+  if (assessment.notes) payload.notes = assessment.notes;
+  if (assessment.sub_options) payload.sub_options = assessment.sub_options;
+  if (assessment.age !== undefined && assessment.age !== null && !isNaN(Number(assessment.age))) payload.age = Number(assessment.age);
+  if (assessment.gender) payload.gender = assessment.gender;
+  if (assessment.city) payload.city = assessment.city;
+  if (assessment.phone) payload.phone = assessment.phone;
+  if (assessment.photos) payload.photos = assessment.photos;
+  if (assessment.photo_url) payload.photo_url = assessment.photo_url;
+  if (assessment.created_by) payload.created_by = assessment.created_by;
+  if (assessment.created_by_email) payload.created_by_email = assessment.created_by_email;
+  if (assessment.created_by_name) payload.created_by_name = assessment.created_by_name;
+  if (assessment.created_by_role) payload.created_by_role = assessment.created_by_role;
+  if (assessment.assessor_name) payload.assessor_name = assessment.assessor_name;
+  if (assessment.therapist_name) payload.therapist_name = assessment.therapist_name;
+  if (assessment.therapist_id) payload.therapist_id = assessment.therapist_id;
+
+  let currentPayload = { ...payload };
+  let lastError: any = null;
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      const { data, error } = await supabase
+        .from('assessments')
+        .upsert(currentPayload, { onConflict: 'id' })
+        .select()
+        .single();
+
+      if (!error && data) {
+        isAssessmentsTableMissingState = false;
+        return { data: { ...assessment, ...data, id: targetId, _isSynced: true }, synced: true };
+      }
+
+      lastError = error;
+      if (!error) break;
+
+      const errMsg = error.message || '';
+      console.warn(`[Supabase Adaptive Assessment Insert attempt ${attempt + 1}] Error:`, errMsg);
+
+      if (error.code === '42P01' || errMsg.includes('does not exist')) {
+        isAssessmentsTableMissingState = true;
+        throw error;
+      }
+
+      // Detect specific missing column from Postgres error message
+      const colMatch = errMsg.match(/column "([^"]+)" of relation "assessments" does not exist/i) ||
+                       errMsg.match(/Could not find the '([^']+)' column/i);
+      if (colMatch && colMatch[1]) {
+        const missingCol = colMatch[1];
+        console.log(`[Supabase Auto-Adapt Assessment] Stripping unsupported column "${missingCol}" and retrying...`);
+        delete currentPayload[missingCol];
+        continue;
+      }
+
+      // Progressive simplification tiers
+      if (attempt === 2) {
+        delete currentPayload.created_by_email;
+        delete currentPayload.created_by_name;
+        delete currentPayload.assessor_name;
+        delete currentPayload.therapist_name;
+        delete currentPayload.therapist_id;
+        delete currentPayload.phone;
+        continue;
+      }
+
+      if (attempt === 4) {
+        delete currentPayload.created_by;
+        delete currentPayload.city;
+        delete currentPayload.photos;
+        delete currentPayload.photo_url;
+        continue;
+      }
+
+      if (attempt === 6) {
+        delete currentPayload.hospital_name;
+        delete currentPayload.doctor_ref;
+        delete currentPayload.sub_options;
+        continue;
+      }
+
+      break;
+    } catch (e: any) {
+      lastError = e;
+      if (e.message?.includes('Row Level Security') || isAssessmentsTableMissingState) {
+        throw e;
+      }
+    }
+  }
+
+  throw lastError || new Error("Failed to insert assessment into Supabase after adaptive schema retries.");
+};
+
 export const dbService = {
   patients: {
     async getAll() {
@@ -238,44 +662,51 @@ export const dbService = {
           isSupabaseOfflineState = false;
           lastSupabaseError = null;
           
-          // In live mode, exclude mock/demo profiles with IDs '1' and '2' so they don't block deletion or clutter databases
-          const localPatients = getLocalStoragePatients().filter(p => p.id !== '1' && p.id !== '2');
-          const remotePatients = (data || []) as Patient[];
+          // In live mode, exclude mock/demo profiles with IDs '1' and '2' and exclude deleted patients
+          const localPatients = getLocalStoragePatients().filter(p => p && p.id && !isPatientDeleted(p.id) && p.id !== '1' && p.id !== '2');
+          const allRemotePatients = (data || []) as Patient[];
+
+          // Purge any tombstoned/deleted patients that exist on remote Supabase in background
+          const remoteDeleted = allRemotePatients.filter(p => p && p.id && isPatientDeleted(p.id));
+          if (remoteDeleted.length > 0) {
+            remoteDeleted.forEach(dp => {
+              const dpId = String(dp.id).trim();
+              Promise.allSettled([
+                supabase.from('orders').delete().eq('patient_id', dpId),
+                supabase.from('assessments').delete().eq('patient_id', dpId),
+                supabase.from('measurements').delete().eq('patient_id', dpId),
+                supabase.from('clinical_assessments').delete().eq('patient_id', dpId),
+                supabase.from('patient_photos').delete().eq('patient_id', dpId),
+                supabase.from('patients').delete().eq('id', dpId),
+                supabase.from('patients').delete().eq('patient_id', dpId)
+              ]).then(() => {});
+
+              fetch('/api/delete-patient', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: dpId })
+              }).catch(() => {});
+            });
+          }
+
+          const remotePatients = allRemotePatients.filter(p => p && p.id && !isPatientDeleted(p.id));
           const remoteIds = new Set(remotePatients.map(p => p.id));
 
-          // Background Auto-Sync: Automatically upload local patients that are not in the remote database
-          const unsyncedPatients = localPatients.filter(p => p && p.id && !remoteIds.has(p.id));
+          // Background Auto-Sync: Automatically upload local patients that are not in the remote database using adaptive upsert
+          const unsyncedPatients = localPatients.filter(p => p && p.id && !remoteIds.has(p.id) && !isPatientDeleted(p.id));
           if (unsyncedPatients.length > 0) {
             console.log(`[Sync] Found ${unsyncedPatients.length} unsynced local patients. Uploading to live database...`);
             for (const p of unsyncedPatients) {
               try {
-                const cleanPayload = { ...p };
-                delete (cleanPayload as any)._isSynced;
-                
-                if (cleanPayload.clinic_id && !isValidUUID(cleanPayload.clinic_id)) {
-                  delete cleanPayload.clinic_id;
-                }
-                
-                let { error: syncErr } = await supabase.from('patients').insert(cleanPayload);
-                
-                // Retry without 'created_by' if column does not exist on live Supabase table
-                if (syncErr && (syncErr.message?.includes('created_by') || syncErr.code === '42703')) {
-                  const retryPayload = { ...cleanPayload };
-                  delete (retryPayload as any).created_by;
-                  const retryResult = await supabase.from('patients').insert(retryPayload);
-                  syncErr = retryResult.error;
-                }
-                
-                if (!syncErr) {
-                  console.log(`[Sync] Automatically synced patient ${p.id} ("${p.full_name}") to Supabase.`);
+                const res = await adaptiveUpsertPatient(p);
+                if (res.synced) {
+                  console.log(`[Sync] Successfully synced patient "${p.full_name}" to Supabase!`);
                   p._isSynced = true;
-                  remotePatients.push(p);
-                  remoteIds.add(p.id);
-                } else {
-                  console.warn(`[Sync] Background sync failed for patient ${p.id}:`, syncErr.message || syncErr);
+                  remotePatients.push(res.data);
+                  remoteIds.add(res.data.id);
                 }
-              } catch (e) {
-                console.warn(`[Sync] Background sync exception for patient ${p.id}:`, e);
+              } catch (syncErr: any) {
+                console.warn(`[Sync] Auto-sync failed for patient "${p.full_name}":`, syncErr.message || syncErr);
               }
             }
           }
@@ -283,19 +714,30 @@ export const dbService = {
           const patientMap = new Map<string, Patient>();
           
           localPatients.forEach(p => {
-            if (p && p.id) {
+            if (p && p.id && !isPatientDeleted(p.id)) {
               const isSynced = remoteIds.has(p.id);
               patientMap.set(p.id, { ...p, _isSynced: isSynced });
             }
           });
           
           remotePatients.forEach(p => {
-            if (p && p.id) {
-              patientMap.set(p.id, { ...p, _isSynced: true });
+            if (p && p.id && !isPatientDeleted(p.id)) {
+              const localVersion = patientMap.get(p.id);
+              patientMap.set(p.id, {
+                ...localVersion,
+                ...p,
+                created_by: p.created_by || localVersion?.created_by,
+                created_by_email: p.created_by_email || localVersion?.created_by_email,
+                created_by_name: p.created_by_name || localVersion?.created_by_name,
+                created_by_role: p.created_by_role || localVersion?.created_by_role,
+                therapist_id: p.therapist_id || localVersion?.therapist_id,
+                therapist_name: p.therapist_name || localVersion?.therapist_name,
+                _isSynced: true
+              });
             }
           });
           
-          const mergedList = Array.from(patientMap.values()).sort((a, b) => {
+          const mergedList = Array.from(patientMap.values()).filter(p => !isPatientDeleted(p.id)).sort((a, b) => {
             return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
           });
           
@@ -305,65 +747,44 @@ export const dbService = {
           console.warn('Supabase Offline or Error. Falling back to LocalStorage:', err);
           isSupabaseOfflineState = true;
           lastSupabaseError = err;
-          // Filter out mock patients in live fallback too
+          // Filter out mock patients and deleted patients in live fallback too
           result = getLocalStoragePatients()
-            .filter(p => p.id !== '1' && p.id !== '2')
+            .filter(p => p && p.id && !isPatientDeleted(p.id) && p.id !== '1' && p.id !== '2')
             .map(p => ({ ...p, _isSynced: false }));
         }
       }
 
       // Check Active User Context and Scope Access
-      const { uid, email, name, isAdmin } = getActiveUserContext();
-      if (isAdmin) {
+      const context = getActiveUserContext();
+      if (context.isAdmin) {
         // Admin sees ALL registered patients from all accounts
-        return result;
+        return result.filter(p => !isPatientDeleted(p.id));
       }
 
       // Regular user (therapist/technician): Only see their own registered patients
-      const userEmailLower = (email || '').toLowerCase().trim();
-      const userNameLower = (name || '').toLowerCase().trim();
-      const userId = uid || '';
-
-      const userPatients = result.filter(p => {
-        if (!p) return false;
-        
-        // Direct match on creator user ID or therapist_id
-        if (userId && (p.created_by === userId || p.therapist_id === userId || (p as any).user_id === userId)) {
-          return true;
-        }
-        
-        // Direct match on creator email
-        if (userEmailLower && p.created_by_email && p.created_by_email.toLowerCase().trim() === userEmailLower) {
-          return true;
-        }
-
-        // Direct match on creator name
-        if (userNameLower && p.created_by_name && p.created_by_name.toLowerCase().trim() === userNameLower) {
-          return true;
-        }
-
-        // Doctor/therapist assignment match
-        if (userNameLower && p.doctor_name && p.doctor_name.toLowerCase().trim() === userNameLower) {
-          return true;
-        }
-
-        return false;
-      });
+      // Admin-created records and other users' records are strictly excluded
+      const userPatients = result.filter(p => !isPatientDeleted(p.id) && isRecordOwnedByCurrentUser(p, context));
 
       return userPatients;
     },
     async create(patient: Partial<Patient>) {
-      const { uid, email, name } = getActiveUserContext();
+      const context = getActiveUserContext();
+      const { uid, email, name, role, isAdmin } = context;
       const fullPatientPayload = {
         ...patient,
         created_by: patient.created_by || uid || undefined,
         created_by_email: patient.created_by_email || email || undefined,
         created_by_name: patient.created_by_name || name || undefined,
-        therapist_id: patient.therapist_id || uid || undefined
+        created_by_role: patient.created_by_role || (isAdmin ? 'admin' : role) || undefined,
+        therapist_id: patient.therapist_id || uid || undefined,
+        therapist_name: patient.therapist_name || name || undefined
       };
 
       // Generate a valid UUID so it satisfies UUID primary keys in Supabase while preserving identity
-      const generatedId = generateUUID();
+      const generatedId = (patient.id && isValidUUID(patient.id)) ? patient.id : generateUUID();
+      unmarkPatientAsDeleted(generatedId);
+      if (patient.id) unmarkPatientAsDeleted(patient.id);
+
       const newPatientLocalObj = { 
         ...fullPatientPayload, 
         id: generatedId,
@@ -384,59 +805,21 @@ export const dbService = {
       }
 
       try {
-        // Keep the generated ID so local and remote are 100% in sync! This avoids duplicates.
-        const cleanPayload = { id: generatedId, ...fullPatientPayload };
-        
-        if (cleanPayload.clinic_id && !isValidUUID(cleanPayload.clinic_id)) {
-          try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-              const { data: profile } = await supabase
-                .from('profiles')
-                .select('clinic_id')
-                .eq('id', session.user.id)
-                .single();
-              
-              if (profile?.clinic_id && isValidUUID(profile.clinic_id)) {
-                cleanPayload.clinic_id = profile.clinic_id;
-              } else {
-                delete cleanPayload.clinic_id;
-              }
-            } else {
-              delete cleanPayload.clinic_id;
-            }
-          } catch (e) {
-            delete cleanPayload.clinic_id;
-          }
-        }
+        const res = await adaptiveUpsertPatient(newPatientLocalObj);
+        const insertedPatient = (res.data || newPatientLocalObj) as Patient;
+        insertedPatient._isSynced = true;
 
-        let { data, error } = await supabase.from('patients').insert(cleanPayload).select().single();
-        if (error) {
-          if (error.code === '42P01' || error.message?.includes('does not exist')) {
-            isPatientsTableMissingState = true;
-          }
-          // Dynamic schema fallback: if the 'created_by' column does not exist, strip it and retry
-          if (error.message?.includes('created_by') || error.code === '42703') {
-            const retryPayload = { ...cleanPayload };
-            delete (retryPayload as any).created_by;
-            const retryResult = await supabase.from('patients').insert(retryPayload).select().single();
-            if (retryResult.error) throw retryResult.error;
-            data = retryResult.data;
-            error = null;
-          } else {
-            throw error;
-          }
-        }
-        isPatientsTableMissingState = false;
-        
-        const insertedPatient = data as Patient;
         const localList = getLocalStoragePatients().filter(p => p.id !== '1' && p.id !== '2');
         const filteredList = localList.filter(p => p.id !== generatedId && p.id !== insertedPatient.id);
         saveToLocal([insertedPatient, ...filteredList]);
         
         return insertedPatient;
       } catch (err: any) {
-        console.warn('Could not save to Supabase. Fallback is already safely active in LocalStorage:', err);
+        console.warn('Could not save patient to Supabase live table:', err);
+        // If error is due to RLS or missing table, propagate with informative message
+        if (err.message?.includes('Row Level Security') || err.code === '42P01') {
+          throw err;
+        }
         return newPatientLocalObj;
       }
     },
@@ -460,23 +843,12 @@ export const dbService = {
       }
 
       try {
-        const cleanPayload = { ...updates };
-        delete (cleanPayload as any).id;
+        const existingList = getLocalStoragePatients();
+        const current = existingList.find(p => p.id === id) || { id };
+        const merged = { ...current, ...updates, id };
+        const res = await adaptiveUpsertPatient(merged);
         
-        if (cleanPayload.clinic_id && !isValidUUID(cleanPayload.clinic_id)) {
-          delete cleanPayload.clinic_id;
-        }
-
-        const { data, error } = await supabase.from('patients').update(cleanPayload).eq('id', id).select().single();
-        if (error) {
-          if (error.code === '42P01' || error.message?.includes('does not exist')) {
-            isPatientsTableMissingState = true;
-          }
-          throw error;
-        }
-        isPatientsTableMissingState = false;
-        
-        const updatedPatient = data as Patient;
+        const updatedPatient = (res.data || merged) as Patient;
         const list = getLocalStoragePatients().filter(p => p.id !== '1' && p.id !== '2');
         const index = list.findIndex(p => p.id === id);
         if (index !== -1) {
@@ -492,6 +864,7 @@ export const dbService = {
       }
     },
     async getById(id: string) {
+      if (isPatientDeleted(id)) return null;
       if (isDemo) {
         const list = getLocalStoragePatients();
         return list.find(p => p.id === id) || null;
@@ -513,28 +886,41 @@ export const dbService = {
       }
     },
     async delete(id: string) {
+      const cleanId = String(id || '').trim();
+      if (!cleanId) return true;
+
+      // 1. Mark as permanently deleted in local persistent storage + indexedDB + memory + server
+      markPatientAsDeleted(cleanId);
+
+      // 2. Immediate server persistence deletion and remote cascade
       try {
-        const list = getLocalStoragePatients();
-        saveToLocal(list.filter(p => p.id !== id));
-      } catch (e) {
-        console.warn("Failed immediate local patient delete:", e);
-      }
+        fetch('/api/delete-patient', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: cleanId })
+        }).catch(() => {});
+      } catch {}
 
       if (isDemo) {
         return true;
       }
+
+      // 3. Direct client-side cascade delete from Supabase across all related tables
       try {
-        const { error } = await supabase.from('patients').delete().eq('id', id);
-        if (error) {
-          if (error.code === '42P01' || error.message?.includes('does not exist')) {
-            isPatientsTableMissingState = true;
-          }
-          throw error;
-        }
-        isPatientsTableMissingState = false;
+        await Promise.allSettled([
+          supabase.from('orders').delete().eq('patient_id', cleanId),
+          supabase.from('assessments').delete().eq('patient_id', cleanId),
+          supabase.from('measurements').delete().eq('patient_id', cleanId),
+          supabase.from('clinical_assessments').delete().eq('patient_id', cleanId),
+          supabase.from('patient_photos').delete().eq('patient_id', cleanId),
+          supabase.from('patient_records').delete().eq('patient_id', cleanId),
+          supabase.from('patients').delete().eq('id', cleanId),
+          supabase.from('patients').delete().eq('patient_id', cleanId)
+        ]);
+
         return true;
       } catch (err: any) {
-        console.warn('Could not delete in Supabase. Already removed from LocalStorage backup:', err);
+        console.warn('Could not delete in Supabase directly, handled via server & tombstone:', err);
         return true;
       }
     }
@@ -555,38 +941,39 @@ export const dbService = {
         }
       }
 
-      const { uid, email, name, isAdmin } = getActiveUserContext();
-      if (isAdmin) {
+      // Filter out deleted orders and orders for deleted patients
+      result = result.filter(o => o && o.id && !isOrderDeleted(o.id) && (!o.patient_id || !isPatientDeleted(o.patient_id)));
+
+      const context = getActiveUserContext();
+      if (context.isAdmin) {
         return result;
       }
 
-      const userEmailLower = (email || '').toLowerCase().trim();
-      const userNameLower = (name || '').toLowerCase().trim();
-      const userId = uid || '';
+      // Collect this user's patient IDs and names to correlate orders
+      const myPatients = await dbService.patients.getAll();
+      const myPatientIds = new Set<string>(myPatients.map(p => p.id).filter(Boolean));
+      const myPatientNames = new Set<string>(myPatients.map(p => (p.full_name || '').toLowerCase().trim()).filter(Boolean));
 
-      return result.filter(o => {
-        if (!o) return false;
-        if (userId && (o.created_by === userId || o.therapist_id === userId)) return true;
-        if (userEmailLower && o.created_by_email && o.created_by_email.toLowerCase().trim() === userEmailLower) return true;
-        if (userNameLower && o.created_by_name && o.created_by_name.toLowerCase().trim() === userNameLower) return true;
-        return false;
-      });
+      return result.filter(o => isRecordOwnedByCurrentUser(o, context, myPatientIds, myPatientNames));
     },
     async getRecent() {
       const allOrders = await this.getAll();
       return allOrders.slice(0, 5);
     },
     async getByPatient(patientId: string) {
+      if (isPatientDeleted(patientId)) return [];
       const allOrders = await this.getAll();
       return allOrders.filter(o => o.patient_id === patientId);
     },
     async create(order: any) {
-      const { uid, email, name } = getActiveUserContext();
+      const context = getActiveUserContext();
+      const { uid, email, name, role, isAdmin } = context;
       const fullOrderPayload = {
         ...order,
         created_by: order.created_by || uid || undefined,
         created_by_email: order.created_by_email || email || undefined,
         created_by_name: order.created_by_name || name || undefined,
+        created_by_role: order.created_by_role || (isAdmin ? 'admin' : role) || undefined,
         therapist_id: order.therapist_id || uid || undefined
       };
 
@@ -654,19 +1041,26 @@ export const dbService = {
       }
     },
     async delete(id: string) {
+      const cleanId = String(id || '').trim();
+      if (!cleanId) return true;
+
+      markOrderAsDeleted(cleanId);
+      try {
+        fetch('/api/delete-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: cleanId })
+        }).catch(() => {});
+      } catch {}
+
       if (isDemo) {
-        const list = getLocalStorageOrders();
-        saveOrdersToLocal(list.filter(o => o.id !== id));
         return true;
       }
       try {
-        const { error } = await supabase.from('orders').delete().eq('id', id);
+        const { error } = await supabase.from('orders').delete().eq('id', cleanId);
         if (error) throw error;
         return true;
       } catch (err) {
-        isSupabaseOfflineState = true;
-        const list = getLocalStorageOrders();
-        saveOrdersToLocal(list.filter(o => o.id !== id));
         return true;
       }
     }
@@ -689,27 +1083,69 @@ export const dbService = {
           }
           isAssessmentsTableMissingState = false;
           
-          const remoteAssessments = data || [];
+          const allRemoteAssessments = data || [];
+
+          // Purge remote assessments that have been marked deleted
+          const remoteDeletedAsms = allRemoteAssessments.filter(a => a && a.id && (isAssessmentDeleted(a.id) || (a.patient_id && isPatientDeleted(a.patient_id))));
+          if (remoteDeletedAsms.length > 0) {
+            remoteDeletedAsms.forEach(da => {
+              supabase.from('assessments').delete().eq('id', da.id).then(() => {});
+            });
+          }
+
+          const remoteAssessments = allRemoteAssessments.filter(a => a && a.id && !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id)));
           const remoteIds = new Set(remoteAssessments.map(a => a.id));
           
           // Merge with local storage assessments so no client work is lost
-          const localAssessments = getLocalStorageAssessments();
+          const localAssessments = getLocalStorageAssessments().filter(a => a && a.id && !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id)));
+          
+          // Background Auto-Sync: Automatically upload local assessments that are not in the remote database using adaptive upsert
+          const unsyncedAssessments = localAssessments.filter(a => a && a.id && !remoteIds.has(a.id) && !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id)));
+          if (unsyncedAssessments.length > 0) {
+            console.log(`[Sync] Found ${unsyncedAssessments.length} unsynced local assessments. Uploading to live database...`);
+            for (const asm of unsyncedAssessments) {
+              try {
+                const res = await adaptiveUpsertAssessment(asm);
+                if (res.synced) {
+                  console.log(`[Sync] Successfully synced assessment for "${asm.patient_name || asm.id}" to Supabase!`);
+                  asm._isSynced = true;
+                  remoteAssessments.push(res.data);
+                  remoteIds.add(res.data.id);
+                }
+              } catch (syncErr: any) {
+                console.warn(`[Sync] Auto-sync failed for assessment "${asm.id}":`, syncErr.message || syncErr);
+              }
+            }
+          }
+
           const assessmentMap = new Map<string, any>();
           
           localAssessments.forEach(a => {
-            if (a && a.id) {
+            if (a && a.id && !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id))) {
               const isSynced = remoteIds.has(a.id);
               assessmentMap.set(a.id, { ...a, _isSynced: isSynced });
             }
           });
           
           remoteAssessments.forEach(a => {
-            if (a && a.id) {
-              assessmentMap.set(a.id, { ...a, _isSynced: true });
+            if (a && a.id && !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id))) {
+              const localVersion = assessmentMap.get(a.id);
+              assessmentMap.set(a.id, {
+                ...localVersion,
+                ...a,
+                created_by: a.created_by || localVersion?.created_by,
+                created_by_email: a.created_by_email || localVersion?.created_by_email,
+                created_by_name: a.created_by_name || localVersion?.created_by_name,
+                created_by_role: a.created_by_role || localVersion?.created_by_role,
+                therapist_id: a.therapist_id || localVersion?.therapist_id,
+                therapist_name: a.therapist_name || localVersion?.therapist_name,
+                assessor_name: a.assessor_name || localVersion?.assessor_name,
+                _isSynced: true
+              });
             }
           });
           
-          const mergedList = Array.from(assessmentMap.values()).sort((a, b) => {
+          const mergedList = Array.from(assessmentMap.values()).filter(a => !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id))).sort((a, b) => {
             return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
           });
           
@@ -718,89 +1154,44 @@ export const dbService = {
           rawList = mergedList;
         } catch (err: any) {
           console.warn('Could not fetch assessments from Supabase. Sourcing from LocalStorage:', err);
-          rawList = getLocalStorageAssessments().map(a => ({ ...a, _isSynced: false }));
+          rawList = getLocalStorageAssessments().filter(a => !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id))).map(a => ({ ...a, _isSynced: false }));
         }
       }
 
       // Check Active User Context and Scope Access
-      const { uid, email, name, isAdmin } = getActiveUserContext();
-      if (isAdmin) {
+      const context = getActiveUserContext();
+      if (context.isAdmin) {
         // Admin sees ALL assessments from all user accounts
         return rawList;
       }
 
+      // Collect this user's patient IDs and names to correlate assessments
+      const myPatients = await dbService.patients.getAll();
+      const myPatientIds = new Set<string>(myPatients.map(p => p.id).filter(Boolean));
+      const myPatientNames = new Set<string>(myPatients.map(p => (p.full_name || '').toLowerCase().trim()).filter(Boolean));
+
       // Regular user (therapist/technician): Only see their own assessments
-      const userEmailLower = (email || '').toLowerCase().trim();
-      const userNameLower = (name || '').toLowerCase().trim();
-      const userId = uid || '';
-
-      // Also get this user's registered patient names and IDs to correlate
-      const allLocalPatients = getLocalStoragePatients();
-      const myPatientNames = new Set<string>();
-      const myPatientIds = new Set<string>();
-      allLocalPatients.forEach(p => {
-        if (!p) return;
-        const pCreatedBy = p.created_by || p.therapist_id || (p as any).user_id || '';
-        const pEmail = (p.created_by_email || '').toLowerCase().trim();
-        const pName = (p.created_by_name || '').toLowerCase().trim();
-        const pDocName = (p.doctor_name || '').toLowerCase().trim();
-
-        const isMine = (
-          (userId && pCreatedBy === userId) ||
-          (userEmailLower && pEmail === userEmailLower) ||
-          (userNameLower && (pName === userNameLower || pDocName === userNameLower))
-        );
-
-        if (isMine) {
-          if (p.id) myPatientIds.add(p.id);
-          if (p.full_name) myPatientNames.add(p.full_name.toLowerCase().trim());
-        }
-      });
-
-      const userAssessments = rawList.filter(a => {
-        if (!a) return false;
-
-        // Direct match on creator user ID
-        if (userId && (a.created_by === userId || a.therapist_id === userId || a.user_id === userId)) {
-          return true;
-        }
-
-        // Direct match on creator email
-        if (userEmailLower && a.created_by_email && a.created_by_email.toLowerCase().trim() === userEmailLower) {
-          return true;
-        }
-
-        // Direct match on creator or assessor or therapist name
-        if (userNameLower) {
-          if (a.created_by_name && a.created_by_name.toLowerCase().trim() === userNameLower) return true;
-          if (a.assessor_name && a.assessor_name.toLowerCase().trim() === userNameLower) return true;
-          if (a.therapist_name && a.therapist_name.toLowerCase().trim() === userNameLower) return true;
-        }
-
-        // Match if linked to one of this user's registered patients
-        if (a.patient_id && myPatientIds.has(a.patient_id)) {
-          return true;
-        }
-
-        if (a.patient_name && myPatientNames.has(a.patient_name.toLowerCase().trim())) {
-          return true;
-        }
-
-        return false;
-      });
+      // Admin-created assessments and other users' assessments are strictly excluded
+      const userAssessments = rawList.filter(a => isRecordOwnedByCurrentUser(a, context, myPatientIds, myPatientNames));
 
       return userAssessments;
     },
     async create(assessment: any) {
-      const { uid, email, name } = getActiveUserContext();
+      const context = getActiveUserContext();
+      const { uid, email, name, role, isAdmin } = context;
       const generatedId = assessment.id || 'asm-' + Math.random().toString(36).substr(2, 9);
+      unmarkAssessmentAsDeleted(generatedId);
+      if (assessment.id) unmarkAssessmentAsDeleted(assessment.id);
+
       const fullAssessmentPayload = {
         ...assessment,
         id: generatedId,
         created_by: assessment.created_by || uid || undefined,
         created_by_email: assessment.created_by_email || email || undefined,
         created_by_name: assessment.created_by_name || name || undefined,
+        created_by_role: assessment.created_by_role || (isAdmin ? 'admin' : role) || undefined,
         therapist_id: assessment.therapist_id || uid || undefined,
+        therapist_name: assessment.therapist_name || name || undefined,
         assessor_name: assessment.assessor_name || name || email || undefined,
         created_at: assessment.created_at || new Date().toISOString()
       };
@@ -817,23 +1208,20 @@ export const dbService = {
       }
 
       try {
-        const { data, error } = await supabase.from('assessments').insert(fullAssessmentPayload).select().single();
-        if (error) {
-          if (error.code === '42P01' || error.message?.includes('does not exist')) {
-            isAssessmentsTableMissingState = true;
-          }
-          throw error;
-        }
-        isAssessmentsTableMissingState = false;
-        
-        const insertedAssessment = data || fullAssessmentPayload;
+        const res = await adaptiveUpsertAssessment(fullAssessmentPayload);
+        const insertedAssessment = (res.data || fullAssessmentPayload);
+        insertedAssessment._isSynced = true;
+
         const localList = getLocalStorageAssessments();
         const filteredList = localList.filter(a => a.id !== generatedId && a.id !== insertedAssessment.id);
         saveAssessmentsToLocal([insertedAssessment, ...filteredList]);
         
         return insertedAssessment;
-      } catch (err) {
-        console.warn('Could not save to Supabase. Fallback is already safely active in LocalStorage:', err);
+      } catch (err: any) {
+        console.warn('Could not save assessment to Supabase live table:', err);
+        if (err.message?.includes('Row Level Security') || err.code === '42P01') {
+          throw err;
+        }
         return fullAssessmentPayload;
       }
     },
@@ -879,22 +1267,27 @@ export const dbService = {
       }
     },
     async delete(id: string) {
+      const cleanId = String(id || '').trim();
+      if (!cleanId) return true;
+
+      markAssessmentAsDeleted(cleanId);
       try {
-        const list = getLocalStorageAssessments();
-        saveAssessmentsToLocal(list.filter(a => a.id !== id));
-      } catch (e) {
-        console.warn("Failed immediate local assessment delete:", e);
-      }
+        fetch('/api/delete-assessment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: cleanId })
+        }).catch(() => {});
+      } catch {}
 
       if (isDemo) {
         return true;
       }
       try {
-        const { error } = await supabase.from('assessments').delete().eq('id', id);
+        const { error } = await supabase.from('assessments').delete().eq('id', cleanId);
         if (error) throw error;
         return true;
       } catch (err) {
-        console.warn('Could not delete from Supabase. Already removed from LocalStorage backup:', err);
+        console.warn('Could not delete from Supabase directly, tombstoned & server synced:', err);
         return true;
       }
     }
@@ -1007,6 +1400,8 @@ export const testSupabaseSync = async (): Promise<{
   }
 };
 
+export const testSupabaseConnection = testSupabaseSync;
+
 // Global Sync helper functions for clinical user profiles to allow robust cross-device login
 const sanitizeProfileObj = (p: any) => {
   if (!p || typeof p !== 'object') return p;
@@ -1016,9 +1411,13 @@ const sanitizeProfileObj = (p: any) => {
   const isAdminOrMahmood = p.role === 'admin' || fullNameLower.includes('mahmood') || fullNameLower.includes('mehmood');
 
   if (isAdminOrMahmood) {
+    let cleanName = (p.full_name || '').trim();
+    if (!cleanName || cleanName.toLowerCase().includes('dr. mahmood') || cleanName.toLowerCase().includes('dr. mehmood') || cleanName.toLowerCase().includes('dr mahmood') || cleanName.toLowerCase().includes('dr mehmood') || cleanName === 'Mahmood Admin' || cleanName === 'Mahmood' || cleanName === 'Mehmood') {
+      cleanName = 'Mahmood Ahmed';
+    }
     return {
       ...p,
-      full_name: p.full_name || 'Dr. Mahmood',
+      full_name: cleanName,
       role: 'admin',
       email: email && !email.includes('overplast') && email !== 'ahmed@gmail.com' ? email : 'mehmood@gmail.com',
       password: p.password && p.password !== 'ahmed123' && p.password !== 'mehmood123' ? p.password : '12345678'

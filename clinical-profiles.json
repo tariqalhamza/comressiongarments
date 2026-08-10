@@ -1,0 +1,92 @@
+[
+  {
+    "id": "9905a6da-912f-4cf0-8dfc-cc108d224ed8",
+    "clinic_id": null,
+    "full_name": "Mahmood Ahmed",
+    "role": "admin",
+    "created_at": "2026-06-01T11:26:50.285862+00:00",
+    "email": "mehmood@gmail.com",
+    "password": "12345678"
+  },
+  {
+    "id": "569b3588-4c28-4b23-8a3d-c91d30ce8aea",
+    "clinic_id": null,
+    "full_name": "Aysha",
+    "role": "therapist",
+    "created_at": "2026-08-09T06:42:09.657057+00:00",
+    "email": "aysha@gmail.com",
+    "password": "aysha123"
+  },
+  {
+    "id": "ac7bd417-2f6c-4f3e-a5b9-9bd9d70f16ee",
+    "clinic_id": null,
+    "full_name": "Ahmed",
+    "role": "therapist",
+    "created_at": "2026-08-09T06:38:25.910785+00:00",
+    "email": "ahmed@gmail.com",
+    "password": "ahmed123"
+  },
+  {
+    "id": "2f4ff58a-6e4c-4839-849a-a56e8be14f8e",
+    "clinic_id": null,
+    "full_name": "Mahmood Ahmed",
+    "role": "admin",
+    "created_at": "2026-08-09T05:51:54.076408+00:00",
+    "email": "karachi@gmail.com",
+    "password": "karachi123"
+  },
+  {
+    "id": "10d7b236-9ce2-4f77-af57-bfb0bf58516d",
+    "clinic_id": null,
+    "full_name": "Burn Karachi civil",
+    "role": "technician",
+    "created_at": "2026-07-11T05:55:40.012515+00:00",
+    "email": "civil@gmail.com",
+    "password": "civil123"
+  },
+  {
+    "id": "c8c5ebb5-c4c6-4445-a54e-6a99700dedd1",
+    "clinic_id": null,
+    "full_name": "Multan",
+    "role": "therapist",
+    "created_at": "2026-07-16T04:46:08.86023+00:00",
+    "email": "multan@gmail.com",
+    "password": "multan123"
+  },
+  {
+    "id": "ce6b1d13-f6b7-474d-9b7e-e6d48170f087",
+    "clinic_id": null,
+    "full_name": "Dr Ahmed",
+    "role": "therapist",
+    "created_at": "2026-08-06T09:52:28.730695+00:00",
+    "email": "ahmed@gmail.com",
+    "password": "ahmed123"
+  },
+  {
+    "id": "a36e17a6-2ab5-44d8-9e80-a240363f1a7a",
+    "clinic_id": null,
+    "full_name": "KAHAN Multan",
+    "role": "therapist",
+    "created_at": "2026-08-04T10:33:55.861761+00:00",
+    "email": "multan@gmail.com",
+    "password": "multan123"
+  },
+  {
+    "id": "2c8f9c3b-4e50-4a0a-8259-d187c57c78e5",
+    "clinic_id": null,
+    "full_name": "SAIMA NASIR",
+    "role": "therapist",
+    "created_at": "2026-08-05T10:47:38.547932+00:00",
+    "email": "nasir@gmail.com",
+    "password": "nasir123"
+  },
+  {
+    "id": "04ebdad1-e697-4ecc-b36a-b0c7c8b612a9",
+    "clinic_id": null,
+    "full_name": "AQSA",
+    "role": "therapist",
+    "created_at": "2026-08-06T15:10:44.062307+00:00",
+    "email": "mahmood@gmail.com",
+    "password": "mahmood123"
+  }
+]

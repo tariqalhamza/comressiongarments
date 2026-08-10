@@ -82,7 +82,7 @@ const Login: React.FC = () => {
     
     // Default system profiles
     const defaultProfiles = [
-      { id: 'demo-user-123', full_name: 'Dr. Mahmood', role: 'admin', email: 'mehmood@gmail.com', password: '12345678' },
+      { id: 'demo-user-123', full_name: 'Mahmood Ahmed', role: 'admin', email: 'mehmood@gmail.com', password: '12345678' },
       { id: 'demo-user-456', full_name: 'Sarah Khan', role: 'therapist', email: 'sarah@gmail.com', password: 'sarah123' },
       { id: 'demo-user-789', full_name: 'Ali Raza', role: 'technician', email: 'ali@gmail.com', password: 'ali123' },
       { id: 'demo-user-civil', full_name: 'Civil Tech', role: 'technician', email: 'civil@gmail.com', password: 'civil123' }
@@ -98,13 +98,13 @@ const Login: React.FC = () => {
           email: 'mehmood@gmail.com',
           created_at: new Date().toISOString(),
           app_metadata: {},
-          user_metadata: { full_name: 'Dr. Mahmood' },
+          user_metadata: { full_name: 'Mahmood Ahmed' },
           aud: 'authenticated',
           role: 'authenticated',
         };
         const adminProfileObj = {
           id: 'demo-user-123',
-          full_name: 'Dr. Mahmood',
+          full_name: 'Mahmood Ahmed',
           role: 'admin',
           email: 'mehmood@gmail.com',
           password: '12345678'
@@ -198,10 +198,10 @@ const Login: React.FC = () => {
       setForceDemo(false); 
       
       const emailForProfile = enteredEmail;
-      const isSuperAdminEmail = ['mehmood@gmail.com', 'detox16277@gmail.com'].includes(emailForProfile);
+      const isSuperAdminEmail = ['mehmood@gmail.com', 'detox16277@gmail.com', 'mahmood@gmail.com', 'demo@overplast.com'].includes(emailForProfile);
       
       const resolvedRole = isSuperAdminEmail ? 'admin' : (foundLocalProfile.role || 'therapist');
-      const resolvedName = foundLocalProfile.full_name || (isSuperAdminEmail ? 'Mahmood Admin' : 'Clinic Staff');
+      const resolvedName = foundLocalProfile.full_name || (isSuperAdminEmail ? 'Mahmood Ahmed' : 'Clinic Staff');
       const resolvedId = foundLocalProfile.id;
 
       const userObj = {
@@ -235,10 +235,10 @@ const Login: React.FC = () => {
     if (isDemoEmail || isKeysMissing) {
       setForceDemo(true);
       const emailForProfile = enteredEmail || 'demo@overplast.com';
-      const isSuperAdminEmail = ['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com'].includes(emailForProfile);
+      const isSuperAdminEmail = ['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com', 'mahmood@gmail.com'].includes(emailForProfile);
       
       const resolvedRole = isSuperAdminEmail ? 'admin' : (foundLocalProfile?.role || 'therapist');
-      const resolvedName = foundLocalProfile?.full_name || (isSuperAdminEmail ? 'Mahmood Admin' : 'Clinic Staff');
+      const resolvedName = foundLocalProfile?.full_name || (isSuperAdminEmail ? 'Mahmood Ahmed' : 'Clinic Staff');
       const resolvedId = foundLocalProfile?.id || (isSuperAdminEmail ? 'demo-user-123' : 'demo-user-' + Math.random().toString(36).substring(2, 11));
 
       const userObj = {
@@ -357,10 +357,10 @@ const Login: React.FC = () => {
             }
 
             const emailForProfile = enteredEmail;
-            const isSuperAdminEmail = ['mehmood@gmail.com', 'detox16277@gmail.com'].includes(emailForProfile);
+            const isSuperAdminEmail = ['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com', 'mahmood@gmail.com'].includes(emailForProfile);
             
             const resolvedRole = isSuperAdminEmail ? 'admin' : (foundLocalProfile.role || 'therapist');
-            const resolvedName = foundLocalProfile.full_name || (isSuperAdminEmail ? 'Mahmood Admin' : 'Clinic Staff');
+            const resolvedName = foundLocalProfile.full_name || (isSuperAdminEmail ? 'Mahmood Ahmed' : 'Clinic Staff');
             const resolvedId = foundLocalProfile.id;
 
             const userObj = {
@@ -405,10 +405,10 @@ const Login: React.FC = () => {
         console.warn("Supabase connection timed out or failed; using local profile fallback.");
         setForceDemo(true);
         const emailForProfile = enteredEmail;
-        const isSuperAdminEmail = ['mehmood@gmail.com', 'detox16277@gmail.com'].includes(emailForProfile);
+        const isSuperAdminEmail = ['mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com', 'mahmood@gmail.com'].includes(emailForProfile);
         
         const resolvedRole = isSuperAdminEmail ? 'admin' : (foundLocalProfile.role || 'therapist');
-        const resolvedName = foundLocalProfile.full_name || (isSuperAdminEmail ? 'Mahmood Admin' : 'Clinic Staff');
+        const resolvedName = foundLocalProfile.full_name || (isSuperAdminEmail ? 'Mahmood Ahmed' : 'Clinic Staff');
         const resolvedId = foundLocalProfile.id;
 
         const userObj = {

@@ -45,6 +45,11 @@ interface RegisteredAssessment {
   age?: number;
   gender?: string;
   city?: string;
+  created_by?: string;
+  created_by_email?: string;
+  created_by_name?: string;
+  created_by_role?: string;
+  therapist_name?: string;
 }
 
 interface RegisteredAssessmentsProps {

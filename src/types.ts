@@ -14,7 +14,9 @@ export interface Patient {
   created_by?: string;
   created_by_email?: string;
   created_by_name?: string;
+  created_by_role?: string;
   therapist_id?: string;
+  therapist_name?: string;
   age: number;
   gender: 'male' | 'female' | 'other';
   height?: number;
@@ -74,11 +76,18 @@ export interface Annotation {
 export interface Order {
   id: string;
   patient_id: string;
-  measurement_id: string;
+  patient_name?: string;
+  doctor_name?: string;
+  measurement_id?: string;
   garment_type: string;
-  status: 'Measurement Taken' | 'Approved' | 'In Production' | 'Quality Check' | 'Delivered';
-  config: GarmentConfig;
+  status: 'Measurement Taken' | 'Approved' | 'In Production' | 'Quality Check' | 'Delivered' | 'Ready';
+  config: GarmentConfig | any;
+  measurements?: any;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
   created_by?: string;
+  created_by_email?: string;
+  created_by_name?: string;
+  created_by_role?: string;
+  therapist_id?: string;
 }

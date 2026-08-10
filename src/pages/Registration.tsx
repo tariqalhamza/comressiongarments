@@ -398,7 +398,9 @@ const Registration: React.FC<RegistrationProps> = ({
         created_by: user?.id || loggedInProfile?.id || undefined,
         created_by_email: user?.email || loggedInProfile?.email || undefined,
         created_by_name: loggedInProfile?.full_name || (user as any)?.user_metadata?.full_name || undefined,
-        therapist_id: user?.id || loggedInProfile?.id || undefined
+        created_by_role: loggedInProfile?.role || (isAdmin ? 'admin' : 'therapist'),
+        therapist_id: user?.id || loggedInProfile?.id || undefined,
+        therapist_name: loggedInProfile?.full_name || undefined
       };
 
       await dbService.patients.create(newPatientPayload);
@@ -1306,7 +1308,9 @@ CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL U
                         <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
                         <span>By: <span className="font-extrabold text-slate-700">
                           {(() => {
-                            const creatorId = patientItem.created_by;
+                            if (patientItem.created_by_name) return patientItem.created_by_name;
+                            if (patientItem.therapist_name) return patientItem.therapist_name;
+                            const creatorId = patientItem.created_by || patientItem.therapist_id;
                             if (creatorId) {
                               const foundProfile = profiles.find(p => p.id === creatorId);
                               if (foundProfile?.full_name) return foundProfile.full_name;
@@ -1314,9 +1318,18 @@ CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL U
                                 if (loggedInProfile.full_name) return loggedInProfile.full_name;
                               }
                             }
-                            return 'Staff User';
+                            if (patientItem.created_by_email) {
+                              const emailPrefix = patientItem.created_by_email.split('@')[0];
+                              return emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+                            }
+                            return 'Clinic Staff';
                           })()}
                         </span></span>
+                        {(patientItem.created_by_role === 'admin' || patientItem.created_by_email === 'mehmood@gmail.com') && (
+                          <span className="px-1.5 py-0.2 bg-purple-100 text-purple-700 text-[9px] font-black rounded-md uppercase tracking-wider">
+                            Admin
+                          </span>
+                        )}
                       </div>
                     </div>
 
