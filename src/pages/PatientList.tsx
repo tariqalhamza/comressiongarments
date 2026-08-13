@@ -55,9 +55,64 @@ CREATE TABLE IF NOT EXISTS profiles (
   id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
   clinic_id UUID REFERENCES clinics(id),
   full_name TEXT,
-  role TEXT CHECK (role IN ('admin', 'therapist', 'technician')) DEFAULT 'therapist',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  role TEXT DEFAULT 'therapist',
+  email TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Trigger for Automatic Profile Creation upon Supabase Auth Signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  assigned_role TEXT;
+  user_full_name TEXT;
+  user_email TEXT;
+  user_role_input TEXT;
+BEGIN
+  user_email := LOWER(TRIM(COALESCE(NEW.email, '')));
+  IF user_email IN ('mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com', 'admin@overplast.com', 'mahmood@gmail.com') THEN
+    assigned_role := 'admin';
+  ELSE
+    user_role_input := LOWER(TRIM(COALESCE(NEW.raw_user_meta_data->>'role', '')));
+    IF user_role_input = 'admin' THEN
+      assigned_role := 'therapist';
+    ELSIF user_role_input IN ('therapist', 'technician', 'user') THEN
+      assigned_role := user_role_input;
+    ELSE
+      assigned_role := 'therapist';
+    END IF;
+  END IF;
+
+  user_full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', SPLIT_PART(NEW.email, '@', 1), 'User');
+
+  INSERT INTO public.profiles (id, email, full_name, role, created_at, updated_at)
+  VALUES (NEW.id, NEW.email, user_full_name, assigned_role, NOW(), NOW())
+  ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    full_name = CASE WHEN public.profiles.full_name IS NULL OR public.profiles.full_name = '' THEN EXCLUDED.full_name ELSE public.profiles.full_name END,
+    role = CASE WHEN public.profiles.role IS NULL OR public.profiles.role = '' THEN EXCLUDED.role ELSE public.profiles.role END,
+    updated_at = NOW();
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Backfill missing profiles for existing auth users
+INSERT INTO public.profiles (id, email, full_name, role, created_at, updated_at)
+SELECT u.id, u.email, COALESCE(u.raw_user_meta_data->>'full_name', SPLIT_PART(u.email, '@', 1), 'User'),
+  CASE WHEN LOWER(TRIM(COALESCE(u.email, ''))) IN ('mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com', 'admin@overplast.com', 'mahmood@gmail.com') THEN 'admin'
+  WHEN (u.raw_user_meta_data->>'role') IN ('therapist', 'technician', 'user') THEN (u.raw_user_meta_data->>'role')
+  ELSE 'therapist' END,
+  COALESCE(u.created_at, NOW()), NOW()
+FROM auth.users u
+WHERE NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = u.id);
 
 CREATE TABLE IF NOT EXISTS patients (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

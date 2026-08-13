@@ -57,35 +57,8 @@ const Settings: React.FC = () => {
 
   const sanitizeProfileItem = (p: any) => {
     if (!p || typeof p !== 'object') return p;
-    let email = (p.email || '').trim();
-    const fullName = (p.full_name || '').trim();
-    const fullNameLower = fullName.toLowerCase();
-    const isAdminOrMahmood = p.role === 'admin' || fullNameLower.includes('mahmood') || fullNameLower.includes('mehmood');
-
-    if (isAdminOrMahmood) {
-      let cleanName = (p.full_name || '').trim();
-      if (!cleanName || cleanName.toLowerCase().includes('dr. mahmood') || cleanName.toLowerCase().includes('dr. mehmood') || cleanName.toLowerCase().includes('dr mahmood') || cleanName.toLowerCase().includes('dr mehmood') || cleanName === 'Mahmood Admin' || cleanName === 'Mahmood' || cleanName === 'Mehmood') {
-        cleanName = 'Mahmood Ahmed';
-      }
-      return {
-        ...p,
-        full_name: cleanName,
-        role: 'admin',
-        email: email && !email.includes('overplast') && email !== 'ahmed@gmail.com' ? email : 'mehmood@gmail.com',
-        password: p.password && p.password !== 'ahmed123' && p.password !== 'mehmood123' ? p.password : '12345678'
-      };
-    }
-
-    const namePart = (p.full_name || 'user').trim().split(' ').pop() || 'user';
-    const cleanName = namePart.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-    if (!email) {
-      email = `${cleanName || 'user'}@gmail.com`;
-    } else if (email.toLowerCase().endsWith('@overplast.com') && email.toLowerCase() !== 'demo@overplast.com') {
-      email = email.replace(/@overplast\.com$/i, '@gmail.com');
-    }
-
-    const password = p.password || `${cleanName || 'user'}123`;
+    let email = (p.email || '').trim().toLowerCase();
+    let password = p.password ? String(p.password).trim() : '';
 
     return {
       ...p,
@@ -97,17 +70,17 @@ const Settings: React.FC = () => {
   const loadProfiles = async () => {
     setLoadingProfiles(true);
     try {
-      // Sync latest clinical profiles from server first to remain coordinated across multiple devices
+      // 1. Synchronize latest clinical profiles from backend
       const serverProfiles = await syncClinicalProfilesFromServer();
 
-      let combinedProfiles: any[] = [];
+      let finalProfiles: any[] = [];
 
       if (isDemo) {
-        combinedProfiles = serverProfiles;
+        finalProfiles = serverProfiles;
       } else {
         try {
-          // Wrapped in a 4.5s timeout. If Supabase is sleeping or paused, it will fail fast we fall back cleanly.
-          const { data, error } = await promiseWithTimeout(
+          // Direct query to Supabase public.profiles (the canonical source of truth)
+          const { data: dbData, error } = await promiseWithTimeout(
             supabase
               .from('profiles')
               .select('*')
@@ -116,67 +89,54 @@ const Settings: React.FC = () => {
           );
           if (error) throw error;
           
-          // Enrich loaded profiles from database with local/server backup values if available
-          const dbData = data || [];
-          
-          // Merge dbData and serverProfiles so that any local-only or server-synced accounts are also included
-          const mergedMap = new Map();
-          
-          // First add all server-synced profiles
-          serverProfiles.forEach((lp: any) => {
-            if (lp && lp.id) {
-              mergedMap.set(lp.id, sanitizeProfileItem(lp));
+          const rows = dbData || [];
+          const profileMap = new Map<string, any>();
+
+          // First populate from serverProfiles (which contains auth users and email metadata)
+          serverProfiles.forEach((sp: any) => {
+            if (sp && sp.id) {
+              profileMap.set(sp.id, sanitizeProfileItem(sp));
             }
           });
-          
-          // Then override/update with DB profiles to get latest db metadata
-          dbData.forEach((dbUser: any) => {
+
+          // Match/merge DB records strictly by UUID (auth.users.id)
+          rows.forEach((dbUser: any) => {
             if (dbUser && dbUser.id) {
-              // Try match by ID first, then by email, then by full_name
-              let localUser = mergedMap.get(dbUser.id);
-              if (!localUser) {
-                const dbEmailLower = (dbUser.email || '').toLowerCase().trim();
-                const dbNameLower = (dbUser.full_name || '').toLowerCase().trim();
-                localUser = serverProfiles.find((lp: any) => 
-                  (dbEmailLower && lp.email?.toLowerCase().trim() === dbEmailLower) ||
-                  (dbNameLower && lp.full_name?.toLowerCase().trim() === dbNameLower)
-                );
-              }
+              const sanitizedDb = sanitizeProfileItem(dbUser);
+              const existing = profileMap.get(sanitizedDb.id) || {};
 
-              const mergedItem = sanitizeProfileItem({
-                ...localUser,
-                ...dbUser,
-                email: dbUser.email || localUser?.email || '',
-                password: dbUser.password || localUser?.password || ''
-              });
-
-              mergedMap.set(dbUser.id, mergedItem);
+              profileMap.set(sanitizedDb.id, sanitizeProfileItem({
+                ...existing,
+                ...sanitizedDb,
+                id: sanitizedDb.id,
+                full_name: sanitizedDb.full_name || existing.full_name || 'Clinical User',
+                role: sanitizedDb.role || existing.role || 'therapist',
+                email: sanitizedDb.email || existing.email || '',
+                password: sanitizedDb.password || existing.password || ''
+              }));
             }
           });
-          
-          combinedProfiles = Array.from(mergedMap.values());
+
+          finalProfiles = Array.from(profileMap.values());
         } catch (dbErr: any) {
-          console.warn('Supabase profile retrieval timed out or failed. Sourcing from local fallback storage:', dbErr);
-          combinedProfiles = serverProfiles;
+          console.warn('Supabase profile retrieval timed out or failed. Sourcing from server-synced storage:', dbErr);
+          finalProfiles = serverProfiles;
         }
       }
 
-      // Sanitize all profile emails (convert any @overplast.com to @gmail.com)
-      const sanitized = combinedProfiles.map(sanitizeProfileItem);
-      setProfilesList(sanitized);
+      // Deduplicate strictly by unique Account ID (UUID)
+      const uniqueMap = new Map<string, any>();
+      finalProfiles.forEach((p: any) => {
+        if (p && p.id) {
+          uniqueMap.set(p.id, sanitizeProfileItem(p));
+        }
+      });
+      const uniqueProfiles = Array.from(uniqueMap.values());
 
-      // Persist the sanitized profiles back to localStorage and server
-      localStorage.setItem('demo_profiles', JSON.stringify(sanitized));
-      saveClinicalProfilesToServer(sanitized).catch(() => {});
+      setProfilesList(uniqueProfiles);
 
-      // If connected to Supabase live, update any database records that were using @overplast.com
-      if (!isDemo) {
-        sanitized.forEach((usr: any) => {
-          if (usr.id && usr.email) {
-            supabase.from('profiles').update({ email: usr.email, password: usr.password }).eq('id', usr.id).then(() => {}, () => {});
-          }
-        });
-      }
+      // Persist the clean, non-duplicate list to localStorage
+      localStorage.setItem('demo_profiles', JSON.stringify(uniqueProfiles));
     } catch (err: any) {
       console.error('Error fetching clinical profiles:', err);
     } finally {
@@ -186,19 +146,20 @@ const Settings: React.FC = () => {
 
   const [updatingUserRole, setUpdatingUserRole] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
-  const [userToDelete, setUserToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [userToDelete, setUserToDelete] = useState<{ id: string; name: string; email?: string; role?: string } | null>(null);
   const [editingPasswordUserId, setEditingPasswordUserId] = useState<string | null>(null);
   const [tempPasswordValue, setTempPasswordValue] = useState('');
   const [editingEmailUserId, setEditingEmailUserId] = useState<string | null>(null);
   const [tempEmailValue, setTempEmailValue] = useState('');
+  const [domainFilter, setDomainFilter] = useState<'all' | 'legacy'>('all');
 
   const getOrGenerateUserPassword = (usr: any) => {
+    if (usr?.password) return usr.password;
     const fullNameLower = (usr?.full_name || '').toLowerCase().trim();
     if (usr?.role === 'admin' || fullNameLower.includes('mahmood') || fullNameLower.includes('mehmood')) {
-      if (usr.password && usr.password !== 'ahmed123' && usr.password !== 'mehmood123') return usr.password;
       return '12345678';
     }
-    if (usr?.password) return usr.password;
     
     // Construct a sensible plain-text fallback password using the user's name
     const namePart = (usr?.full_name || 'user').trim().split(' ').pop() || 'user';
@@ -208,20 +169,13 @@ const Settings: React.FC = () => {
   };
 
   const getOrGenerateUserEmail = (usr: any) => {
-    const fullNameLower = (usr?.full_name || '').toLowerCase().trim();
-    if (usr?.role === 'admin' || fullNameLower.includes('mahmood') || fullNameLower.includes('mehmood')) {
-      if (usr?.email && !usr.email.includes('overplast') && usr.email !== 'ahmed@gmail.com') {
-        return usr.email;
-      }
-      return 'mehmood@gmail.com';
-    }
-
     let email = (usr?.email || '').trim();
     if (email) {
-      if (email.toLowerCase().endsWith('@overplast.com') && email.toLowerCase() !== 'demo@overplast.com') {
-        return email.replace(/@overplast\.com$/i, '@gmail.com');
-      }
       return email;
+    }
+    const fullNameLower = (usr?.full_name || '').toLowerCase().trim();
+    if (usr?.role === 'admin' || fullNameLower.includes('mahmood') || fullNameLower.includes('mehmood')) {
+      return 'mehmood@gmail.com';
     }
     
     const namePart = (usr?.full_name || 'user').trim().split(' ').pop() || 'user';
@@ -285,58 +239,75 @@ const Settings: React.FC = () => {
     setEditingEmailUserId(null);
   };
 
-  const handleUpdateUserPassword = (userId: string, newPassword: string) => {
-    if (!newPassword.trim()) return;
-    
-    // 1. Update list UI state inline
-    setProfilesList(prev => prev.map(p => {
-      if (p.id === userId) {
-        return { ...p, password: newPassword };
-      }
-      return p;
-    }));
-    
-    // 2. Sync to localStorage demo_profiles
-    const stored = localStorage.getItem('demo_profiles');
-    if (stored) {
-      try {
-        const currentProfiles = JSON.parse(stored);
-        const updated = currentProfiles.map((p: any) => {
-          if (p.id === userId) {
-            return { ...p, password: newPassword };
-          }
-          return p;
-        });
-        localStorage.setItem('demo_profiles', JSON.stringify(updated));
-        
-        // Push updated profiles list to the server for multi-device sync
-        saveClinicalProfilesToServer(updated).catch(e => console.error("Server profiles sync error:", e));
-      } catch (e) {
-        console.error("Error updating user storage password:", e);
-      }
-    }
+  const handleUpdateUserPassword = async (userId: string, newPassword: string) => {
+    const passwordClean = newPassword.trim();
+    if (!passwordClean) return;
 
-    // 3. Persist password update to Supabase database if connected live
-    if (!isDemo) {
-      supabase
-        .from('profiles')
-        .update({ password: newPassword })
-        .eq('id', userId)
-        .then(
-          ({ error }) => {
-            if (error) {
-              console.warn("Failed to persist password update in Supabase database:", error);
-            } else {
-              console.log("Successfully persisted updated password in Supabase database for user:", userId);
-            }
-          },
-          (dbErr) => {
-            console.warn("Error updating password in database:", dbErr);
-          }
-        );
-    }
+    const targetUser = profilesList.find(p => p.id === userId);
+    const userEmail = targetUser?.email || getOrGenerateUserEmail(targetUser);
     
-    setEditingPasswordUserId(null);
+    // Call server-side Admin endpoint to update real Supabase Auth password via Admin API
+    try {
+      const resp = await fetch('/api/admin/update-user-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          email: userEmail,
+          password: passwordClean
+        })
+      });
+      const data = await resp.json().catch(() => ({}));
+      
+      if (!resp.ok || !data.success) {
+        const errorMsg = data.error || "Service Role Key is missing on the server. Unable to update password in Supabase Auth.";
+        alert(`Failed to update password: ${errorMsg}`);
+        return;
+      }
+
+      console.log("Supabase Auth password update succeeded via Admin API:", data);
+
+      // Update UI state and local/server profile stores so Manage Accounts displays the newly saved password
+      const updatedProfiles = profilesList.map(p => {
+        if (p.id === userId) {
+          return { ...p, password: passwordClean };
+        }
+        return p;
+      });
+      setProfilesList(updatedProfiles);
+
+      const stored = localStorage.getItem('demo_profiles');
+      if (stored) {
+        try {
+          const currentProfiles = JSON.parse(stored);
+          const updated = currentProfiles.map((p: any) => {
+            if (p.id === userId) {
+              return { ...p, password: passwordClean };
+            }
+            return p;
+          });
+          localStorage.setItem('demo_profiles', JSON.stringify(updated));
+        } catch (e) {
+          console.error("Error updating demo_profiles in localStorage:", e);
+        }
+      }
+
+      await saveClinicalProfilesToServer(updatedProfiles).catch(e => console.error("Server profiles sync error:", e));
+
+      // If the logged in user is updating their own account password, sync auth session directly
+      try {
+        const currentUser = (await supabase.auth.getUser()).data.user;
+        if (currentUser && currentUser.id === userId) {
+          await supabase.auth.updateUser({ password: passwordClean });
+        }
+      } catch (selfAuthErr) {
+        console.warn("Self auth password sync notice:", selfAuthErr);
+      }
+
+      setEditingPasswordUserId(null);
+    } catch (e: any) {
+      alert(`Server connection error: ${e?.message || "Failed to update password"}`);
+    }
   };
 
   const handleUpdateUserRole = async (userId: string, newRole: 'admin' | 'therapist' | 'technician') => {
@@ -375,7 +346,6 @@ const Settings: React.FC = () => {
           });
           localStorage.setItem('demo_profiles', JSON.stringify(updated));
           setProfilesList(updated);
-          alert("Database profile role was updated offline (local storage backup) due to connection timeout.");
         }
       }
     } catch (err: any) {
@@ -386,59 +356,79 @@ const Settings: React.FC = () => {
   };
 
   const handleDeleteUserAccount = (userId: string, fullName: string) => {
-    if (userId === loggedInProfile?.id) {
-      alert("Aap khud ka account yahan se delete nahi kar sakte.");
+    if (userId === loggedInProfile?.id || userId === '9905a6da-912f-4cf0-8dfc-cc108d224ed8' || userId === 'demo-user-123') {
+      alert("You cannot delete the primary administrator account.");
       return;
     }
-    setUserToDelete({ id: userId, name: fullName });
+    const targetUser = profilesList.find(p => p.id === userId);
+    if (targetUser && (targetUser.role === 'admin' || targetUser.email === 'mehmood@gmail.com' || targetUser.email === 'detox16277@gmail.com')) {
+      alert("You cannot delete the primary administrator account.");
+      return;
+    }
+    setDeleteError(null);
+    setUserToDelete({
+      id: userId,
+      name: targetUser?.full_name || fullName,
+      email: targetUser?.email || getOrGenerateUserEmail(targetUser),
+      role: targetUser?.role || 'therapist'
+    });
   };
 
   const executeDeleteUserAccount = async () => {
     if (!userToDelete) return;
-    const { id: userId } = userToDelete;
-    
+    const { id: userId, email: userEmail } = userToDelete;
+
     setDeletingUserId(userId);
-    setUserToDelete(null); // immediately dismiss modal input view
+    setDeleteError(null);
 
     try {
-      // 1. ALWAYS remove from localStorage demo_profiles immediately for offline/hybrid consistency
+      const sessionRes = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+      const adminToken = sessionRes.data.session?.access_token || '';
+
+      const response = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          userEmail,
+          supabaseUrl,
+          supabaseAnonKey,
+          adminToken
+        })
+      });
+
+      const resData = await response.json().catch(() => ({}));
+
+      if (!response.ok || resData.error || resData.success !== true) {
+        const errorMsg = resData.error || "Failed to delete user account on server.";
+        setDeleteError(errorMsg);
+        return;
+      }
+
+      // ONLY ON SUCCESS: Remove from localStorage demo_profiles
       const stored = localStorage.getItem('demo_profiles');
-      let updatedProfilesList: any[] = [];
       if (stored) {
         try {
           const currentProfiles = JSON.parse(stored);
-          updatedProfilesList = currentProfiles.filter((p: any) => p.id !== userId);
+          const updatedProfilesList = currentProfiles.filter((p: any) => p && p.id !== userId);
           localStorage.setItem('demo_profiles', JSON.stringify(updatedProfilesList));
-          
-          // Push updated profiles list to the server for multi-device sync
-          saveClinicalProfilesToServer(updatedProfilesList).catch(e => console.error("Server profiles sync error on delete:", e));
         } catch (e) {
           console.error("Local profile removal error:", e);
         }
       }
-      
-      // 2. ALWAYS remove from UI list immediately for responsive visual feedback
-      setProfilesList(prev => prev.filter((p: any) => p.id !== userId));
 
-      // 3. If in live database mode, attempt to delete in the background
-      if (!isDemo) {
-        try {
-          const { error } = await promiseWithTimeout(
-            supabase
-              .from('profiles')
-              .delete()
-              .eq('id', userId),
-            4000
-          );
-          if (error) {
-            console.warn("Supabase database delete policy blocked live sync deleting profile:", error);
-          }
-        } catch (dbErr: any) {
-          console.warn("Supabase database timeout or connectivity delay. Already synced locally:", dbErr);
-        }
-      }
+      // ONLY ON SUCCESS: Remove from UI list immediately strictly by UUID
+      setProfilesList(prev => prev.filter((p: any) => p && p.id !== userId));
+
+      // Close delete modal and clear errors
+      setUserToDelete(null);
+      setDeleteError(null);
+
+      // Refresh to guarantee clean state across DB/Auth
+      await loadProfiles();
     } catch (err: any) {
       console.error("Error in delete account pipeline:", err);
+      setDeleteError(err.message || "An unexpected error occurred during account deletion.");
     } finally {
       setDeletingUserId(null);
     }
@@ -456,147 +446,216 @@ const Settings: React.FC = () => {
     setCreateError(null);
     setCreateSuccess(null);
 
-    const emailTrim = newUserEmail.trim();
+    const emailTrim = newUserEmail.trim().toLowerCase();
     const passwordTrim = newUserPassword.trim();
     const nameTrim = newUserFullName.trim();
 
     if (!emailTrim || !passwordTrim || !nameTrim) {
-      setCreateError('Saari fields ko fill karna zaroori hai.');
+      setCreateError('Please fill in all fields (Full Name, Email, and Password).');
       setCreatingUser(false);
       return;
     }
 
     if (passwordTrim.length < 6) {
-      setCreateError('Password kam se kam 6 characters ka hona chahiye.');
+      setCreateError('Password must be at least 6 characters.');
       setCreatingUser(false);
       return;
     }
 
     try {
-      if (isDemo) {
-        const stored = localStorage.getItem('demo_profiles');
-        let currentProfiles = stored ? JSON.parse(stored) : [];
-        
-        const dup = currentProfiles.find((p: any) => p.email?.toLowerCase() === emailTrim.toLowerCase());
-        if (dup) {
-          throw new Error('Yeh email address pehle se register hai.');
+      let createdUserObj: any = null;
+      let isVerified = false;
+      let serverResData: any = null;
+
+      // Extract current active session token if available
+      let adminToken = '';
+      try {
+        const sessionRes = await supabase.auth.getSession();
+        adminToken = sessionRes.data.session?.access_token || '';
+      } catch {}
+
+      // 1. Try server-side Admin API to create Supabase Auth user & public.profiles
+      try {
+        const resp = await fetch('/api/admin/create-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: emailTrim,
+            password: passwordTrim,
+            full_name: nameTrim,
+            role: newUserRole,
+            supabaseUrl: supabaseUrl,
+            supabaseAnonKey: supabaseAnonKey,
+            adminToken: adminToken,
+            isDemo: isDemo
+          })
+        });
+
+        const resData = await resp.json().catch(() => ({}));
+        serverResData = resData;
+
+        if (!resp.ok) {
+          throw new Error(resData.error || `Server error (${resp.status}): Failed to create user`);
         }
 
-        const newProfile = {
-          id: 'demo-user-' + Math.random().toString(36).substring(2, 11),
-          full_name: nameTrim,
-          role: newUserRole,
-          email: emailTrim,
-          password: passwordTrim,
-          created_at: new Date().toISOString()
-        };
+        if (resData && resData.success && resData.user) {
+          if (!resData.verified && !isDemo) {
+            throw new Error(resData.error || 'User account was created, but public.profiles creation could not be verified.');
+          }
+          createdUserObj = resData.user;
+          isVerified = true;
+        }
+      } catch (apiErr: any) {
+        console.warn("Server admin create user endpoint notice:", apiErr);
+        // If it was a deliberate error response from the server (e.g. auth error or profile verification error), rethrow it!
+        if (apiErr.message && !apiErr.message.includes('Failed to fetch') && !apiErr.message.includes('NetworkError')) {
+          throw apiErr;
+        }
+      }
 
-        const updated = [newProfile, ...currentProfiles];
-        localStorage.setItem('demo_profiles', JSON.stringify(updated));
-        
-        // Push updated profiles list to the server for multi-device sync
-        await saveClinicalProfilesToServer(updated).catch(e => console.error("Server profiles sync error on creation:", e));
-        
-        setProfilesList(updated);
-        setCreateSuccess(`Mubarak! User "${nameTrim}" registered successfully in local offline mode.`);
-        
-        // Reset form fields
-        setNewUserEmail('');
-        setNewUserPassword('');
-        setNewUserFullName('');
-        setNewUserRole('therapist');
-      } else {
-        // ALWAYS save to local and server profiles first as a fallback, so they can immediately login on any device
-        const stored = localStorage.getItem('demo_profiles') || '[]';
-        let currentProfiles = JSON.parse(stored);
-        
-        // We will pre-assign a temporary ID
-        const generatedUserId = 'user-' + Math.random().toString(36).substring(2, 11);
-        
-        const newLocalProfile = {
-          id: generatedUserId,
-          full_name: nameTrim,
-          role: newUserRole,
-          email: emailTrim,
-          password: passwordTrim,
-          created_at: new Date().toISOString()
-        };
-        const updated = [newLocalProfile, ...currentProfiles];
-        localStorage.setItem('demo_profiles', JSON.stringify(updated));
-        
-        // Push updated profiles list to the server for multi-device sync
-        await saveClinicalProfilesToServer(updated).catch(e => console.error("Server profiles sync error on pre-save:", e));
-
-        setProfilesList(updated);
-
-        try {
-          // Create an isolation client instance so current active admin does not logout
-          const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
-            auth: {
-              persistSession: false,
-              autoRefreshToken: false,
-              detectSessionInUrl: false
-            }
-          });
-
-          const { data: signUpData, error: signUpError } = await promiseWithTimeout(
-            tempClient.auth.signUp({
-              email: emailTrim,
-              password: passwordTrim,
-              options: {
-                data: { full_name: nameTrim }
+      // 2. Client-side fallback ONLY if server API was completely unreachable (e.g. network offline)
+      if (!createdUserObj) {
+        if (!isDemo && supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('placeholder')) {
+          let realUserId: string | null = null;
+          try {
+            const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
+              auth: {
+                persistSession: false,
+                autoRefreshToken: false,
+                detectSessionInUrl: false
               }
-            }),
-            6500
-          );
+            });
 
-          if (signUpError) {
-            console.warn("Supabase auth signUp returned error, falling back to clinic sync:", signUpError);
-          } else if (signUpData.user) {
-            // Update the ID in local and server profiles to match the real Supabase Auth ID
-            const realUserId = signUpData.user.id;
-            newLocalProfile.id = realUserId;
-            
-            // Re-save with the correct ID
-            const storedNow = localStorage.getItem('demo_profiles') || '[]';
-            const currentProfilesNow = JSON.parse(storedNow);
-            const index = currentProfilesNow.findIndex((p: any) => p.email?.toLowerCase().trim() === emailTrim.toLowerCase().trim());
-            if (index !== -1) {
-              currentProfilesNow[index].id = realUserId;
+            const { data: signUpData, error: signUpError } = await promiseWithTimeout(
+              tempClient.auth.signUp({
+                email: emailTrim,
+                password: passwordTrim,
+                options: {
+                  data: { 
+                    full_name: nameTrim,
+                    name: nameTrim,
+                    role: newUserRole,
+                    password: passwordTrim
+                  }
+                }
+              }),
+              8000
+            );
+
+            if (signUpError) {
+              throw new Error(`Supabase Auth creation failed: ${signUpError.message}`);
             }
-            localStorage.setItem('demo_profiles', JSON.stringify(currentProfilesNow));
-            await saveClinicalProfilesToServer(currentProfilesNow).catch(e => console.error("Server profiles sync update error:", e));
-            setProfilesList(currentProfilesNow);
 
-            // Insert new user role directly in profiles database
-            const { error: profileError } = await promiseWithTimeout(
-              supabase.from('profiles').insert({
+            if (signUpData?.user?.id) {
+              realUserId = signUpData.user.id;
+            } else {
+              throw new Error('Supabase Auth did not return a valid user ID.');
+            }
+          } catch (authErr: any) {
+            throw new Error(authErr.message || 'Supabase Auth registration failed.');
+          }
+
+          // Insert into Supabase public.profiles
+          let profileInsertErr: any = null;
+          try {
+            const { error: upsertErr } = await promiseWithTimeout(
+              supabase.from('profiles').upsert({
                 id: realUserId,
                 full_name: nameTrim,
                 role: newUserRole,
-                email: emailTrim,
-                password: passwordTrim
-              }),
-              5500
+                clinic_id: null
+              }, { onConflict: 'id' }),
+              6000
             );
-
-            if (profileError) {
-              console.warn('Supabase profiles table insert failed (handled gracefully):', profileError);
-            }
+            if (upsertErr) profileInsertErr = upsertErr;
+          } catch (profErr: any) {
+            profileInsertErr = profErr;
           }
-        } catch (authErr: any) {
-          console.warn("Supabase live registration encountered an issue, but local & server clinic sync succeeded:", authErr);
-        }
 
-        setCreateSuccess(`User "${nameTrim}" successfully registered in clinic database sync! They can now sign in on any device.`);
-        setNewUserEmail('');
-        setNewUserPassword('');
-        setNewUserFullName('');
-        setNewUserRole('therapist');
-        
-        // Refresh profiles list
-        loadProfiles();
+          // VERIFY row in public.profiles
+          let verifiedRow: any = null;
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            let { data: found } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', realUserId)
+              .maybeSingle();
+
+            if (!found) {
+              const uuidQuery = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('uuid', realUserId)
+                .maybeSingle();
+              if (uuidQuery.data) found = uuidQuery.data;
+            }
+
+            if (found && (found.id === realUserId || found.uuid === realUserId)) {
+              verifiedRow = found;
+              break;
+            }
+            if (attempt < 3) await new Promise(r => setTimeout(r, 400));
+          }
+
+          if (!verifiedRow) {
+            throw new Error(`User account was created in Supabase Auth (UUID: ${realUserId}), but profile creation in public.profiles failed or could not be verified. Supabase error: ${profileInsertErr?.message || 'Profile record not found in public.profiles table'}`);
+          }
+
+          createdUserObj = {
+            id: realUserId,
+            full_name: nameTrim,
+            role: newUserRole,
+            email: emailTrim,
+            password: passwordTrim,
+            ...verifiedRow,
+            created_at: verifiedRow.created_at || new Date().toISOString()
+          };
+          isVerified = true;
+        } else {
+          // Demo mode fallback ID
+          const demoUserId = 'demo-user-' + Math.random().toString(36).substring(2, 11);
+          createdUserObj = {
+            id: demoUserId,
+            full_name: nameTrim,
+            role: newUserRole,
+            email: emailTrim,
+            password: passwordTrim,
+            created_at: new Date().toISOString()
+          };
+          isVerified = true;
+        }
       }
+
+      if (!createdUserObj || !isVerified) {
+        throw new Error('User creation could not be verified in public.profiles.');
+      }
+
+      // 3. Update localStorage and local state
+      const stored = localStorage.getItem('demo_profiles') || '[]';
+      let currentProfiles = JSON.parse(stored);
+      if (!Array.isArray(currentProfiles)) currentProfiles = [];
+      const filtered = currentProfiles.filter((p: any) => p && p.id !== createdUserObj.id && (p.email || '').toLowerCase().trim() !== emailTrim);
+      const updated = [createdUserObj, ...filtered];
+      localStorage.setItem('demo_profiles', JSON.stringify(updated));
+      setProfilesList(updated);
+
+      // Push updated profiles to server
+      saveClinicalProfilesToServer(updated).catch(e => console.warn("Profiles server sync error:", e));
+
+      const successMsg = serverResData?.message || (createdUserObj.id 
+        ? `User "${nameTrim}" (${emailTrim}) successfully verified in Supabase Auth & public.profiles! (ID: ${createdUserObj.id})`
+        : `User "${nameTrim}" successfully registered!`);
+      setCreateSuccess(successMsg);
+      setNewUserEmail('');
+      setNewUserPassword('');
+      setNewUserFullName('');
+      setNewUserRole('therapist');
+      
+      // Reload profiles from database/server
+      await loadProfiles();
+    } catch (err: any) {
+      console.error("User creation error:", err);
+      setCreateError(err.message || "Failed to create user account.");
     } finally {
       setCreatingUser(false);
     }
@@ -750,7 +809,7 @@ CREATE TABLE IF NOT EXISTS assessments (
 ALTER TABLE assessments DISABLE ROW LEVEL SECURITY;
 
 CREATE TABLE IF NOT EXISTS profiles (
-  id TEXT PRIMARY KEY,
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT,
   full_name TEXT,
   role TEXT DEFAULT 'therapist',
@@ -760,9 +819,100 @@ CREATE TABLE IF NOT EXISTS profiles (
   specialty TEXT,
   department TEXT,
   bio TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;`;
+
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS full_name TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'therapist';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS password TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+
+-- Automatic Trigger for New User Profile Creation in public.profiles
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER 
+LANGUAGE plpgsql 
+SECURITY DEFINER 
+SET search_path = public
+AS $$
+DECLARE
+  assigned_role TEXT;
+  user_full_name TEXT;
+  user_email TEXT;
+  user_role_input TEXT;
+BEGIN
+  user_email := LOWER(TRIM(COALESCE(NEW.email, '')));
+
+  IF user_email IN ('mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com', 'admin@overplast.com', 'mahmood@gmail.com') THEN
+    assigned_role := 'admin';
+  ELSE
+    user_role_input := LOWER(TRIM(COALESCE(NEW.raw_user_meta_data->>'role', '')));
+    IF user_role_input = 'admin' THEN
+      assigned_role := 'therapist';
+    ELSIF user_role_input IN ('therapist', 'technician', 'user') THEN
+      assigned_role := user_role_input;
+    ELSE
+      assigned_role := 'therapist';
+    END IF;
+  END IF;
+
+  user_full_name := COALESCE(
+    NEW.raw_user_meta_data->>'full_name',
+    NEW.raw_user_meta_data->>'name',
+    SPLIT_PART(NEW.email, '@', 1),
+    'User'
+  );
+
+  INSERT INTO public.profiles (id, email, full_name, role, created_at, updated_at)
+  VALUES (NEW.id, NEW.email, user_full_name, assigned_role, NOW(), NOW())
+  ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    full_name = CASE WHEN public.profiles.full_name IS NULL OR public.profiles.full_name = '' THEN EXCLUDED.full_name ELSE public.profiles.full_name END,
+    role = CASE WHEN public.profiles.role IS NULL OR public.profiles.role = '' THEN EXCLUDED.role ELSE public.profiles.role END,
+    updated_at = NOW();
+
+  RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE WARNING 'handle_new_user error for user %: %', NEW.id, SQLERRM;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Safe backfill for existing auth users missing profiles
+INSERT INTO public.profiles (id, email, full_name, role, created_at, updated_at)
+SELECT 
+  u.id,
+  u.email,
+  COALESCE(u.raw_user_meta_data->>'full_name', u.raw_user_meta_data->>'name', SPLIT_PART(u.email, '@', 1), 'User') AS full_name,
+  CASE 
+    WHEN LOWER(TRIM(COALESCE(u.email, ''))) IN ('mehmood@gmail.com', 'detox16277@gmail.com', 'demo@overplast.com', 'admin@overplast.com', 'mahmood@gmail.com') THEN 'admin'
+    WHEN (u.raw_user_meta_data->>'role') IN ('therapist', 'technician', 'user') THEN (u.raw_user_meta_data->>'role')
+    ELSE 'therapist'
+  END AS role,
+  COALESCE(u.created_at, NOW()) AS created_at,
+  NOW() AS updated_at
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.profiles p WHERE p.id = u.id
+);
+
+-- RLS Policies on profiles
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow authenticated read profiles" ON public.profiles;
+CREATE POLICY "Allow authenticated read profiles" ON public.profiles FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Allow anon read profiles" ON public.profiles;
+CREATE POLICY "Allow anon read profiles" ON public.profiles FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "Allow individual update own profile" ON public.profiles;
+CREATE POLICY "Allow individual update own profile" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Allow individual insert own profile" ON public.profiles;
+CREATE POLICY "Allow individual insert own profile" ON public.profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);`;
 
   const handleCopySql = () => {
     navigator.clipboard.writeText(sqlQuickCode);
@@ -1266,11 +1416,43 @@ ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;`;
 
                   {/* Registered Profiles List container */}
                   <div className="flex-1 w-full space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Registered Clinical Accounts ({profilesList.length})</span>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                      <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                        Registered Clinical Accounts ({profilesList.length})
+                      </span>
+                      <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                        <button
+                          type="button"
+                          onClick={() => setDomainFilter('all')}
+                          className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-lg transition-all ${
+                            domainFilter === 'all'
+                              ? 'bg-white text-slate-900 shadow-sm'
+                              : 'text-slate-500 hover:text-slate-900'
+                          }`}
+                        >
+                          All Accounts ({profilesList.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDomainFilter('legacy')}
+                          className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-lg transition-all ${
+                            domainFilter === 'legacy'
+                              ? 'bg-amber-500 text-white shadow-sm'
+                              : 'text-amber-700 hover:text-amber-900'
+                          }`}
+                        >
+                          Safe Delete Review (@overplast.com) (
+                          {
+                            profilesList.filter((u: any) =>
+                              (u.email || getOrGenerateUserEmail(u)).toLowerCase().trim().endsWith('@overplast.com')
+                            ).length
+                          }
+                          )
+                        </button>
+                      </div>
                       <button 
                         onClick={loadProfiles} 
-                        className="text-[10px] font-black text-blue-650 text-blue-600 uppercase tracking-widest hover:underline"
+                        className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline"
                       >
                         Force Refresh
                       </button>
@@ -1288,13 +1470,24 @@ ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;`;
                         </div>
                       ) : (
                         <div className="divide-y divide-slate-100 text-left">
-                          {profilesList.map((usr: any) => (
+                          {profilesList
+                            .filter((usr: any) => {
+                              if (domainFilter === 'legacy') {
+                                const email = (usr.email || getOrGenerateUserEmail(usr)).toLowerCase().trim();
+                                return email.endsWith('@overplast.com');
+                              }
+                              return true;
+                            })
+                            .map((usr: any) => (
                             <div key={usr.id} className="p-4 hover:bg-slate-50 flex items-center justify-between gap-4">
                               <div className="min-w-0 flex-1">
-                                <p className="text-xs font-black text-slate-900 truncate flex items-center gap-1.5">
+                                <p className="text-xs font-black text-slate-900 truncate flex items-center gap-1.5 flex-wrap">
                                   {usr.full_name || 'Unnamed clinical staff'}
                                   {usr.id === loggedInProfile?.id && (
-                                    <span className="bg-blue-50 text-blue-750 text-blue-700 text-[8px] font-black uppercase px-2 py-0.5 rounded-md border border-blue-100">Active Admin</span>
+                                    <span className="bg-blue-50 text-blue-700 text-[8px] font-black uppercase px-2 py-0.5 rounded-md border border-blue-100">Active Admin</span>
+                                  )}
+                                  {((usr.email && usr.email.toLowerCase().trim().endsWith('@overplast.com')) || (getOrGenerateUserEmail(usr).toLowerCase().trim().endsWith('@overplast.com'))) && (
+                                    <span className="bg-amber-50 text-amber-800 text-[8px] font-black uppercase px-2 py-0.5 rounded-md border border-amber-200">Legacy/Alternate Domain</span>
                                   )}
                                 </p>
                                 <div className="mt-1 space-y-1">
@@ -1331,6 +1524,11 @@ ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;`;
                                         >
                                           {getOrGenerateUserEmail(usr)}
                                         </span>
+                                        {((usr.email && usr.email.toLowerCase().trim().endsWith('@overplast.com')) || (getOrGenerateUserEmail(usr).toLowerCase().trim().endsWith('@overplast.com'))) && (
+                                          <span className="bg-amber-100/80 text-amber-900 text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded border border-amber-300">
+                                            Legacy/Alternate Domain
+                                          </span>
+                                        )}
                                         <button
                                           onClick={() => {
                                             setEditingEmailUserId(usr.id);
@@ -1388,14 +1586,30 @@ ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;`;
                                     )}
                                   </div>
                                 </div>
-                                <span className="text-[9px] font-bold text-slate-400 uppercase block mt-1">
-                                  Joined Clinical: {usr.created_at ? new Date(usr.created_at).toLocaleDateString() : 'N/A'}
-                                </span>
+                                <div className="flex flex-wrap items-center gap-2 mt-1">
+                                  <span className="text-[9px] font-bold text-slate-400 uppercase">
+                                    Joined: {usr.created_at ? new Date(usr.created_at).toLocaleDateString() : 'N/A'}
+                                  </span>
+                                  <span className="text-[9px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60" title="Supabase User UUID">
+                                    ID: {usr.id}
+                                  </span>
+                                </div>
                               </div>
                               
                               <div className="flex items-center gap-2.5 shrink-0">
                                 {/* Role Assignment Dropdown selector */}
-                                {usr.id !== loggedInProfile?.id ? (
+                                {usr.role === 'admin' || usr.email === 'mehmood@gmail.com' || usr.id === '9905a6da-912f-4cf0-8dfc-cc108d224ed8' || usr.id === loggedInProfile?.id ? (
+                                  <span className={cn(
+                                    "inline-flex items-center px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0",
+                                    usr.role === 'admin' || usr.email === 'mehmood@gmail.com'
+                                      ? "bg-purple-50 text-purple-700 border border-purple-100" 
+                                      : usr.role === 'therapist'
+                                      ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                                      : "bg-blue-50 text-blue-700 border border-blue-100"
+                                  )}>
+                                    {usr.role === 'admin' || usr.email === 'mehmood@gmail.com' ? 'Administrator' : usr.role === 'therapist' ? 'Therapist (user)' : 'Technician (user)'}
+                                  </span>
+                                ) : (
                                   <select
                                     value={usr.role || 'therapist'}
                                     disabled={updatingUserRole === usr.id}
@@ -1406,21 +1620,10 @@ ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;`;
                                     <option value="therapist">Therapist (user)</option>
                                     <option value="technician">Technician (user)</option>
                                   </select>
-                                ) : (
-                                  <span className={cn(
-                                    "inline-flex items-center px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0",
-                                    usr.role === 'admin' 
-                                      ? "bg-purple-50 text-purple-700 border border-purple-100" 
-                                      : usr.role === 'therapist'
-                                      ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                                      : "bg-blue-50 text-blue-700 border border-blue-100"
-                                  )}>
-                                    {usr.role === 'admin' ? 'Administrator' : usr.role === 'therapist' ? 'Therapist (user)' : 'Technician (user)'}
-                                  </span>
                                 )}
 
                                 {/* Delete Staff Profile Action */}
-                                {usr.id !== loggedInProfile?.id && (
+                                {usr.role !== 'admin' && usr.email !== 'mehmood@gmail.com' && usr.id !== '9905a6da-912f-4cf0-8dfc-cc108d224ed8' && usr.id !== loggedInProfile?.id && (
                                   <button
                                     onClick={() => handleDeleteUserAccount(usr.id, usr.full_name || 'Unnamed clinical staff')}
                                     disabled={deletingUserId === usr.id}
@@ -1735,7 +1938,7 @@ ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;`;
       {/* Custom Confirmation Modal for safe deletion in sandbox iframe environments */}
       {userToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl border border-slate-100 transform scale-100 transition-all">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 transform scale-100 transition-all">
             <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-red-500 mb-4 border border-red-100">
               <AlertTriangle className="w-6 h-6 text-red-500" />
             </div>
@@ -1745,23 +1948,69 @@ ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;`;
             </h3>
             
             <p className="text-xs text-slate-500 mt-2 font-medium leading-relaxed">
-              Kya aap waqai <strong className="text-slate-800 font-bold">"{userToDelete.name}"</strong> ka account record Clinical Database se delete karna chahte hain? Is se in ka entry aur access foran khatam ho jayega.
+              Are you sure you want to permanently delete this clinical staff account? This will remove access from Supabase Authentication and public profiles.
             </p>
+
+            {/* Target Account Identity Card */}
+            <div className="mt-4 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 font-bold uppercase text-[10px]">Name:</span>
+                <span className="font-bold text-slate-800">{userToDelete.name}</span>
+              </div>
+              {userToDelete.email && (
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 font-bold uppercase text-[10px]">Email:</span>
+                  <span className="font-mono font-bold text-slate-700">{userToDelete.email}</span>
+                </div>
+              )}
+              {userToDelete.role && (
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 font-bold uppercase text-[10px]">Role:</span>
+                  <span className="font-bold text-slate-700 capitalize">{userToDelete.role}</span>
+                </div>
+              )}
+              <div className="flex flex-col gap-1 pt-1.5 border-t border-slate-200/60">
+                <span className="text-slate-400 font-bold uppercase text-[9px]">Account ID (UUID):</span>
+                <span className="font-mono text-[10px] text-slate-600 bg-white px-2 py-1 rounded border border-slate-200 select-all break-all">
+                  {userToDelete.id}
+                </span>
+              </div>
+            </div>
+
+            {/* Error Banner if deletion fails */}
+            {deleteError && (
+              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-2 text-xs text-red-700 font-medium">
+                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-bold text-red-800 uppercase text-[10px] tracking-wide">Deletion Failed</p>
+                  <p className="text-[11px] mt-0.5 leading-relaxed">{deleteError}</p>
+                </div>
+              </div>
+            )}
 
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
+                disabled={!!deletingUserId}
                 onClick={() => setUserToDelete(null)}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-slate-200"
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-slate-200 cursor-pointer disabled:opacity-50"
               >
                 No, Keep It
               </button>
               <button
                 type="button"
+                disabled={!!deletingUserId}
                 onClick={executeDeleteUserAccount}
-                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-red-100 border border-red-700"
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-red-100 border border-red-700 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
-                Yes, Delete
+                {deletingUserId === userToDelete.id ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  "Yes, Delete"
+                )}
               </button>
             </div>
           </div>

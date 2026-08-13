@@ -33,15 +33,35 @@ export const setLastSupabaseError = (val: any) => {
   lastSupabaseError = val;
 };
 
+// Default production Supabase credentials for seamless login across all devices and browsers
+const DEFAULT_SUPABASE_URL = 'https://avltksamccylkfgpfgea.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2bHRrc2FtY2N5bGtmZ3BmZ2VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MTQ4OTAsImV4cCI6MjA5MzI5MDg5MH0.l4yvuUxXmKyBoVqaOR5xIkApmDsvHC2J_ANlei5qTuI';
+
 // Retrieve credentials from environment variables or custom localStorage overrides
 const getSupabaseConfig = () => {
-  const localUrl = localStorage.getItem('VITE_SUPABASE_URL');
-  const localKey = localStorage.getItem('VITE_SUPABASE_ANON_KEY');
+  let localUrl = '';
+  let localKey = '';
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localUrl = localStorage.getItem('VITE_SUPABASE_URL') || '';
+      localKey = localStorage.getItem('VITE_SUPABASE_ANON_KEY') || '';
+    }
+  } catch {}
+
   const envUrl = import.meta.env.VITE_SUPABASE_URL;
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
   
-  const url = localUrl || envUrl || '';
-  const key = localKey || envKey || '';
+  const url = (localUrl && !localUrl.includes('placeholder') && !localUrl.includes('your_supabase_project_url')) 
+    ? localUrl 
+    : (envUrl && !envUrl.includes('placeholder') && !envUrl.includes('your_supabase_project_url')) 
+      ? envUrl 
+      : DEFAULT_SUPABASE_URL;
+
+  const key = (localKey && !localKey.includes('placeholder')) 
+    ? localKey 
+    : (envKey && !envKey.includes('placeholder')) 
+      ? envKey 
+      : DEFAULT_SUPABASE_ANON_KEY;
   
   return { url, key };
 };
@@ -169,11 +189,16 @@ export const updateCurrentUserContext = (id: string | null, email: string | null
   if (fullName) currentUserName = fullName;
 };
 
+export const ADMIN_USER_IDS = [
+  '9905a6da-912f-4cf0-8dfc-cc108d224ed8',
+  'demo-user-123'
+];
+
 export const ADMIN_EMAILS = [
   'mehmood@gmail.com',
   'detox16277@gmail.com',
   'demo@overplast.com',
-  'mahmood@gmail.com'
+  'admin@overplast.com'
 ];
 
 export const checkIsAdmin = (
@@ -198,11 +223,15 @@ export const isRecordCreatedByAdmin = (record: any): boolean => {
   const creatorRole = (record.created_by_role || record.creator_role || '').toLowerCase().trim();
   if (creatorRole === 'admin') return true;
 
-  // 2. Creator email check
+  // 2. Check creator ID against known admin user IDs
+  const creatorId = String(record.created_by || record.therapist_id || record.user_id || '').trim();
+  if (creatorId && ADMIN_USER_IDS.includes(creatorId)) return true;
+
+  // 3. Creator email check
   const creatorEmail = (record.created_by_email || record.email || '').toLowerCase().trim();
   if (creatorEmail && (ADMIN_EMAILS.includes(creatorEmail) || creatorEmail.includes('mehmood') || creatorEmail.includes('detox16277') || creatorEmail.includes('overplast.com'))) return true;
 
-  // 3. Creator / assessor / therapist name check
+  // 4. Creator / assessor / therapist name check
   const creatorName = (record.created_by_name || '').toLowerCase().trim();
   const assessorName = (record.assessor_name || '').toLowerCase().trim();
   const therapistName = (record.therapist_name || '').toLowerCase().trim();
@@ -211,8 +240,21 @@ export const isRecordCreatedByAdmin = (record: any): boolean => {
   if (assessorName && (assessorName.includes('mahmood') || assessorName.includes('mehmood') || assessorName.includes('admin') || assessorName === 'dr. mahmood')) return true;
   if (therapistName && (therapistName.includes('mahmood') || therapistName.includes('mehmood') || therapistName.includes('admin') || therapistName === 'dr. mahmood')) return true;
 
-  // 4. Admin demo user ID
-  if (record.created_by === 'demo-user-123' || record.therapist_id === 'demo-user-123') return true;
+  // 5. Dynamic check against stored demo_profiles
+  try {
+    const stored = localStorage.getItem('demo_profiles');
+    if (stored) {
+      const list = JSON.parse(stored);
+      if (Array.isArray(list)) {
+        for (const p of list) {
+          if (p && p.role === 'admin') {
+            if (creatorId && p.id === creatorId) return true;
+            if (creatorEmail && p.email && p.email.toLowerCase().trim() === creatorEmail) return true;
+          }
+        }
+      }
+    }
+  } catch {}
 
   return false;
 };
@@ -865,25 +907,36 @@ export const dbService = {
     },
     async getById(id: string) {
       if (isPatientDeleted(id)) return null;
+      let patient: Patient | null = null;
       if (isDemo) {
         const list = getLocalStoragePatients();
-        return list.find(p => p.id === id) || null;
-      }
-      try {
-        const { data, error } = await supabase.from('patients').select('*').eq('id', id).single();
-        if (error) {
-          if (error.code === '42P01' || error.message?.includes('does not exist')) {
-            isPatientsTableMissingState = true;
+        patient = list.find(p => p.id === id) || null;
+      } else {
+        try {
+          const { data, error } = await supabase.from('patients').select('*').eq('id', id).single();
+          if (error) {
+            if (error.code === '42P01' || error.message?.includes('does not exist')) {
+              isPatientsTableMissingState = true;
+            }
+            throw error;
           }
-          throw error;
+          isPatientsTableMissingState = false;
+          patient = (data as Patient) || null;
+        } catch (err: any) {
+          console.warn('Could not fetch from Supabase. Sourcing from LocalStorage:', err);
+          const list = getLocalStoragePatients();
+          patient = list.find(p => p.id === id) || null;
         }
-        isPatientsTableMissingState = false;
-        return (data as Patient) || null;
-      } catch (err: any) {
-        console.warn('Could not fetch from Supabase. Sourcing from LocalStorage:', err);
-        const list = getLocalStoragePatients();
-        return list.find(p => p.id === id) || null;
       }
+
+      if (!patient) return null;
+
+      const context = getActiveUserContext();
+      if (!context.isAdmin && !isRecordOwnedByCurrentUser(patient, context)) {
+        return null;
+      }
+
+      return patient;
     },
     async delete(id: string) {
       const cleanId = String(id || '').trim();
@@ -1405,35 +1458,8 @@ export const testSupabaseConnection = testSupabaseSync;
 // Global Sync helper functions for clinical user profiles to allow robust cross-device login
 const sanitizeProfileObj = (p: any) => {
   if (!p || typeof p !== 'object') return p;
-  let email = (p.email || '').trim();
-  const fullName = (p.full_name || '').trim();
-  const fullNameLower = fullName.toLowerCase();
-  const isAdminOrMahmood = p.role === 'admin' || fullNameLower.includes('mahmood') || fullNameLower.includes('mehmood');
-
-  if (isAdminOrMahmood) {
-    let cleanName = (p.full_name || '').trim();
-    if (!cleanName || cleanName.toLowerCase().includes('dr. mahmood') || cleanName.toLowerCase().includes('dr. mehmood') || cleanName.toLowerCase().includes('dr mahmood') || cleanName.toLowerCase().includes('dr mehmood') || cleanName === 'Mahmood Admin' || cleanName === 'Mahmood' || cleanName === 'Mehmood') {
-      cleanName = 'Mahmood Ahmed';
-    }
-    return {
-      ...p,
-      full_name: cleanName,
-      role: 'admin',
-      email: email && !email.includes('overplast') && email !== 'ahmed@gmail.com' ? email : 'mehmood@gmail.com',
-      password: p.password && p.password !== 'ahmed123' && p.password !== 'mehmood123' ? p.password : '12345678'
-    };
-  }
-
-  const namePart = (p.full_name || 'user').trim().split(' ').pop() || 'user';
-  const cleanName = namePart.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-  if (!email) {
-    email = `${cleanName || 'user'}@gmail.com`;
-  } else if (email.toLowerCase().endsWith('@overplast.com') && email.toLowerCase() !== 'demo@overplast.com') {
-    email = email.replace(/@overplast\.com$/i, '@gmail.com');
-  }
-
-  const password = p.password || `${cleanName || 'user'}123`;
+  let email = (p.email || '').trim().toLowerCase();
+  let password = p.password ? String(p.password).trim() : '';
 
   return {
     ...p,
@@ -1444,26 +1470,53 @@ const sanitizeProfileObj = (p: any) => {
 
 export const syncClinicalProfilesFromServer = async (): Promise<any[]> => {
   try {
+    let adminToken = '';
+    try {
+      const sessionRes = await supabase.auth.getSession();
+      adminToken = sessionRes.data.session?.access_token || '';
+    } catch {}
+
+    // First try the full sync endpoint
+    const syncRes = await fetch("/api/admin/sync-accounts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        supabaseUrl,
+        supabaseAnonKey,
+        adminToken
+      })
+    }).catch(() => null);
+
+    if (syncRes && syncRes.ok) {
+      const syncData = await syncRes.json().catch(() => ({}));
+      if (Array.isArray(syncData.profiles) && syncData.profiles.length > 0) {
+        const sanitized = syncData.profiles.map(sanitizeProfileObj);
+        // Deduplicate strictly by unique Account ID (UUID)
+        const dedupedMap = new Map();
+        sanitized.forEach((p: any) => {
+          if (p && p.id) {
+            dedupedMap.set(p.id, p);
+          }
+        });
+        const dedupedList = Array.from(dedupedMap.values());
+        localStorage.setItem('demo_profiles', JSON.stringify(dedupedList));
+        return dedupedList;
+      }
+    }
+
+    // Fallback to /api/get-profiles
     const res = await fetch("/api/get-profiles");
     if (res.ok) {
       const serverProfiles = await res.json();
       if (Array.isArray(serverProfiles) && serverProfiles.length > 0) {
-        const stored = localStorage.getItem('demo_profiles');
-        const localProfiles = stored ? JSON.parse(stored) : [];
-        
-        const mergedMap = new Map();
-        
-        // Load local ones
-        localProfiles.forEach((p: any) => {
-          if (p && p.id) mergedMap.set(p.id, sanitizeProfileObj(p));
-        });
-        
-        // Server ones take precedence and override
+        const dedupedMap = new Map();
         serverProfiles.forEach((p: any) => {
-          if (p && p.id) mergedMap.set(p.id, sanitizeProfileObj(p));
+          if (p && p.id) {
+            dedupedMap.set(p.id, sanitizeProfileObj(p));
+          }
         });
         
-        const mergedList = Array.from(mergedMap.values()).map(sanitizeProfileObj);
+        const mergedList = Array.from(dedupedMap.values()).map(sanitizeProfileObj);
         localStorage.setItem('demo_profiles', JSON.stringify(mergedList));
         return mergedList;
       }
@@ -1473,7 +1526,13 @@ export const syncClinicalProfilesFromServer = async (): Promise<any[]> => {
   }
   const stored = localStorage.getItem('demo_profiles');
   const list = stored ? JSON.parse(stored) : [];
-  return list.map(sanitizeProfileObj);
+  const dedupedMap = new Map();
+  list.forEach((p: any) => {
+    if (p && p.id) {
+      dedupedMap.set(p.id, sanitizeProfileObj(p));
+    }
+  });
+  return Array.from(dedupedMap.values());
 };
 
 export const saveClinicalProfilesToServer = async (profiles: any[]): Promise<boolean> => {

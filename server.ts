@@ -4,6 +4,7 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import fs from "fs";
+import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
 
@@ -14,16 +15,65 @@ async function startServer() {
   // Middleware for parsing large payloads (images and clinical data)
   app.use(express.json({ limit: '50mb' }));
 
+  // Atomic and retry-safe JSON file I/O helpers to prevent read-during-write races or partial reads
+  const safeReadJson = (filePath: string) => {
+    if (!fs.existsSync(filePath)) return null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const content = fs.readFileSync(filePath, "utf-8");
+        if (!content || !content.trim()) {
+          if (attempt < 2) {
+            const start = Date.now();
+            while (Date.now() - start < 50) {}
+            continue;
+          }
+          return null;
+        }
+        return JSON.parse(content);
+      } catch (err) {
+        if (attempt < 2) {
+          const start = Date.now();
+          while (Date.now() - start < 50) {}
+          continue;
+        }
+        const backupPath = filePath + ".bak";
+        if (fs.existsSync(backupPath)) {
+          try {
+            const bakContent = fs.readFileSync(backupPath, "utf-8");
+            return JSON.parse(bakContent);
+          } catch {}
+        }
+        console.warn(`[safeReadJson] Error reading ${filePath}:`, err);
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const safeWriteJson = (filePath: string, data: any) => {
+    const tmpPath = `${filePath}.tmp.${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const bakPath = filePath + ".bak";
+    const strData = JSON.stringify(data, null, 2);
+
+    fs.writeFileSync(tmpPath, strData, "utf-8");
+
+    if (fs.existsSync(filePath)) {
+      try {
+        fs.copyFileSync(filePath, bakPath);
+      } catch {}
+    }
+
+    fs.renameSync(tmpPath, filePath);
+  };
+
   // Shared Database config read/write endpoints to sync credentials across all devices
   const CONFIG_FILE_PATH = path.join(process.cwd(), "supabase-config.json");
 
   app.get("/api/get-config", (req, res) => {
     try {
       let config = { url: "", key: "" };
-      if (fs.existsSync(CONFIG_FILE_PATH)) {
-        const fileContent = fs.readFileSync(CONFIG_FILE_PATH, "utf-8");
-        config = JSON.parse(fileContent);
-      }
+      const parsed = safeReadJson(CONFIG_FILE_PATH);
+      if (parsed) config = parsed;
       
       // Fallback to server-side env vars if config file is empty
       const url = config.url || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
@@ -41,7 +91,7 @@ async function startServer() {
       const { url, key } = req.body;
       const config = { url: url?.trim() || "", key: key?.trim() || "" };
       
-      fs.writeFileSync(CONFIG_FILE_PATH, JSON.stringify(config, null, 2), "utf-8");
+      safeWriteJson(CONFIG_FILE_PATH, config);
       
       // Also update environment variables in-memory
       if (config.url) {
@@ -63,37 +113,12 @@ async function startServer() {
 
   const sanitizeProfilesList = (list: any[]) => {
     if (!Array.isArray(list)) return [];
-    return list.map((p) => {
+    
+    // First map to sanitized object preserving genuine emails and UUIDs
+    const mapped = list.map((p) => {
       if (!p || typeof p !== "object") return p;
-      let email = (p.email || "").trim();
-      const fullName = (p.full_name || "").trim();
-      const fullNameLower = fullName.toLowerCase();
-      const isAdminOrMahmood = p.role === "admin" || fullNameLower.includes("mahmood") || fullNameLower.includes("mehmood");
-
-      if (isAdminOrMahmood) {
-        let cleanName = (p.full_name || "").trim();
-        if (!cleanName || cleanName.toLowerCase().includes("dr. mahmood") || cleanName.toLowerCase().includes("dr. mehmood") || cleanName.toLowerCase().includes("dr mahmood") || cleanName.toLowerCase().includes("dr mehmood") || cleanName === "Mahmood Admin" || cleanName === "Mahmood" || cleanName === "Mehmood") {
-          cleanName = "Mahmood Ahmed";
-        }
-        return {
-          ...p,
-          full_name: cleanName,
-          role: "admin",
-          email: email && !email.includes("overplast") && email !== "ahmed@gmail.com" ? email : "mehmood@gmail.com",
-          password: p.password && p.password !== "ahmed123" && p.password !== "mehmood123" ? p.password : "12345678"
-        };
-      }
-
-      let namePart = (p.full_name || "user").trim().split(" ").pop() || "user";
-      let cleanName = namePart.toLowerCase().replace(/[^a-z0-9]/g, "");
-
-      if (!email) {
-        email = `${cleanName || "user"}@gmail.com`;
-      } else if (email.toLowerCase().endsWith("@overplast.com") && email.toLowerCase() !== "demo@overplast.com") {
-        email = email.replace(/@overplast\.com$/i, "@gmail.com");
-      }
-
-      let password = p.password || `${cleanName || "user"}123`;
+      let email = (p.email || "").trim().toLowerCase();
+      let password = p.password ? String(p.password).trim() : "";
 
       return {
         ...p,
@@ -101,16 +126,29 @@ async function startServer() {
         password
       };
     });
+
+    // Deduplicate so there is strictly ONE row per unique Account ID (UUID)
+    const dedupedMap = new Map();
+    mapped.forEach((p) => {
+      if (p && p.id) {
+        const key = p.id;
+        if (!dedupedMap.has(key)) {
+          dedupedMap.set(key, p);
+        } else {
+          // Merge preserving fields
+          const existing = dedupedMap.get(key);
+          dedupedMap.set(key, { ...existing, ...p });
+        }
+      }
+    });
+
+    return Array.from(dedupedMap.values());
   };
 
   app.get("/api/get-profiles", (req, res) => {
     try {
-      let profiles = [];
-      if (fs.existsSync(PROFILES_FILE_PATH)) {
-        const fileContent = fs.readFileSync(PROFILES_FILE_PATH, "utf-8");
-        profiles = JSON.parse(fileContent);
-      }
-      const sanitized = sanitizeProfilesList(profiles);
+      const profiles = safeReadJson(PROFILES_FILE_PATH) || [];
+      const sanitized = sanitizeProfilesList(Array.isArray(profiles) ? profiles : []);
       res.json(sanitized);
     } catch (error) {
       console.error("Failed to read clinical profiles:", error);
@@ -125,11 +163,743 @@ async function startServer() {
         return res.status(400).json({ error: "Invalid data format. Expected array." });
       }
       const sanitized = sanitizeProfilesList(profiles);
-      fs.writeFileSync(PROFILES_FILE_PATH, JSON.stringify(sanitized, null, 2), "utf-8");
+      safeWriteJson(PROFILES_FILE_PATH, sanitized);
       res.json({ success: true, message: "Clinical profiles updated successfully on server." });
     } catch (error) {
       console.error("Failed to save clinical profiles:", error);
       res.status(500).json({ error: "Failed to save clinical profiles on server" });
+    }
+  });
+
+  // Clinical profiles helper for Supabase
+  function getSupabaseServerClient(customConfig?: { url?: string; key?: string; serviceRoleKey?: string; token?: string }) {
+    let url = customConfig?.url || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
+    let anonKey = customConfig?.key || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
+    let serviceRoleKey = customConfig?.serviceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+
+    if (fs.existsSync(CONFIG_FILE_PATH)) {
+      try {
+        const fileContent = fs.readFileSync(CONFIG_FILE_PATH, "utf-8");
+        const parsed = JSON.parse(fileContent);
+        if (parsed.url && !url) url = parsed.url;
+        if (parsed.key && !anonKey) anonKey = parsed.key;
+        if (parsed.serviceRoleKey && !serviceRoleKey) serviceRoleKey = parsed.serviceRoleKey;
+      } catch {}
+    }
+
+    const keyToUse = serviceRoleKey || anonKey;
+    if (!url || !keyToUse || url.includes("placeholder") || url.includes("your_supabase_project_url")) {
+      return null;
+    }
+
+    const globalHeaders: Record<string, string> = {};
+    if (customConfig?.token && !serviceRoleKey) {
+      globalHeaders["Authorization"] = `Bearer ${customConfig.token}`;
+    }
+
+    return {
+      client: createClient(url, keyToUse, {
+        auth: { persistSession: false, autoRefreshToken: false },
+        global: Object.keys(globalHeaders).length > 0 ? { headers: globalHeaders } : undefined
+      }),
+      isAdmin: !!serviceRoleKey,
+      url,
+      anonKey,
+      serviceRoleKey,
+      key: keyToUse,
+      token: customConfig?.token
+    };
+  }
+
+  // Admin Account Management: Create User in Supabase Auth and public.profiles
+  app.post("/api/admin/create-user", async (req, res) => {
+    try {
+      const { email, password, full_name, role, clinic_id, supabaseUrl, supabaseAnonKey, supabaseServiceRoleKey, adminToken, isDemo } = req.body;
+      if (!email || !password || !full_name) {
+        return res.status(400).json({ error: "Missing required fields (email, password, full_name)" });
+      }
+
+      const emailClean = email.toLowerCase().trim();
+      const nameClean = full_name.trim();
+      const passwordClean = password.trim();
+      const roleClean = (role || "therapist").toLowerCase().trim();
+      const clinicId = clinic_id || null;
+
+      if (passwordClean.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters long." });
+      }
+
+      // 1. Resolve Supabase client
+      const sb = getSupabaseServerClient({
+        url: supabaseUrl,
+        key: supabaseAnonKey,
+        serviceRoleKey: supabaseServiceRoleKey,
+        token: adminToken
+      });
+
+      // Handle pure offline / demo mode
+      if (!sb) {
+        if (isDemo) {
+          const demoUserId = "demo-user-" + Math.random().toString(36).substring(2, 11);
+          const demoProfile = {
+            id: demoUserId,
+            full_name: nameClean,
+            role: roleClean,
+            email: emailClean,
+            password: passwordClean,
+            clinic_id: clinicId,
+            created_at: new Date().toISOString()
+          };
+
+          const existingProfiles = safeReadJson(PROFILES_FILE_PATH) || [];
+          const filtered = Array.isArray(existingProfiles) 
+            ? existingProfiles.filter(p => p && p.id !== demoUserId && (p.email || "").toLowerCase().trim() !== emailClean)
+            : [];
+          const updatedProfiles = sanitizeProfilesList([demoProfile, ...filtered]);
+          safeWriteJson(PROFILES_FILE_PATH, updatedProfiles);
+
+          return res.json({
+            success: true,
+            verified: true,
+            user: demoProfile,
+            message: `User ${nameClean} created in local offline demo mode.`
+          });
+        }
+
+        return res.status(400).json({
+          error: "Supabase connection is not configured on the server. Please verify your Supabase URL and Anon Key."
+        });
+      }
+
+      let createdUserId: string | null = null;
+      let authUserObject: any = null;
+      let isExistingAuthUser = false;
+
+      // 2. CHECK OR CREATE AUTH USER in auth.users
+      if (sb.isAdmin) {
+        try {
+          // Check if user already exists in auth.users first (fetching up to 1000 users)
+          const { data: listData } = await sb.client.auth.admin.listUsers({ page: 1, perPage: 1000 });
+          const existing = (listData?.users || []).find((u: any) => (u.email || '').toLowerCase().trim() === emailClean);
+          if (existing) {
+            console.log(`[Admin User Creation] User with email ${emailClean} already exists in auth.users (UUID: ${existing.id}). Preventing duplicate creation.`);
+            return res.status(400).json({ error: `An account with email "${emailClean}" already exists in Supabase Auth.` });
+          }
+        } catch (findErr) {
+          console.warn("User lookup in auth.users notice:", findErr);
+        }
+
+        if (!createdUserId) {
+          try {
+            const { data: adminData, error: adminErr } = await sb.client.auth.admin.createUser({
+              email: emailClean,
+              password: passwordClean,
+              email_confirm: true,
+              user_metadata: {
+                full_name: nameClean,
+                name: nameClean,
+                role: roleClean,
+                password: passwordClean
+              }
+            });
+
+            if (adminErr) {
+              const errMsg = (adminErr.message || '').toLowerCase();
+              if (errMsg.includes('already registered') || errMsg.includes('email_exists') || errMsg.includes('already exists')) {
+                return res.status(400).json({ error: `An account with email "${emailClean}" already exists in Supabase Auth.` });
+              }
+              console.error("Supabase Admin createUser error:", adminErr);
+              return res.status(400).json({ error: `Supabase Auth error: ${adminErr.message}` });
+            } else if (adminData?.user) {
+              createdUserId = adminData.user.id;
+              authUserObject = adminData.user;
+            }
+          } catch (e: any) {
+            console.error("Admin createUser exception:", e);
+            return res.status(500).json({ error: `Admin Auth creation failed: ${e.message}` });
+          }
+        }
+      } else {
+        // Anon key client mode
+        const localProfiles = safeReadJson(PROFILES_FILE_PATH) || [];
+        const localMatch = localProfiles.find(p => (p.email || '').toLowerCase().trim() === emailClean);
+
+        try {
+          const tempClient = createClient(sb.url, sb.anonKey || sb.key, {
+            auth: { persistSession: false, autoRefreshToken: false }
+          });
+
+          const { data: signUpData, error: signUpErr } = await tempClient.auth.signUp({
+            email: emailClean,
+            password: passwordClean,
+            options: {
+              data: {
+                full_name: nameClean,
+                name: nameClean,
+                role: roleClean,
+                password: passwordClean
+              }
+            }
+          });
+
+          if (signUpData?.user?.id && (!signUpData.user.identities || signUpData.user.identities.length > 0)) {
+            createdUserId = signUpData.user.id;
+            authUserObject = signUpData.user;
+          } else if (signUpErr || (signUpData?.user && signUpData.user.identities?.length === 0)) {
+            const errMsg = (signUpErr?.message || '').toLowerCase();
+            const isAlreadyReg = errMsg.includes('already registered') || errMsg.includes('email_exists') || (signUpData?.user && signUpData.user.identities?.length === 0);
+
+            if (isAlreadyReg) {
+              // Existing Auth user
+              if (localMatch?.id) {
+                createdUserId = localMatch.id;
+                isExistingAuthUser = true;
+              } else {
+                // Try credentials check to discover UUID without changing password
+                try {
+                  const { data: signInData } = await tempClient.auth.signInWithPassword({
+                    email: emailClean,
+                    password: passwordClean
+                  });
+                  if (signInData?.user?.id) {
+                    createdUserId = signInData.user.id;
+                    authUserObject = signInData.user;
+                    isExistingAuthUser = true;
+                  }
+                } catch {}
+              }
+            }
+
+            if (!createdUserId) {
+              if (signUpErr) {
+                return res.status(400).json({ error: `Supabase Auth signUp failed: ${signUpErr.message}` });
+              }
+            }
+          }
+        } catch (e: any) {
+          console.error("SignUp exception:", e);
+          return res.status(500).json({ error: `Auth registration failed: ${e.message}` });
+        }
+      }
+
+      if (!createdUserId) {
+        return res.status(400).json({ error: "Supabase Auth did not return a valid user ID." });
+      }
+
+      const insertClient = sb.client;
+
+      // 3. CHECK public.profiles FOR EXISTING PROFILE RECORD
+      let existingProfileInDb: any = null;
+      try {
+        const { data: found } = await insertClient
+          .from("profiles")
+          .select("*")
+          .eq("id", createdUserId)
+          .maybeSingle();
+        if (found) existingProfileInDb = found;
+      } catch (checkErr) {
+        console.warn("Profile lookup check notice:", checkErr);
+      }
+
+      // CASE 1: User exists in auth.users AND profile exists in public.profiles
+      if (isExistingAuthUser && existingProfileInDb) {
+        console.log(`[Admin User Creation] Case 1: User ${emailClean} already exists in auth.users & public.profiles.`);
+        
+        const resolvedProfile = {
+          id: createdUserId,
+          full_name: existingProfileInDb.full_name || nameClean,
+          role: existingProfileInDb.role || roleClean,
+          email: emailClean,
+          password: passwordClean,
+          ...existingProfileInDb,
+          created_at: existingProfileInDb.created_at || new Date().toISOString()
+        };
+
+        // Update clinical-profiles.json
+        const existingProfiles = safeReadJson(PROFILES_FILE_PATH) || [];
+        const filtered = Array.isArray(existingProfiles) 
+          ? existingProfiles.filter(p => p && p.id !== createdUserId && (p.email || "").toLowerCase().trim() !== emailClean)
+          : [];
+        const updatedProfiles = sanitizeProfilesList([resolvedProfile, ...filtered]);
+        safeWriteJson(PROFILES_FILE_PATH, updatedProfiles);
+
+        return res.json({
+          success: true,
+          verified: true,
+          already_exists: true,
+          user: resolvedProfile,
+          message: `User account "${emailClean}" already exists in Supabase Authentication and public.profiles. Synchronized successfully without modifying existing login credentials.`
+        });
+      }
+
+      // CASE 2 OR NEW USER: Create / Repair missing public.profiles record
+      console.log(`[Admin User Creation] ${isExistingAuthUser ? 'Case 2: Repairing missing profile for existing user' : 'Creating profile for new user'}: UUID ${createdUserId}`);
+      
+      const primaryProfilePayload: any = {
+        id: createdUserId,
+        full_name: nameClean,
+        role: roleClean,
+        clinic_id: clinicId
+      };
+
+      let profileInsertError: any = null;
+      try {
+        const { error: upsertErr } = await insertClient
+          .from("profiles")
+          .upsert(primaryProfilePayload, { onConflict: "id" });
+
+        if (upsertErr) {
+          console.warn("Primary profile upsert warning:", upsertErr.message);
+          profileInsertError = upsertErr;
+        }
+      } catch (pe: any) {
+        console.error("Profile insert exception:", pe);
+        profileInsertError = pe;
+      }
+
+      // If table supports email or password columns, try to enrich them gracefully
+      try {
+        await insertClient
+          .from("profiles")
+          .update({ email: emailClean, password: passwordClean })
+          .eq("id", createdUserId);
+      } catch {}
+
+      // 4. VERIFY PROFILE CREATION IN public.profiles
+      let verifiedProfile: any = null;
+      for (let attempt = 1; attempt <= 4; attempt++) {
+        try {
+          let { data: foundProfile } = await insertClient
+            .from("profiles")
+            .select("*")
+            .eq("id", createdUserId)
+            .maybeSingle();
+
+          if (!foundProfile) {
+            const uuidQuery = await insertClient
+              .from("profiles")
+              .select("*")
+              .eq("uuid", createdUserId)
+              .maybeSingle();
+            if (uuidQuery.data) foundProfile = uuidQuery.data;
+          }
+
+          if (foundProfile && (foundProfile.id === createdUserId || foundProfile.uuid === createdUserId)) {
+            verifiedProfile = foundProfile;
+            console.log(`[Admin User Creation] Step 2: Verified profile in public.profiles:`, verifiedProfile.id || verifiedProfile.uuid);
+            break;
+          }
+        } catch (qe) {
+          console.warn(`Profile verification query attempt ${attempt} notice:`, qe);
+        }
+
+        if (attempt < 4) {
+          await new Promise((resolve) => setTimeout(resolve, 350));
+        }
+      }
+
+      // 5. HANDLE VERIFICATION FAILURE - DO NOT SHOW FAKE SUCCESS
+      if (!verifiedProfile) {
+        const errorDetail = profileInsertError?.message || "Profile record was not found in public.profiles table after insertion. Please verify Row Level Security policies or run supabase-schema.sql.";
+        console.error(`[Admin User Creation] FAILED: Auth user (${createdUserId}), but profile was NOT created/verified in public.profiles.`);
+        
+        return res.status(500).json({
+          error: isExistingAuthUser
+            ? `Existing Auth account was preserved (UUID: ${createdUserId}), but public.profiles record could not be created/verified. Supabase Error: ${errorDetail}`
+            : `User account was created in Supabase Auth (Auth UUID: ${createdUserId}), but profile creation in public.profiles failed or could not be verified. Supabase Error: ${errorDetail}`,
+          authUserId: createdUserId,
+          partialFailure: true
+        });
+      }
+
+      // 6. SUCCESS CONFIRMED: Update local backup and respond
+      const finalProfile = {
+        id: createdUserId,
+        full_name: nameClean,
+        role: roleClean,
+        email: emailClean,
+        password: passwordClean,
+        ...verifiedProfile,
+        created_at: verifiedProfile.created_at || new Date().toISOString()
+      };
+
+      // Update clinical-profiles.json
+      let existingProfiles: any[] = [];
+      if (fs.existsSync(PROFILES_FILE_PATH)) {
+        try {
+          const content = fs.readFileSync(PROFILES_FILE_PATH, "utf-8");
+          existingProfiles = JSON.parse(content);
+        } catch {}
+      }
+      const filtered = Array.isArray(existingProfiles) 
+        ? existingProfiles.filter(p => p && p.id !== createdUserId && (p.email || "").toLowerCase().trim() !== emailClean)
+        : [];
+      const updatedProfiles = sanitizeProfilesList([finalProfile, ...filtered]);
+      fs.writeFileSync(PROFILES_FILE_PATH, JSON.stringify(updatedProfiles, null, 2), "utf-8");
+
+      res.json({
+        success: true,
+        verified: true,
+        repaired: isExistingAuthUser,
+        user: finalProfile,
+        message: isExistingAuthUser
+          ? `Existing Supabase Auth account found (UUID: ${createdUserId}). Successfully created and verified missing public.profiles record for ${nameClean} (${emailClean})!`
+          : `User ${nameClean} (${emailClean}) successfully created in Supabase Auth and confirmed in public.profiles!`
+      });
+    } catch (error: any) {
+      console.error("Failed to create user on server:", error);
+      res.status(500).json({ error: error.message || "Failed to create user account" });
+    }
+  });
+
+  // Admin Account Management: Auto-Synchronize and Repair All Auth Accounts & Profiles
+  app.post("/api/admin/sync-accounts", async (req, res) => {
+    try {
+      const { supabaseUrl, supabaseAnonKey, supabaseServiceRoleKey, adminToken } = req.body;
+      const sb = getSupabaseServerClient({
+        url: supabaseUrl,
+        key: supabaseAnonKey,
+        serviceRoleKey: supabaseServiceRoleKey,
+        token: adminToken
+      });
+
+      const localProfiles = safeReadJson(PROFILES_FILE_PATH) || [];
+
+      if (!sb) {
+        return res.json({
+          success: true,
+          count: localProfiles.length,
+          profiles: localProfiles,
+          message: "Local profiles loaded (Offline/Demo Mode)."
+        });
+      }
+
+      // 1. Fetch DB profiles
+      const { data: dbProfiles } = await sb.client.from("profiles").select("*");
+      const dbProfilesList = dbProfiles || [];
+      const dbProfileMap = new Map();
+      
+      // Clean up any stale duplicate admin profiles in DB if present
+      for (const p of dbProfilesList) {
+        if (p?.id) {
+          const isStaleAdmin = (p.id === '2eef0ed7-079c-4ca6-bad5-9c24b22de97e') || 
+            (p.role === 'admin' && p.id !== '9905a6da-912f-4cf0-8dfc-cc108d224ed8' && p.id !== 'demo-user-123');
+          if (isStaleAdmin) {
+            try {
+              await sb.client.from("profiles").delete().eq("id", p.id);
+            } catch {}
+          } else {
+            dbProfileMap.set(p.id, p);
+          }
+        }
+      }
+
+      // 2. If Admin key available, query auth.users to find any users missing profiles
+      let authUsers: any[] = [];
+      if (sb.isAdmin) {
+        try {
+          const { data: listData } = await sb.client.auth.admin.listUsers({ page: 1, perPage: 1000 });
+          authUsers = listData?.users || [];
+        } catch (authListErr) {
+          console.warn("Could not list auth users in sync endpoint:", authListErr);
+        }
+      }
+
+      // 3. For any auth user missing in public.profiles, create their profile with SAME UUID
+      for (const au of authUsers) {
+        if (au && au.id) {
+          const fallbackName = au.user_metadata?.full_name || au.user_metadata?.name || (au.email ? au.email.split('@')[0] : 'Clinical User');
+          const fallbackRole = au.user_metadata?.role || (au.email === 'mehmood@gmail.com' ? 'admin' : 'therapist');
+          try {
+            if (!dbProfileMap.has(au.id)) {
+              const { error: createProfErr } = await sb.client.from("profiles").upsert({
+                id: au.id,
+                full_name: fallbackName,
+                role: fallbackRole,
+                clinic_id: null
+              }, { onConflict: "id" });
+
+              if (!createProfErr) {
+                dbProfileMap.set(au.id, {
+                  id: au.id,
+                  full_name: fallbackName,
+                  role: fallbackRole,
+                  clinic_id: null,
+                  created_at: au.created_at || new Date().toISOString()
+                });
+              }
+            }
+          } catch {}
+        }
+      }
+
+      // 4. Build synchronized list based strictly on real Supabase Auth users (and public.profiles)
+      const accountMap = new Map<string, any>();
+      const authEmailMap = new Map<string, any>();
+      for (const au of authUsers) {
+        if (au && au.email) {
+          authEmailMap.set(au.email.toLowerCase().trim(), au);
+        }
+      }
+
+      // 1) Auth users are master source of account identity (UUID + email)
+      for (const au of authUsers) {
+        if (au && au.id) {
+          const dbP = dbProfileMap.get(au.id);
+          const localMatch = localProfiles.find(lp => lp.id === au.id || (lp.email && au.email && lp.email.toLowerCase().trim() === au.email.toLowerCase().trim()));
+
+          const fallbackName = dbP?.full_name || au.user_metadata?.full_name || au.user_metadata?.name || localMatch?.full_name || (au.email ? au.email.split('@')[0] : 'Clinical User');
+          const fallbackRole = dbP?.role || au.user_metadata?.role || localMatch?.role || (au.email === 'mehmood@gmail.com' ? 'admin' : 'therapist');
+
+          accountMap.set(au.id, {
+            ...localMatch,
+            ...dbP,
+            id: au.id,
+            email: au.email || dbP?.email || localMatch?.email || '',
+            full_name: fallbackName,
+            role: fallbackRole,
+            password: localMatch?.password || dbP?.password || ''
+          });
+        }
+      }
+
+      // 2) DB profiles not in authUsers
+      dbProfileMap.forEach((dbP, id) => {
+        if (id && !accountMap.has(id)) {
+          const dbEmailClean = (dbP.email || '').toLowerCase().trim();
+          const authMatch = dbEmailClean ? authEmailMap.get(dbEmailClean) : null;
+          if (authMatch) {
+            const existing = accountMap.get(authMatch.id) || {};
+            accountMap.set(authMatch.id, {
+              ...existing,
+              ...dbP,
+              id: authMatch.id,
+              email: authMatch.email,
+              full_name: dbP.full_name || existing.full_name || 'Clinical User',
+              role: dbP.role || existing.role || 'therapist'
+            });
+          } else {
+            const localMatch = localProfiles.find(lp => lp.id === id || (lp.email && dbP.email && lp.email.toLowerCase().trim() === dbP.email.toLowerCase().trim()));
+            accountMap.set(id, {
+              ...localMatch,
+              ...dbP,
+              id,
+              email: dbP.email || localMatch?.email || '',
+              full_name: dbP.full_name || localMatch?.full_name || 'Clinical User',
+              role: dbP.role || localMatch?.role || 'therapist',
+              password: dbP.password || localMatch?.password || ''
+            });
+          }
+        }
+      });
+
+      // 3) Local profiles not in authUsers or dbProfiles
+      for (const lp of localProfiles) {
+        if (lp && lp.id) {
+          const lpEmailClean = (lp.email || '').toLowerCase().trim();
+          const authMatch = lpEmailClean ? authEmailMap.get(lpEmailClean) : null;
+          if (authMatch) {
+            const existing = accountMap.get(authMatch.id) || {};
+            accountMap.set(authMatch.id, {
+              ...existing,
+              ...lp,
+              id: authMatch.id,
+              email: authMatch.email,
+              full_name: lp.full_name || existing.full_name || 'Clinical User',
+              role: lp.role || existing.role || 'therapist'
+            });
+          } else if (!accountMap.has(lp.id)) {
+            accountMap.set(lp.id, {
+              ...lp,
+              id: lp.id,
+              email: lp.email || '',
+              full_name: lp.full_name || 'Clinical User',
+              role: lp.role || 'therapist',
+              password: lp.password || ''
+            });
+          }
+        }
+      }
+
+      const combined = Array.from(accountMap.values());
+
+      // Write strictly active profiles to clinical-profiles.json
+      const sanitized = sanitizeProfilesList(combined);
+      safeWriteJson(PROFILES_FILE_PATH, sanitized);
+
+      res.json({
+        success: true,
+        count: sanitized.length,
+        profiles: sanitized,
+        message: "Clinical accounts and public.profiles synchronized successfully."
+      });
+    } catch (err: any) {
+      console.error("Error in /api/admin/sync-accounts:", err);
+      res.status(500).json({ error: err.message || "Failed to synchronize accounts" });
+    }
+  });
+
+  // Admin Account Management: Update User Password via Supabase Auth Admin API
+  app.post("/api/admin/update-user-password", async (req, res) => {
+    try {
+      const { userId, email, password, supabaseUrl, supabaseAnonKey, adminToken } = req.body;
+      if (!userId || !password) {
+        return res.status(400).json({ error: "Missing required fields: userId and password are required." });
+      }
+
+      const passwordClean = String(password).trim();
+      const userUuid = String(userId).trim();
+
+      const sb = getSupabaseServerClient({
+        url: supabaseUrl,
+        key: supabaseAnonKey,
+        token: adminToken
+      });
+
+      if (!sb) {
+        return res.status(500).json({ error: "Supabase server client not configured" });
+      }
+
+      if (!sb.isAdmin) {
+        return res.status(400).json({ 
+          error: "Service Role Key is missing on the server. Unable to update password in Supabase Auth. Please configure SUPABASE_SERVICE_ROLE_KEY in your server environment." 
+        });
+      }
+
+      // Execute Supabase Auth Admin API updateUserById
+      const { data: adminData, error: adminErr } = await sb.client.auth.admin.updateUserById(userUuid, { password: passwordClean });
+
+      if (adminErr) {
+        console.error(`[Supabase Auth Admin] Error resetting password for user UUID ${userUuid}:`, adminErr.message);
+        return res.status(400).json({ error: adminErr.message });
+      }
+
+      console.log(`[Supabase Auth Admin] Successfully updated password via admin.updateUserById for user UUID: ${userUuid}`);
+
+      // Sync local profiles persistence (clinical-profiles.json) so Manage Accounts reflects new password on refresh/logout
+      const existingProfiles = safeReadJson(PROFILES_FILE_PATH);
+      if (Array.isArray(existingProfiles)) {
+        const updated = existingProfiles.map((p: any) => {
+          if (p && (p.id === userUuid || String(p.id).trim() === userUuid)) {
+            return { ...p, password: passwordClean };
+          }
+          return p;
+        });
+        safeWriteJson(PROFILES_FILE_PATH, sanitizeProfilesList(updated));
+      }
+
+      return res.json({
+        success: true,
+        message: "Supabase Auth password successfully updated via Admin API.",
+        user: adminData.user
+      });
+    } catch (err: any) {
+      console.error("Error in /api/admin/update-user-password:", err);
+      res.status(500).json({ error: err.message || "Failed to update user password" });
+    }
+  });
+
+  // Admin Account Management: Delete User
+  app.post("/api/admin/delete-user", async (req, res) => {
+    try {
+      const { userId, supabaseUrl, supabaseServiceRoleKey } = req.body;
+      if (!userId || typeof userId !== 'string') {
+        return res.status(400).json({ error: "Missing or invalid userId UUID" });
+      }
+
+      const cleanUserId = userId.trim();
+
+      const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const isUuid = (str: string) => typeof str === 'string' && UUID_REGEX.test(str.trim());
+
+      if (!isUuid(cleanUserId)) {
+        return res.status(400).json({ error: "Invalid userId: User deletion requires a valid auth.users.id UUID." });
+      }
+
+      if (cleanUserId === '9905a6da-912f-4cf0-8dfc-cc108d224ed8' || cleanUserId === 'demo-user-123') {
+        return res.status(403).json({ error: "The primary Administrator account cannot be deleted." });
+      }
+
+      // Dedicated Supabase Admin client initialized ONLY with URL and Service Role Key (no user JWT/access tokens)
+      let url = supabaseUrl || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
+      let serviceRoleKey = supabaseServiceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+
+      if (fs.existsSync(CONFIG_FILE_PATH)) {
+        try {
+          const fileContent = fs.readFileSync(CONFIG_FILE_PATH, "utf-8");
+          const parsed = JSON.parse(fileContent);
+          if (parsed.url && !url) url = parsed.url;
+          if (parsed.serviceRoleKey && !serviceRoleKey) serviceRoleKey = parsed.serviceRoleKey;
+        } catch {}
+      }
+
+      if (!url || !serviceRoleKey) {
+        return res.status(500).json({ error: "SUPABASE_SERVICE_ROLE_KEY is required on server for Auth deletion." });
+      }
+
+      // Pure Admin client strictly for Auth Admin API operations
+      const adminClient = createClient(url, serviceRoleKey, {
+        auth: { persistSession: false, autoRefreshToken: false }
+      });
+
+      // Check if user is primary administrator by email
+      try {
+        const { data: userData } = await adminClient.auth.admin.getUserById(cleanUserId);
+        if (userData?.user?.email) {
+          const emLower = userData.user.email.toLowerCase().trim();
+          if (emLower === 'mehmood@gmail.com' || emLower === 'detox16277@gmail.com') {
+            return res.status(403).json({ error: "The primary Administrator account cannot be deleted." });
+          }
+        }
+      } catch (getErr) {
+        console.warn("[Admin Delete User] getUserById pre-check notice:", getErr);
+      }
+
+      // 1. Delete exact Supabase Auth user using dedicated Admin API
+      console.log(`[Admin Delete User] Attempting auth.admin.deleteUser for UUID: ${cleanUserId}`);
+      const { error: deleteAuthErr } = await adminClient.auth.admin.deleteUser(cleanUserId);
+      if (deleteAuthErr) {
+        const errStr = (deleteAuthErr.message || '').toLowerCase();
+        const isNotFound = errStr.includes("not found") || (deleteAuthErr as any).status === 404;
+        if (!isNotFound) {
+          console.error(`[Admin Delete User] Error deleting user UUID ${cleanUserId} in Supabase Auth:`, deleteAuthErr.message);
+          return res.status(400).json({ error: deleteAuthErr.message || "Failed to delete user in Supabase Auth" });
+        } else {
+          console.log(`[Admin Delete User] User UUID ${cleanUserId} not found in Auth (already deleted). Proceeding with public.profiles cleanup.`);
+        }
+      }
+
+      // 2. Verify that the user no longer exists in Supabase Auth using getUserById
+      try {
+        const { data: verifyAuthData, error: verifyAuthErr } = await adminClient.auth.admin.getUserById(cleanUserId);
+        if (!verifyAuthErr && verifyAuthData?.user) {
+          console.error(`[Admin Delete User] Auth deletion verification failed: User ${cleanUserId} still exists in Supabase Auth.`);
+          return res.status(400).json({ error: "Verification failed: User still exists in Supabase Auth after deletion attempt." });
+        }
+      } catch (vErr: any) {
+        console.warn(`[Admin Delete User] Auth post-deletion check notice for ${cleanUserId}:`, vErr?.message);
+      }
+
+      // 3. ONLY after successful Auth deletion, delete the matching public.profiles record strictly by UUID
+      console.log(`[Admin Delete User] Auth deletion confirmed for ${cleanUserId}. Deleting matching public.profiles row...`);
+      const { error: deleteProfileErr } = await adminClient.from("profiles").delete().eq("id", cleanUserId);
+      if (deleteProfileErr) {
+        console.warn(`[Admin Delete User] public.profiles deletion notice for ${cleanUserId}:`, deleteProfileErr.message);
+      }
+
+      // 4. Update clinical-profiles.json persistence strictly by UUID
+      const existingToDelete = safeReadJson(PROFILES_FILE_PATH);
+      if (Array.isArray(existingToDelete)) {
+        const updated = existingToDelete.filter(p => p && p.id !== cleanUserId && String(p.id).trim() !== cleanUserId);
+        safeWriteJson(PROFILES_FILE_PATH, sanitizeProfilesList(updated));
+      }
+
+      console.log(`[Admin Delete User] Successfully deleted user UUID ${cleanUserId} from Supabase Auth and public.profiles.`);
+
+      return res.json({ success: true, message: "User deleted successfully from Supabase Auth and public.profiles." });
+    } catch (error: any) {
+      console.error("Failed to delete user:", error);
+      res.status(500).json({ error: error.message || "Failed to delete user" });
     }
   });
 
@@ -176,9 +946,8 @@ async function startServer() {
 
   app.get("/api/get-clinical-data", (req, res) => {
     try {
-      if (fs.existsSync(CLINICAL_DATA_FILE_PATH)) {
-        const content = fs.readFileSync(CLINICAL_DATA_FILE_PATH, "utf-8");
-        const parsed = JSON.parse(content);
+      const parsed = safeReadJson(CLINICAL_DATA_FILE_PATH);
+      if (parsed) {
         return res.json({
           patients: Array.isArray(parsed.patients) ? parsed.patients : [],
           assessments: Array.isArray(parsed.assessments) ? parsed.assessments : [],
@@ -203,14 +972,11 @@ async function startServer() {
       let currentDeletedAssessments: string[] = [];
       let currentDeletedOrders: string[] = [];
 
-      if (fs.existsSync(CLINICAL_DATA_FILE_PATH)) {
-        try {
-          const content = fs.readFileSync(CLINICAL_DATA_FILE_PATH, "utf-8");
-          const parsed = JSON.parse(content);
-          if (Array.isArray(parsed.deleted_patient_ids)) currentDeletedPatients = parsed.deleted_patient_ids;
-          if (Array.isArray(parsed.deleted_assessment_ids)) currentDeletedAssessments = parsed.deleted_assessment_ids;
-          if (Array.isArray(parsed.deleted_order_ids)) currentDeletedOrders = parsed.deleted_order_ids;
-        } catch {}
+      const parsed = safeReadJson(CLINICAL_DATA_FILE_PATH);
+      if (parsed) {
+        if (Array.isArray(parsed.deleted_patient_ids)) currentDeletedPatients = parsed.deleted_patient_ids;
+        if (Array.isArray(parsed.deleted_assessment_ids)) currentDeletedAssessments = parsed.deleted_assessment_ids;
+        if (Array.isArray(parsed.deleted_order_ids)) currentDeletedOrders = parsed.deleted_order_ids;
       }
 
       const delPatientSet = new Set(currentDeletedPatients.map(id => String(id).trim()));
@@ -238,7 +1004,7 @@ async function startServer() {
         deleted_order_ids: Array.from(delOrderSet),
         updated_at: new Date().toISOString()
       };
-      fs.writeFileSync(CLINICAL_DATA_FILE_PATH, JSON.stringify(dataToSave, null, 2), "utf-8");
+      safeWriteJson(CLINICAL_DATA_FILE_PATH, dataToSave);
       res.json({ success: true, message: "Clinical data saved successfully on server." });
     } catch (error) {
       console.error("Failed to save clinical data on server:", error);
@@ -259,17 +1025,14 @@ async function startServer() {
       let existingAssessments: any[] = [];
       let existingOrders: any[] = [];
 
-      if (fs.existsSync(CLINICAL_DATA_FILE_PATH)) {
-        try {
-          const content = fs.readFileSync(CLINICAL_DATA_FILE_PATH, "utf-8");
-          const current = JSON.parse(content);
-          if (Array.isArray(current.patients)) existingPatients = current.patients;
-          if (Array.isArray(current.assessments)) existingAssessments = current.assessments;
-          if (Array.isArray(current.orders)) existingOrders = current.orders;
-          if (Array.isArray(current.deleted_patient_ids)) currentDeletedPatients = current.deleted_patient_ids;
-          if (Array.isArray(current.deleted_assessment_ids)) currentDeletedAssessments = current.deleted_assessment_ids;
-          if (Array.isArray(current.deleted_order_ids)) currentDeletedOrders = current.deleted_order_ids;
-        } catch {}
+      const current = safeReadJson(CLINICAL_DATA_FILE_PATH);
+      if (current) {
+        if (Array.isArray(current.patients)) existingPatients = current.patients;
+        if (Array.isArray(current.assessments)) existingAssessments = current.assessments;
+        if (Array.isArray(current.orders)) existingOrders = current.orders;
+        if (Array.isArray(current.deleted_patient_ids)) currentDeletedPatients = current.deleted_patient_ids;
+        if (Array.isArray(current.deleted_assessment_ids)) currentDeletedAssessments = current.deleted_assessment_ids;
+        if (Array.isArray(current.deleted_order_ids)) currentDeletedOrders = current.deleted_order_ids;
       }
 
       const delSet = new Set(currentDeletedPatients.map(x => String(x).trim()));
@@ -288,7 +1051,7 @@ async function startServer() {
         deleted_order_ids: currentDeletedOrders,
         updated_at: new Date().toISOString()
       };
-      fs.writeFileSync(CLINICAL_DATA_FILE_PATH, JSON.stringify(updated, null, 2), "utf-8");
+      safeWriteJson(CLINICAL_DATA_FILE_PATH, updated);
 
       // Cascade delete across all tables in remote Supabase database
       await Promise.allSettled([
@@ -314,14 +1077,12 @@ async function startServer() {
       const targetId = String(id).trim();
 
       let currentDeletedAssessments: string[] = [];
-      let existing = { patients: [], assessments: [], orders: [], deleted_patient_ids: [], deleted_assessment_ids: [], deleted_order_ids: [] };
+      let existing: any = { patients: [], assessments: [], orders: [], deleted_patient_ids: [], deleted_assessment_ids: [], deleted_order_ids: [] };
 
-      if (fs.existsSync(CLINICAL_DATA_FILE_PATH)) {
-        try {
-          const content = fs.readFileSync(CLINICAL_DATA_FILE_PATH, "utf-8");
-          existing = JSON.parse(content);
-          if (Array.isArray(existing.deleted_assessment_ids)) currentDeletedAssessments = existing.deleted_assessment_ids;
-        } catch {}
+      const parsed = safeReadJson(CLINICAL_DATA_FILE_PATH);
+      if (parsed) {
+        existing = parsed;
+        if (Array.isArray(existing.deleted_assessment_ids)) currentDeletedAssessments = existing.deleted_assessment_ids;
       }
 
       const delSet = new Set(currentDeletedAssessments.map(x => String(x).trim()));
@@ -335,7 +1096,7 @@ async function startServer() {
         deleted_assessment_ids: Array.from(delSet),
         updated_at: new Date().toISOString()
       };
-      fs.writeFileSync(CLINICAL_DATA_FILE_PATH, JSON.stringify(updated, null, 2), "utf-8");
+      safeWriteJson(CLINICAL_DATA_FILE_PATH, updated);
 
       // Delete from remote Supabase database
       await deleteFromSupabaseRemote("assessments", "id", targetId);
@@ -354,14 +1115,12 @@ async function startServer() {
       const targetId = String(id).trim();
 
       let currentDeletedOrders: string[] = [];
-      let existing = { patients: [], assessments: [], orders: [], deleted_patient_ids: [], deleted_assessment_ids: [], deleted_order_ids: [] };
+      let existing: any = { patients: [], assessments: [], orders: [], deleted_patient_ids: [], deleted_assessment_ids: [], deleted_order_ids: [] };
 
-      if (fs.existsSync(CLINICAL_DATA_FILE_PATH)) {
-        try {
-          const content = fs.readFileSync(CLINICAL_DATA_FILE_PATH, "utf-8");
-          existing = JSON.parse(content);
-          if (Array.isArray(existing.deleted_order_ids)) currentDeletedOrders = existing.deleted_order_ids;
-        } catch {}
+      const parsed = safeReadJson(CLINICAL_DATA_FILE_PATH);
+      if (parsed) {
+        existing = parsed;
+        if (Array.isArray(existing.deleted_order_ids)) currentDeletedOrders = existing.deleted_order_ids;
       }
 
       const delSet = new Set(currentDeletedOrders.map(x => String(x).trim()));
@@ -375,7 +1134,7 @@ async function startServer() {
         deleted_order_ids: Array.from(delSet),
         updated_at: new Date().toISOString()
       };
-      fs.writeFileSync(CLINICAL_DATA_FILE_PATH, JSON.stringify(updated, null, 2), "utf-8");
+      safeWriteJson(CLINICAL_DATA_FILE_PATH, updated);
 
       // Delete from remote Supabase database
       await deleteFromSupabaseRemote("orders", "id", targetId);
