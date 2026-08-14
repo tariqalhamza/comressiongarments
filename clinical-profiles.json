@@ -4,7 +4,6 @@
     "email": "naeem@gmail.com",
     "full_name": "Naeem Shaikh",
     "role": "therapist",
-    "password": "naeem123",
     "clinic_id": null,
     "created_at": "2026-08-13T12:26:11.795225Z"
   },
@@ -13,7 +12,6 @@
     "email": "nasir@gmail.com",
     "full_name": "SAIMA NASIR",
     "role": "therapist",
-    "password": "",
     "clinic_id": null,
     "created_at": "2026-08-12T10:12:57.733126Z"
   },
@@ -22,7 +20,6 @@
     "email": "khan@gmail.com",
     "full_name": "KAHAN Multan",
     "role": "therapist",
-    "password": "multan12345",
     "clinic_id": null,
     "created_at": "2026-08-04T10:33:30.772141Z"
   },
@@ -31,7 +28,6 @@
     "email": "aqsa@gmail.com",
     "full_name": "AQSA",
     "role": "therapist",
-    "password": "aqsa123@@",
     "clinic_id": null,
     "created_at": "2026-06-21T11:33:28.917439Z"
   },
@@ -40,7 +36,6 @@
     "email": "aysha@gmail.com",
     "full_name": "AYSHA",
     "role": "therapist",
-    "password": "aysha123456",
     "clinic_id": null,
     "created_at": "2026-06-21T11:31:40.757209Z"
   },
@@ -49,7 +44,6 @@
     "email": "ahmed@gmail.com",
     "full_name": "Dr Ahmed",
     "role": "therapist",
-    "password": "ahmed12345",
     "clinic_id": null,
     "created_at": "2026-05-28T12:39:15.914902Z"
   },
@@ -58,7 +52,6 @@
     "email": "mehmood@gmail.com",
     "full_name": "Mahmood Ahmed",
     "role": "admin",
-    "password": "12345678",
     "clinic_id": null,
     "created_at": "2026-05-09T15:32:29.516693Z"
   }

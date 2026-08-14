@@ -58,12 +58,11 @@ const Settings: React.FC = () => {
   const sanitizeProfileItem = (p: any) => {
     if (!p || typeof p !== 'object') return p;
     let email = (p.email || '').trim().toLowerCase();
-    let password = p.password ? String(p.password).trim() : '';
+    const { password, ...cleanProfile } = p;
 
     return {
-      ...p,
-      email,
-      password
+      ...cleanProfile,
+      email
     };
   };
 
@@ -111,8 +110,7 @@ const Settings: React.FC = () => {
                 id: sanitizedDb.id,
                 full_name: sanitizedDb.full_name || existing.full_name || 'Clinical User',
                 role: sanitizedDb.role || existing.role || 'therapist',
-                email: sanitizedDb.email || existing.email || '',
-                password: sanitizedDb.password || existing.password || ''
+                email: sanitizedDb.email || existing.email || ''
               }));
             }
           });
@@ -153,20 +151,6 @@ const Settings: React.FC = () => {
   const [editingEmailUserId, setEditingEmailUserId] = useState<string | null>(null);
   const [tempEmailValue, setTempEmailValue] = useState('');
   const [domainFilter, setDomainFilter] = useState<'all' | 'legacy'>('all');
-
-  const getOrGenerateUserPassword = (usr: any) => {
-    if (usr?.password) return usr.password;
-    const fullNameLower = (usr?.full_name || '').toLowerCase().trim();
-    if (usr?.role === 'admin' || fullNameLower.includes('mahmood') || fullNameLower.includes('mehmood')) {
-      return '12345678';
-    }
-    
-    // Construct a sensible plain-text fallback password using the user's name
-    const namePart = (usr?.full_name || 'user').trim().split(' ').pop() || 'user';
-    const cleanName = namePart.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const fallbackPassword = `${cleanName || 'user'}123`;
-    return fallbackPassword;
-  };
 
   const getOrGenerateUserEmail = (usr: any) => {
     let email = (usr?.email || '').trim();
@@ -243,6 +227,11 @@ const Settings: React.FC = () => {
     const passwordClean = newPassword.trim();
     if (!passwordClean) return;
 
+    if (passwordClean.length < 6) {
+      alert("Password must be at least 6 characters.");
+      return;
+    }
+
     const targetUser = profilesList.find(p => p.id === userId);
     const userEmail = targetUser?.email || getOrGenerateUserEmail(targetUser);
     
@@ -265,35 +254,6 @@ const Settings: React.FC = () => {
         return;
       }
 
-      console.log("Supabase Auth password update succeeded via Admin API:", data);
-
-      // Update UI state and local/server profile stores so Manage Accounts displays the newly saved password
-      const updatedProfiles = profilesList.map(p => {
-        if (p.id === userId) {
-          return { ...p, password: passwordClean };
-        }
-        return p;
-      });
-      setProfilesList(updatedProfiles);
-
-      const stored = localStorage.getItem('demo_profiles');
-      if (stored) {
-        try {
-          const currentProfiles = JSON.parse(stored);
-          const updated = currentProfiles.map((p: any) => {
-            if (p.id === userId) {
-              return { ...p, password: passwordClean };
-            }
-            return p;
-          });
-          localStorage.setItem('demo_profiles', JSON.stringify(updated));
-        } catch (e) {
-          console.error("Error updating demo_profiles in localStorage:", e);
-        }
-      }
-
-      await saveClinicalProfilesToServer(updatedProfiles).catch(e => console.error("Server profiles sync error:", e));
-
       // If the logged in user is updating their own account password, sync auth session directly
       try {
         const currentUser = (await supabase.auth.getUser()).data.user;
@@ -305,6 +265,8 @@ const Settings: React.FC = () => {
       }
 
       setEditingPasswordUserId(null);
+      setTempPasswordValue('');
+      alert("Password successfully updated in Supabase Auth.");
     } catch (e: any) {
       alert(`Server connection error: ${e?.message || "Failed to update password"}`);
     }
@@ -534,8 +496,7 @@ const Settings: React.FC = () => {
                   data: { 
                     full_name: nameTrim,
                     name: nameTrim,
-                    role: newUserRole,
-                    password: passwordTrim
+                    role: newUserRole
                   }
                 }
               }),
@@ -601,13 +562,13 @@ const Settings: React.FC = () => {
             throw new Error(`User account was created in Supabase Auth (UUID: ${realUserId}), but profile creation in public.profiles failed or could not be verified. Supabase error: ${profileInsertErr?.message || 'Profile record not found in public.profiles table'}`);
           }
 
+          const { password: _p, ...cleanVerifiedRow } = verifiedRow;
           createdUserObj = {
             id: realUserId,
             full_name: nameTrim,
             role: newUserRole,
             email: emailTrim,
-            password: passwordTrim,
-            ...verifiedRow,
+            ...cleanVerifiedRow,
             created_at: verifiedRow.created_at || new Date().toISOString()
           };
           isVerified = true;
@@ -619,7 +580,6 @@ const Settings: React.FC = () => {
             full_name: nameTrim,
             role: newUserRole,
             email: emailTrim,
-            password: passwordTrim,
             created_at: new Date().toISOString()
           };
           isVerified = true;
@@ -1541,46 +1501,44 @@ CREATE POLICY "Allow individual insert own profile" ON public.profiles FOR INSER
                                       </div>
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold font-mono">
-                                    <span className="text-rose-500 font-extrabold text-[10px]">Password:</span> 
+                                  <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold">
                                     {editingPasswordUserId === usr.id ? (
-                                      <div className="flex items-center gap-1.5">
+                                      <div className="flex items-center gap-1.5 mt-0.5 bg-slate-50 p-1.5 rounded border border-slate-200">
+                                        <span className="text-slate-600 font-bold text-[10px]">New Password:</span>
                                         <input
-                                          type="text"
+                                          type="password"
+                                          placeholder="Min 6 characters"
                                           value={tempPasswordValue}
                                           onChange={(e) => setTempPasswordValue(e.target.value)}
-                                          className="bg-slate-50 border border-slate-300 px-1.5 py-0.5 rounded text-slate-800 text-[10px] w-32 outline-none focus:ring-1 focus:ring-blue-500/50"
+                                          className="bg-white border border-slate-300 px-2 py-0.5 rounded text-slate-800 text-[10px] w-36 outline-none focus:ring-1 focus:ring-blue-500"
                                           autoFocus
                                         />
                                         <button
                                           onClick={() => handleUpdateUserPassword(usr.id, tempPasswordValue)}
-                                          className="text-emerald-700 hover:text-emerald-800 font-black cursor-pointer px-1.5 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[9px] uppercase tracking-wider"
+                                          className="text-emerald-700 hover:text-emerald-800 font-bold cursor-pointer px-2 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[9px] uppercase tracking-wider"
                                         >
                                           Save
                                         </button>
                                         <button
-                                          onClick={() => setEditingPasswordUserId(null)}
-                                          className="text-slate-500 hover:text-slate-600 font-black cursor-pointer px-1.5 py-0.5 rounded bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[9px] uppercase tracking-wider"
+                                          onClick={() => {
+                                            setEditingPasswordUserId(null);
+                                            setTempPasswordValue('');
+                                          }}
+                                          className="text-slate-500 hover:text-slate-600 font-bold cursor-pointer px-2 py-0.5 rounded bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[9px] uppercase tracking-wider"
                                         >
                                           Cancel
                                         </button>
                                       </div>
                                     ) : (
                                       <div className="flex items-center gap-2">
-                                        <span 
-                                          className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-800 border border-slate-200/50 cursor-pointer select-all font-bold" 
-                                          title="Click to copy or double click to select"
-                                        >
-                                          {usr.password || getOrGenerateUserPassword(usr)}
-                                        </span>
                                         <button
                                           onClick={() => {
                                             setEditingPasswordUserId(usr.id);
-                                            setTempPasswordValue(usr.password || getOrGenerateUserPassword(usr));
+                                            setTempPasswordValue('');
                                           }}
-                                          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-extrabold text-[8px] uppercase tracking-wider"
+                                          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-bold text-[9px] uppercase tracking-wider inline-flex items-center gap-1"
                                         >
-                                          Edit
+                                          <Lock className="w-3 h-3" /> Change Password
                                         </button>
                                       </div>
                                     )}

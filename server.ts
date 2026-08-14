@@ -239,16 +239,15 @@ export function createApiApp() {
   const sanitizeProfilesList = (list: any[]) => {
     if (!Array.isArray(list)) return [];
     
-    // First map to sanitized object preserving genuine emails and UUIDs
+    // First map to sanitized object preserving genuine emails and UUIDs, STRIPPING ALL PASSWORDS
     const mapped = list.map((p) => {
       if (!p || typeof p !== "object") return p;
       let email = (p.email || "").trim().toLowerCase();
-      let password = p.password ? String(p.password).trim() : "";
+      const { password, ...cleanProfile } = p;
 
       return {
-        ...p,
-        email,
-        password
+        ...cleanProfile,
+        email
       };
     });
 
@@ -267,14 +266,15 @@ export function createApiApp() {
       }
     });
 
-    return Array.from(dedupedMap.values());
+    return Array.from(dedupedMap.values()).map(({ password, ...rest }: any) => rest);
   };
 
   app.get("/api/get-profiles", (req, res) => {
     try {
       const profiles = safeReadJson(PROFILES_FILE_PATH) || [];
       const sanitized = sanitizeProfilesList(Array.isArray(profiles) ? profiles : []);
-      res.json(sanitized);
+      const safe = sanitized.map(({ password, ...rest }: any) => rest);
+      res.json(safe);
     } catch (error) {
       console.error("Failed to read clinical profiles:", error);
       res.json([]);
@@ -371,7 +371,6 @@ export function createApiApp() {
             full_name: nameClean,
             role: roleClean,
             email: emailClean,
-            password: passwordClean,
             clinic_id: clinicId,
             created_at: new Date().toISOString()
           };
@@ -423,8 +422,7 @@ export function createApiApp() {
               user_metadata: {
                 full_name: nameClean,
                 name: nameClean,
-                role: roleClean,
-                password: passwordClean
+                role: roleClean
               }
             });
 
@@ -461,8 +459,7 @@ export function createApiApp() {
               data: {
                 full_name: nameClean,
                 name: nameClean,
-                role: roleClean,
-                password: passwordClean
+                role: roleClean
               }
             }
           });
@@ -530,13 +527,13 @@ export function createApiApp() {
       if (isExistingAuthUser && existingProfileInDb) {
         console.log(`[Admin User Creation] Case 1: User ${emailClean} already exists in auth.users & public.profiles.`);
         
+        const { password: _dbPass, ...cleanExistingDb } = existingProfileInDb;
         const resolvedProfile = {
           id: createdUserId,
           full_name: existingProfileInDb.full_name || nameClean,
           role: existingProfileInDb.role || roleClean,
           email: emailClean,
-          password: passwordClean,
-          ...existingProfileInDb,
+          ...cleanExistingDb,
           created_at: existingProfileInDb.created_at || new Date().toISOString()
         };
 
@@ -582,11 +579,11 @@ export function createApiApp() {
         profileInsertError = pe;
       }
 
-      // If table supports email or password columns, try to enrich them gracefully
+      // If table supports email column, try to enrich it gracefully
       try {
         await insertClient
           .from("profiles")
-          .update({ email: emailClean, password: passwordClean })
+          .update({ email: emailClean })
           .eq("id", createdUserId);
       } catch {}
 
@@ -637,14 +634,14 @@ export function createApiApp() {
         });
       }
 
-      // 6. SUCCESS CONFIRMED: Update local backup and respond
+      // 6. SUCCESS CONFIRMED: Update local backup and respond without password
+      const { password: _vp, ...cleanVerified } = verifiedProfile;
       const finalProfile = {
         id: createdUserId,
         full_name: nameClean,
         role: roleClean,
         email: emailClean,
-        password: passwordClean,
-        ...verifiedProfile,
+        ...cleanVerified,
         created_at: verifiedProfile.created_at || new Date().toISOString()
       };
 
@@ -776,19 +773,12 @@ export function createApiApp() {
 
           const fallbackName = dbP?.full_name || au.user_metadata?.full_name || au.user_metadata?.name || localMatch?.full_name || (au.email ? au.email.split('@')[0] : 'Clinical User');
           const fallbackRole = dbP?.role || au.user_metadata?.role || localMatch?.role || (au.email === 'mehmood@gmail.com' ? 'admin' : 'therapist');
-          
-          // Determine the user's plain-text password for Manage Accounts display
-          const auPassword = au.user_metadata?.password ? String(au.user_metadata.password).trim() : '';
-          const localPassword = localMatch?.password ? String(localMatch.password).trim() : '';
-          const dbPassword = dbP?.password ? String(dbP.password).trim() : '';
-          const resolvedPassword = auPassword || localPassword || dbPassword || '';
 
           accountMap.set(au.id, {
             id: au.id,
             email: au.email || dbP?.email || localMatch?.email || '',
             full_name: fallbackName,
             role: fallbackRole,
-            password: resolvedPassword,
             clinic_id: dbP?.clinic_id || null,
             created_at: au.created_at || dbP?.created_at || new Date().toISOString()
           });
@@ -814,13 +804,11 @@ export function createApiApp() {
           } else if (authUsers.length === 0) {
             // When Service Role Key is not used and auth listing is unavailable, use DB profiles as source of truth
             const localMatch = localProfiles.find((lp: any) => lp && (lp.id === id || (lp.email && dbP.email && lp.email.toLowerCase().trim() === dbP.email.toLowerCase().trim())));
-            const resolvedPassword = localMatch?.password || dbP?.password || '';
             accountMap.set(id, {
               id,
               email: dbP.email || localMatch?.email || '',
               full_name: dbP.full_name || localMatch?.full_name || 'Clinical User',
               role: dbP.role || localMatch?.role || 'therapist',
-              password: resolvedPassword,
               clinic_id: dbP.clinic_id || null,
               created_at: dbP.created_at || new Date().toISOString()
             });
@@ -879,7 +867,7 @@ export function createApiApp() {
         });
       }
 
-      // Fetch existing user metadata so we preserve other fields while storing updated password
+      // Fetch existing user metadata so we preserve other fields
       let currentMetadata: any = {};
       try {
         const { data: uData } = await sb.client.auth.admin.getUserById(userUuid);
@@ -890,11 +878,13 @@ export function createApiApp() {
         console.warn("[Admin Update Password] getUserById notice:", getMetaErr);
       }
 
+      // Ensure plain-text password is not stored in user_metadata
+      const { password: _metaPass, ...cleanMetadata } = currentMetadata;
+
       // Execute Supabase Auth Admin API updateUserById
-      const updatedMetadata = { ...currentMetadata, password: passwordClean };
       const { data: adminData, error: adminErr } = await sb.client.auth.admin.updateUserById(userUuid, {
         password: passwordClean,
-        user_metadata: updatedMetadata
+        user_metadata: cleanMetadata
       });
 
       if (adminErr) {
@@ -904,35 +894,9 @@ export function createApiApp() {
 
       console.log(`[Supabase Auth Admin] Successfully updated password via admin.updateUserById for user UUID: ${userUuid}`);
 
-      // Try updating public.profiles password column if available
-      try {
-        await sb.client.from("profiles").update({ password: passwordClean }).eq("id", userUuid);
-      } catch {}
-
-      // Sync persistent server profiles (clinical-profiles.json) so Manage Accounts reflects new password on refresh/reload
-      const existingProfiles = safeReadJson(PROFILES_FILE_PATH);
-      let foundInFile = false;
-      const updated = (Array.isArray(existingProfiles) ? existingProfiles : []).map((p: any) => {
-        if (p && (p.id === userUuid || String(p.id).trim() === userUuid)) {
-          foundInFile = true;
-          return { ...p, password: passwordClean };
-        }
-        return p;
-      });
-      if (!foundInFile) {
-        updated.push({
-          id: userUuid,
-          email: email || '',
-          password: passwordClean
-        });
-      }
-      safeWriteJson(PROFILES_FILE_PATH, sanitizeProfilesList(updated));
-
       return res.json({
         success: true,
-        message: "Supabase Auth password successfully updated via Admin API.",
-        user: adminData.user,
-        newPassword: passwordClean
+        message: "Supabase Auth password successfully updated via Admin API."
       });
     } catch (err: any) {
       console.error("Error in /api/admin/update-user-password:", err);

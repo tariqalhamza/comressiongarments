@@ -4,62 +4,7 @@
     "email": "naeem@gmail.com",
     "full_name": "Naeem Shaikh",
     "role": "therapist",
-    "password": "naeem123",
     "clinic_id": null,
     "created_at": "2026-08-13T12:26:11.795225Z"
-  },
-  {
-    "id": "db55cbc6-689c-4082-8d25-02e03fa21bc2",
-    "email": "nasir@gmail.com",
-    "full_name": "SAIMA NASIR",
-    "role": "therapist",
-    "password": "",
-    "clinic_id": null,
-    "created_at": "2026-08-12T10:12:57.733126Z"
-  },
-  {
-    "id": "a36e17a6-2ab5-44d8-9e80-a240363f1a7a",
-    "email": "khan@gmail.com",
-    "full_name": "KAHAN Multan",
-    "role": "therapist",
-    "password": "multan12345",
-    "clinic_id": null,
-    "created_at": "2026-08-04T10:33:30.772141Z"
-  },
-  {
-    "id": "04ebdad1-e697-4ecc-b36a-b0c7c8b612a9",
-    "email": "aqsa@gmail.com",
-    "full_name": "AQSA",
-    "role": "therapist",
-    "password": "aqsa123@@",
-    "clinic_id": null,
-    "created_at": "2026-06-21T11:33:28.917439Z"
-  },
-  {
-    "id": "a5c52f67-b80a-4160-8b8f-8f1dd4ab295c",
-    "email": "aysha@gmail.com",
-    "full_name": "AYSHA",
-    "role": "therapist",
-    "password": "aysha123456",
-    "clinic_id": null,
-    "created_at": "2026-06-21T11:31:40.757209Z"
-  },
-  {
-    "id": "ce6b1d13-f6b7-474d-9b7e-e6d48170f087",
-    "email": "ahmed@gmail.com",
-    "full_name": "Dr Ahmed",
-    "role": "therapist",
-    "password": "ahmed12345",
-    "clinic_id": null,
-    "created_at": "2026-05-28T12:39:15.914902Z"
-  },
-  {
-    "id": "9905a6da-912f-4cf0-8dfc-cc108d224ed8",
-    "email": "mehmood@gmail.com",
-    "full_name": "Mahmood Ahmed",
-    "role": "admin",
-    "password": "12345678",
-    "clinic_id": null,
-    "created_at": "2026-05-09T15:32:29.516693Z"
   }
 ]

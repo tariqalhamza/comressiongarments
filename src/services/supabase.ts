@@ -1459,12 +1459,11 @@ export const testSupabaseConnection = testSupabaseSync;
 const sanitizeProfileObj = (p: any) => {
   if (!p || typeof p !== 'object') return p;
   let email = (p.email || '').trim().toLowerCase();
-  let password = p.password ? String(p.password).trim() : '';
+  const { password, ...cleanProfile } = p;
 
   return {
-    ...p,
-    email,
-    password
+    ...cleanProfile,
+    email
   };
 };
 
