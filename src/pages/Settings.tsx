@@ -20,6 +20,7 @@ import {
   ShieldAlert,
   Cloud,
   Key,
+  Lock,
   RefreshCw,
   CheckCircle2,
   XCircle,
