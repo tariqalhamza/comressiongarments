@@ -1,7 +1,6 @@
 import express from "express";
 import path from "path";
 import os from "os";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -50,17 +49,48 @@ export function getSupabaseAnonKey(): string {
 export function createApiApp() {
   const app = express();
 
+  // CORS headers for serverless & browser API access
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, apikey");
+    if (req.method === "OPTIONS") {
+      return res.status(200).end();
+    }
+    next();
+  });
+
   // Normalize paths for Netlify Functions rewrites (e.g., /.netlify/functions/api/admin/... -> /api/admin/...)
   app.use((req, res, next) => {
     if (req.url.startsWith("/.netlify/functions/api")) {
-      req.url = req.url.replace("/.netlify/functions/api", "/api");
+      req.url = req.url.replace(/^\/\.netlify\/functions\/api/, "/api") || "/api";
+      // If result is /api/api/..., collapse it
+      if (req.url.startsWith("/api/api/")) {
+        req.url = req.url.replace("/api/api/", "/api/");
+      }
     }
-    // Also handle direct function mounts without /api prefix
+    // Also handle direct function mounts or rewrites missing /api prefix
     if (!req.url.startsWith("/api") && !req.url.startsWith("/@") && !req.url.startsWith("/src") && req.url !== "/" && !req.url.includes(".")) {
-      const matchApi = ["/admin/", "/get-config", "/save-config", "/get-profiles", "/save-profiles", "/clinical-data", "/delete-", "/analyze-image", "/health"];
+      const matchApi = ["/admin/", "/get-config", "/save-config", "/get-profiles", "/save-profiles", "/get-clinical-data", "/save-clinical-data", "/clinical-data", "/delete-", "/analyze-image", "/health"];
       if (matchApi.some(prefix => req.url.startsWith(prefix))) {
         req.url = "/api" + req.url;
       }
+    }
+    next();
+  });
+
+  // Server-side audit logging for API requests (strictly logs boolean flags for secret presence, never actual keys)
+  app.use((req, res, next) => {
+    if (req.path.startsWith("/api/")) {
+      const hasServiceRoleKey = !!getServiceRoleKey();
+      const hasSupabaseUrl = !!getSupabaseUrl();
+      console.log(`[API Request Started] Method: ${req.method}, Path: ${req.path}, hasServiceRoleKey: ${hasServiceRoleKey}, hasSupabaseUrl: ${hasSupabaseUrl}`);
+      
+      const start = Date.now();
+      res.on("finish", () => {
+        const duration = Date.now() - start;
+        console.log(`[API Request Completed] Method: ${req.method}, Path: ${req.path} -> Status: ${res.statusCode} (${duration}ms)`);
+      });
     }
     next();
   });
@@ -1257,15 +1287,21 @@ export function createApiApp() {
     }
   });
 
-  // Gemini Initialization
-  const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
-      }
+  // Lazy Gemini Initialization
+  let aiClient: GoogleGenAI | null = null;
+  function getGeminiClient(): GoogleGenAI {
+    if (!aiClient) {
+      aiClient = new GoogleGenAI({
+        apiKey: process.env.GEMINI_API_KEY || "",
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
+      });
     }
-  });
+    return aiClient;
+  }
 
   // API Routes
   app.post("/api/analyze-image", async (req, res) => {
@@ -1289,6 +1325,7 @@ export function createApiApp() {
         Also provide a "Clinical Visual Summary" which is a clean, professional description of the visual condition shown (e.g., 'Mild edema present in the forearm area, normal skin tone, no visible ulcers').
       `;
 
+      const ai = getGeminiClient();
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: {
@@ -1344,6 +1381,7 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -1362,7 +1400,20 @@ async function startServer() {
   });
 }
 
-// Only start standalone server listener when not running as a serverless function handler
-if (!process.env.NETLIFY && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+// Only start standalone server listener when directly executing server.ts/server.cjs and NOT inside a serverless runtime
+const isServerlessEnv = !!(
+  process.env.NETLIFY || 
+  process.env.AWS_LAMBDA_FUNCTION_NAME || 
+  process.env.LAMBDA_TASK_ROOT || 
+  process.env.NETLIFY_FUNCTIONS ||
+  process.env.SERVERLESS
+);
+
+const isDirectExecution = !!(
+  process.argv[1] && 
+  (process.argv[1].endsWith('server.ts') || process.argv[1].endsWith('server.cjs') || process.argv[1].endsWith('server.js'))
+);
+
+if (isDirectExecution && !isServerlessEnv) {
   startServer();
 }
