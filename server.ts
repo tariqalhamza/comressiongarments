@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import os from "os";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
@@ -8,19 +9,89 @@ import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
 
-async function startServer() {
+// Helper to reliably read server-side environment variables regardless of deployment runtime (Node, Netlify Functions, Cloud Run)
+export function getServiceRoleKey(): string {
+  let key = process.env.SUPABASE_SERVICE_ROLE_KEY || 
+            process.env.SUPABASE_SERVICE_KEY || 
+            process.env.SERVICE_ROLE_KEY || 
+            process.env.SUPABASE_SECRET_KEY || 
+            "";
+  key = key.trim();
+  // Strip surrounding quotes if pasted with quotes
+  if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+    key = key.slice(1, -1).trim();
+  }
+  return key;
+}
+
+export function getSupabaseUrl(): string {
+  let url = process.env.VITE_SUPABASE_URL || 
+            process.env.SUPABASE_URL || 
+            "";
+  url = url.trim();
+  if ((url.startsWith('"') && url.endsWith('"')) || (url.startsWith("'") && url.endsWith("'"))) {
+    url = url.slice(1, -1).trim();
+  }
+  return url;
+}
+
+export function getSupabaseAnonKey(): string {
+  let key = process.env.VITE_SUPABASE_ANON_KEY || 
+            process.env.SUPABASE_ANON_KEY || 
+            process.env.SUPABASE_KEY || 
+            "";
+  key = key.trim();
+  if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+    key = key.slice(1, -1).trim();
+  }
+  return key;
+}
+
+export function createApiApp() {
   const app = express();
-  const PORT = 3000;
+
+  // Normalize paths for Netlify Functions rewrites (e.g., /.netlify/functions/api/admin/... -> /api/admin/...)
+  app.use((req, res, next) => {
+    if (req.url.startsWith("/.netlify/functions/api")) {
+      req.url = req.url.replace("/.netlify/functions/api", "/api");
+    }
+    // Also handle direct function mounts without /api prefix
+    if (!req.url.startsWith("/api") && !req.url.startsWith("/@") && !req.url.startsWith("/src") && req.url !== "/" && !req.url.includes(".")) {
+      const matchApi = ["/admin/", "/get-config", "/save-config", "/get-profiles", "/save-profiles", "/clinical-data", "/delete-", "/analyze-image", "/health"];
+      if (matchApi.some(prefix => req.url.startsWith(prefix))) {
+        req.url = "/api" + req.url;
+      }
+    }
+    next();
+  });
 
   // Middleware for parsing large payloads (images and clinical data)
   app.use(express.json({ limit: '50mb' }));
 
+  // Helper to determine writable file storage location across server and serverless environments
+  const getWritableFilePath = (filename: string) => {
+    const isServerless = !!(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
+    if (isServerless) {
+      return path.join(os.tmpdir(), filename);
+    }
+    return path.join(process.cwd(), filename);
+  };
+
   // Atomic and retry-safe JSON file I/O helpers to prevent read-during-write races or partial reads
   const safeReadJson = (filePath: string) => {
-    if (!fs.existsSync(filePath)) return null;
+    let targetPath = filePath;
+    if (!fs.existsSync(targetPath)) {
+      const tmpFallback = path.join(os.tmpdir(), path.basename(filePath));
+      if (fs.existsSync(tmpFallback)) {
+        targetPath = tmpFallback;
+      } else {
+        return null;
+      }
+    }
+
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const content = fs.readFileSync(filePath, "utf-8");
+        const content = fs.readFileSync(targetPath, "utf-8");
         if (!content || !content.trim()) {
           if (attempt < 2) {
             const start = Date.now();
@@ -51,23 +122,47 @@ async function startServer() {
   };
 
   const safeWriteJson = (filePath: string, data: any) => {
-    const tmpPath = `${filePath}.tmp.${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-    const bakPath = filePath + ".bak";
-    const strData = JSON.stringify(data, null, 2);
+    try {
+      const tmpPath = `${filePath}.tmp.${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      const bakPath = filePath + ".bak";
+      const strData = JSON.stringify(data, null, 2);
 
-    fs.writeFileSync(tmpPath, strData, "utf-8");
+      fs.writeFileSync(tmpPath, strData, "utf-8");
 
-    if (fs.existsSync(filePath)) {
-      try {
-        fs.copyFileSync(filePath, bakPath);
-      } catch {}
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.copyFileSync(filePath, bakPath);
+        } catch {}
+      }
+
+      fs.renameSync(tmpPath, filePath);
+    } catch (err: any) {
+      if (err && (err.code === 'EROFS' || err.code === 'EACCES')) {
+        // In read-only serverless environment (Netlify Lambda), save to /tmp
+        try {
+          const tmpFallback = path.join(os.tmpdir(), path.basename(filePath));
+          fs.writeFileSync(tmpFallback, JSON.stringify(data, null, 2), "utf-8");
+        } catch (tmpErr) {
+          console.warn("[safeWriteJson] Fallback write error:", tmpErr);
+        }
+      } else {
+        console.warn(`[safeWriteJson] Error writing ${filePath}:`, err);
+      }
     }
-
-    fs.renameSync(tmpPath, filePath);
   };
 
   // Shared Database config read/write endpoints to sync credentials across all devices
-  const CONFIG_FILE_PATH = path.join(process.cwd(), "supabase-config.json");
+  const CONFIG_FILE_PATH = getWritableFilePath("supabase-config.json");
+
+  // Health check endpoint for server environment & variable verification
+  app.get("/api/health", (req, res) => {
+    res.json({
+      status: "ok",
+      hasServiceRoleKey: !!getServiceRoleKey(),
+      hasSupabaseUrl: !!getSupabaseUrl(),
+      timestamp: new Date().toISOString()
+    });
+  });
 
   app.get("/api/get-config", (req, res) => {
     try {
@@ -76,8 +171,8 @@ async function startServer() {
       if (parsed) config = parsed;
       
       // Fallback to server-side env vars if config file is empty
-      const url = config.url || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
-      const key = config.key || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
+      const url = config.url || getSupabaseUrl() || "";
+      const key = config.key || getSupabaseAnonKey() || "";
       
       res.json({ url, key });
     } catch (error) {
@@ -109,7 +204,7 @@ async function startServer() {
   });
 
   // Clinical user profiles sync endpoints for multi-device login persistence
-  const PROFILES_FILE_PATH = path.join(process.cwd(), "clinical-profiles.json");
+  const PROFILES_FILE_PATH = getWritableFilePath("clinical-profiles.json");
 
   const sanitizeProfilesList = (list: any[]) => {
     if (!Array.isArray(list)) return [];
@@ -173,9 +268,9 @@ async function startServer() {
 
   // Clinical profiles helper for Supabase
   function getSupabaseServerClient(customConfig?: { url?: string; key?: string; serviceRoleKey?: string; token?: string }) {
-    let url = customConfig?.url || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
-    let anonKey = customConfig?.key || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
-    let serviceRoleKey = customConfig?.serviceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+    let url = (customConfig?.url || getSupabaseUrl() || "").trim();
+    let anonKey = (customConfig?.key || getSupabaseAnonKey() || "").trim();
+    let serviceRoleKey = (customConfig?.serviceRoleKey || getServiceRoleKey() || "").trim();
 
     if (fs.existsSync(CONFIG_FILE_PATH)) {
       try {
@@ -574,10 +669,10 @@ async function startServer() {
         });
       }
 
-      // 1. Fetch DB profiles
+      // 1. Fetch DB profiles from public.profiles
       const { data: dbProfiles } = await sb.client.from("profiles").select("*");
       const dbProfilesList = dbProfiles || [];
-      const dbProfileMap = new Map();
+      const dbProfileMap = new Map<string, any>();
       
       // Clean up any stale duplicate admin profiles in DB if present
       for (const p of dbProfilesList) {
@@ -594,7 +689,7 @@ async function startServer() {
         }
       }
 
-      // 2. If Admin key available, query auth.users to find any users missing profiles
+      // 2. If Admin key available, query auth.users to find all real Auth accounts
       let authUsers: any[] = [];
       if (sb.isAdmin) {
         try {
@@ -633,7 +728,8 @@ async function startServer() {
         }
       }
 
-      // 4. Build synchronized list based strictly on real Supabase Auth users (and public.profiles)
+      // 4. Build synchronized list based STRICTLY on real Supabase Auth users (and public.profiles)
+      // DO NOT resurrect deleted users from local storage or cached files!
       const accountMap = new Map<string, any>();
       const authEmailMap = new Map<string, any>();
       for (const au of authUsers) {
@@ -642,30 +738,37 @@ async function startServer() {
         }
       }
 
-      // 1) Auth users are master source of account identity (UUID + email)
+      // 1) Auth users are the canonical source of truth for accounts
       for (const au of authUsers) {
         if (au && au.id) {
           const dbP = dbProfileMap.get(au.id);
-          const localMatch = localProfiles.find(lp => lp.id === au.id || (lp.email && au.email && lp.email.toLowerCase().trim() === au.email.toLowerCase().trim()));
+          const localMatch = localProfiles.find((lp: any) => lp && (lp.id === au.id || (lp.email && au.email && lp.email.toLowerCase().trim() === au.email.toLowerCase().trim())));
 
           const fallbackName = dbP?.full_name || au.user_metadata?.full_name || au.user_metadata?.name || localMatch?.full_name || (au.email ? au.email.split('@')[0] : 'Clinical User');
           const fallbackRole = dbP?.role || au.user_metadata?.role || localMatch?.role || (au.email === 'mehmood@gmail.com' ? 'admin' : 'therapist');
+          
+          // Determine the user's plain-text password for Manage Accounts display
+          const auPassword = au.user_metadata?.password ? String(au.user_metadata.password).trim() : '';
+          const localPassword = localMatch?.password ? String(localMatch.password).trim() : '';
+          const dbPassword = dbP?.password ? String(dbP.password).trim() : '';
+          const resolvedPassword = auPassword || localPassword || dbPassword || '';
 
           accountMap.set(au.id, {
-            ...localMatch,
-            ...dbP,
             id: au.id,
             email: au.email || dbP?.email || localMatch?.email || '',
             full_name: fallbackName,
             role: fallbackRole,
-            password: localMatch?.password || dbP?.password || ''
+            password: resolvedPassword,
+            clinic_id: dbP?.clinic_id || null,
+            created_at: au.created_at || dbP?.created_at || new Date().toISOString()
           });
         }
       }
 
-      // 2) DB profiles not in authUsers
+      // 2) DB profiles (when authUsers list was empty or user is only in public.profiles)
       dbProfileMap.forEach((dbP, id) => {
         if (id && !accountMap.has(id)) {
+          // If auth users were retrieved, but this dbProfile does not exist in authUsers, check if auth user exists
           const dbEmailClean = (dbP.email || '').toLowerCase().trim();
           const authMatch = dbEmailClean ? authEmailMap.get(dbEmailClean) : null;
           if (authMatch) {
@@ -678,52 +781,29 @@ async function startServer() {
               full_name: dbP.full_name || existing.full_name || 'Clinical User',
               role: dbP.role || existing.role || 'therapist'
             });
-          } else {
-            const localMatch = localProfiles.find(lp => lp.id === id || (lp.email && dbP.email && lp.email.toLowerCase().trim() === dbP.email.toLowerCase().trim()));
+          } else if (authUsers.length === 0) {
+            // When Service Role Key is not used and auth listing is unavailable, use DB profiles as source of truth
+            const localMatch = localProfiles.find((lp: any) => lp && (lp.id === id || (lp.email && dbP.email && lp.email.toLowerCase().trim() === dbP.email.toLowerCase().trim())));
+            const resolvedPassword = localMatch?.password || dbP?.password || '';
             accountMap.set(id, {
-              ...localMatch,
-              ...dbP,
               id,
               email: dbP.email || localMatch?.email || '',
               full_name: dbP.full_name || localMatch?.full_name || 'Clinical User',
               role: dbP.role || localMatch?.role || 'therapist',
-              password: dbP.password || localMatch?.password || ''
+              password: resolvedPassword,
+              clinic_id: dbP.clinic_id || null,
+              created_at: dbP.created_at || new Date().toISOString()
             });
           }
         }
       });
 
-      // 3) Local profiles not in authUsers or dbProfiles
-      for (const lp of localProfiles) {
-        if (lp && lp.id) {
-          const lpEmailClean = (lp.email || '').toLowerCase().trim();
-          const authMatch = lpEmailClean ? authEmailMap.get(lpEmailClean) : null;
-          if (authMatch) {
-            const existing = accountMap.get(authMatch.id) || {};
-            accountMap.set(authMatch.id, {
-              ...existing,
-              ...lp,
-              id: authMatch.id,
-              email: authMatch.email,
-              full_name: lp.full_name || existing.full_name || 'Clinical User',
-              role: lp.role || existing.role || 'therapist'
-            });
-          } else if (!accountMap.has(lp.id)) {
-            accountMap.set(lp.id, {
-              ...lp,
-              id: lp.id,
-              email: lp.email || '',
-              full_name: lp.full_name || 'Clinical User',
-              role: lp.role || 'therapist',
-              password: lp.password || ''
-            });
-          }
-        }
-      }
+      // Note: We deliberately DO NOT loop over localProfiles to add orphaned users.
+      // Supabase is the strict single source of truth.
 
       const combined = Array.from(accountMap.values());
 
-      // Write strictly active profiles to clinical-profiles.json
+      // Write strictly active profiles to clinical-profiles.json (purging any deleted users)
       const sanitized = sanitizeProfilesList(combined);
       safeWriteJson(PROFILES_FILE_PATH, sanitized);
 
@@ -742,7 +822,7 @@ async function startServer() {
   // Admin Account Management: Update User Password via Supabase Auth Admin API
   app.post("/api/admin/update-user-password", async (req, res) => {
     try {
-      const { userId, email, password, supabaseUrl, supabaseAnonKey, adminToken } = req.body;
+      const { userId, email, password, supabaseUrl, supabaseAnonKey, supabaseServiceRoleKey, adminToken } = req.body;
       if (!userId || !password) {
         return res.status(400).json({ error: "Missing required fields: userId and password are required." });
       }
@@ -750,9 +830,12 @@ async function startServer() {
       const passwordClean = String(password).trim();
       const userUuid = String(userId).trim();
 
+      const serviceRoleKey = (supabaseServiceRoleKey || getServiceRoleKey() || "").trim();
+
       const sb = getSupabaseServerClient({
         url: supabaseUrl,
         key: supabaseAnonKey,
+        serviceRoleKey: serviceRoleKey,
         token: adminToken
       });
 
@@ -766,8 +849,23 @@ async function startServer() {
         });
       }
 
+      // Fetch existing user metadata so we preserve other fields while storing updated password
+      let currentMetadata: any = {};
+      try {
+        const { data: uData } = await sb.client.auth.admin.getUserById(userUuid);
+        if (uData?.user?.user_metadata) {
+          currentMetadata = uData.user.user_metadata;
+        }
+      } catch (getMetaErr) {
+        console.warn("[Admin Update Password] getUserById notice:", getMetaErr);
+      }
+
       // Execute Supabase Auth Admin API updateUserById
-      const { data: adminData, error: adminErr } = await sb.client.auth.admin.updateUserById(userUuid, { password: passwordClean });
+      const updatedMetadata = { ...currentMetadata, password: passwordClean };
+      const { data: adminData, error: adminErr } = await sb.client.auth.admin.updateUserById(userUuid, {
+        password: passwordClean,
+        user_metadata: updatedMetadata
+      });
 
       if (adminErr) {
         console.error(`[Supabase Auth Admin] Error resetting password for user UUID ${userUuid}:`, adminErr.message);
@@ -776,22 +874,35 @@ async function startServer() {
 
       console.log(`[Supabase Auth Admin] Successfully updated password via admin.updateUserById for user UUID: ${userUuid}`);
 
-      // Sync local profiles persistence (clinical-profiles.json) so Manage Accounts reflects new password on refresh/logout
+      // Try updating public.profiles password column if available
+      try {
+        await sb.client.from("profiles").update({ password: passwordClean }).eq("id", userUuid);
+      } catch {}
+
+      // Sync persistent server profiles (clinical-profiles.json) so Manage Accounts reflects new password on refresh/reload
       const existingProfiles = safeReadJson(PROFILES_FILE_PATH);
-      if (Array.isArray(existingProfiles)) {
-        const updated = existingProfiles.map((p: any) => {
-          if (p && (p.id === userUuid || String(p.id).trim() === userUuid)) {
-            return { ...p, password: passwordClean };
-          }
-          return p;
+      let foundInFile = false;
+      const updated = (Array.isArray(existingProfiles) ? existingProfiles : []).map((p: any) => {
+        if (p && (p.id === userUuid || String(p.id).trim() === userUuid)) {
+          foundInFile = true;
+          return { ...p, password: passwordClean };
+        }
+        return p;
+      });
+      if (!foundInFile) {
+        updated.push({
+          id: userUuid,
+          email: email || '',
+          password: passwordClean
         });
-        safeWriteJson(PROFILES_FILE_PATH, sanitizeProfilesList(updated));
       }
+      safeWriteJson(PROFILES_FILE_PATH, sanitizeProfilesList(updated));
 
       return res.json({
         success: true,
         message: "Supabase Auth password successfully updated via Admin API.",
-        user: adminData.user
+        user: adminData.user,
+        newPassword: passwordClean
       });
     } catch (err: any) {
       console.error("Error in /api/admin/update-user-password:", err);
@@ -821,8 +932,8 @@ async function startServer() {
       }
 
       // Dedicated Supabase Admin client initialized ONLY with URL and Service Role Key (no user JWT/access tokens)
-      let url = supabaseUrl || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
-      let serviceRoleKey = supabaseServiceRoleKey || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+      let url = (supabaseUrl || getSupabaseUrl() || "").trim();
+      let serviceRoleKey = (supabaseServiceRoleKey || getServiceRoleKey() || "").trim();
 
       if (fs.existsSync(CONFIG_FILE_PATH)) {
         try {
@@ -904,13 +1015,13 @@ async function startServer() {
   });
 
   // Clinical data (patients, assessments, orders) server persistence endpoints
-  const CLINICAL_DATA_FILE_PATH = path.join(process.cwd(), "clinical-data.json");
+  const CLINICAL_DATA_FILE_PATH = getWritableFilePath("clinical-data.json");
 
   // Helper to execute direct remote Supabase REST deletions from the backend
   async function deleteFromSupabaseRemote(table: string, column: string, value: string) {
     try {
-      let url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
-      let key = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+      let url = getSupabaseUrl() || "";
+      let key = getSupabaseAnonKey() || getServiceRoleKey() || "";
       
       if (fs.existsSync(CONFIG_FILE_PATH)) {
         try {
@@ -1223,6 +1334,14 @@ async function startServer() {
     }
   });
 
+  return app;
+}
+
+export const app = createApiApp();
+
+async function startServer() {
+  const PORT = 3000;
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -1243,4 +1362,7 @@ async function startServer() {
   });
 }
 
-startServer();
+// Only start standalone server listener when not running as a serverless function handler
+if (!process.env.NETLIFY && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  startServer();
+}

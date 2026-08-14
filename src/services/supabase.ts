@@ -1489,7 +1489,7 @@ export const syncClinicalProfilesFromServer = async (): Promise<any[]> => {
 
     if (syncRes && syncRes.ok) {
       const syncData = await syncRes.json().catch(() => ({}));
-      if (Array.isArray(syncData.profiles) && syncData.profiles.length > 0) {
+      if (Array.isArray(syncData.profiles)) {
         const sanitized = syncData.profiles.map(sanitizeProfileObj);
         // Deduplicate strictly by unique Account ID (UUID)
         const dedupedMap = new Map();
@@ -1508,7 +1508,7 @@ export const syncClinicalProfilesFromServer = async (): Promise<any[]> => {
     const res = await fetch("/api/get-profiles");
     if (res.ok) {
       const serverProfiles = await res.json();
-      if (Array.isArray(serverProfiles) && serverProfiles.length > 0) {
+      if (Array.isArray(serverProfiles)) {
         const dedupedMap = new Map();
         serverProfiles.forEach((p: any) => {
           if (p && p.id) {
