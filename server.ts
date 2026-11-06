@@ -20,6 +20,9 @@ export function getServiceRoleKey(): string {
   if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
     key = key.slice(1, -1).trim();
   }
+  if (key.includes('placeholder') || key.includes('your_service_role_key')) {
+    return "";
+  }
   return key;
 }
 
@@ -30,6 +33,9 @@ export function getSupabaseUrl(): string {
   url = url.trim();
   if ((url.startsWith('"') && url.endsWith('"')) || (url.startsWith("'") && url.endsWith("'"))) {
     url = url.slice(1, -1).trim();
+  }
+  if (url.includes('placeholder') || url.includes('your_supabase_project_url')) {
+    return "";
   }
   return url;
 }
@@ -42,6 +48,9 @@ export function getSupabaseAnonKey(): string {
   key = key.trim();
   if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
     key = key.slice(1, -1).trim();
+  }
+  if (key.includes('placeholder') || key.includes('your_supabase_anon_key')) {
+    return "";
   }
   return key;
 }
@@ -325,7 +334,19 @@ export function createApiApp() {
     return {
       client: createClient(url, keyToUse, {
         auth: { persistSession: false, autoRefreshToken: false },
-        global: Object.keys(globalHeaders).length > 0 ? { headers: globalHeaders } : undefined
+        global: {
+          fetch: async (input: any, init: any) => {
+            try {
+              return await fetch(input, init);
+            } catch (err: any) {
+              return new Response(JSON.stringify({ error: err?.message || 'Supabase unreachable' }), {
+                status: 503,
+                headers: { 'Content-Type': 'application/json' }
+              });
+            }
+          },
+          ...(Object.keys(globalHeaders).length > 0 ? { headers: globalHeaders } : {})
+        }
       }),
       isAdmin: !!serviceRoleKey,
       url,
@@ -1341,10 +1362,11 @@ export function createApiApp() {
 export const app = createApiApp();
 
 async function startServer() {
-  const PORT = 3000;
+  const isProduction = process.env.NODE_ENV === "production";
+  const PORT = isProduction ? (Number(process.env.PORT) || 8080) : 3000;
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (!isProduction) {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -1355,16 +1377,21 @@ async function startServer() {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).send("Application build not found. Please run 'npm run build'.");
+      }
     });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
 }
 
-// Only start standalone server listener when directly executing server.ts/server.cjs and NOT inside a serverless runtime
+// Only start standalone server listener when NOT inside a serverless runtime (e.g. Netlify Functions)
 const isServerlessEnv = !!(
   process.env.NETLIFY || 
   process.env.AWS_LAMBDA_FUNCTION_NAME || 
@@ -1373,11 +1400,6 @@ const isServerlessEnv = !!(
   process.env.SERVERLESS
 );
 
-const isDirectExecution = !!(
-  process.argv[1] && 
-  (process.argv[1].endsWith('server.ts') || process.argv[1].endsWith('server.cjs') || process.argv[1].endsWith('server.js'))
-);
-
-if (isDirectExecution && !isServerlessEnv) {
+if (!isServerlessEnv) {
   startServer();
 }

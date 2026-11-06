@@ -33,9 +33,9 @@ export const setLastSupabaseError = (val: any) => {
   lastSupabaseError = val;
 };
 
-// Default production Supabase credentials for seamless login across all devices and browsers
-const DEFAULT_SUPABASE_URL = 'https://avltksamccylkfgpfgea.supabase.co';
-const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2bHRrc2FtY2N5bGtmZ3BmZ2VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MTQ4OTAsImV4cCI6MjA5MzI5MDg5MH0.l4yvuUxXmKyBoVqaOR5xIkApmDsvHC2J_ANlei5qTuI';
+// Default fallback Supabase credentials (empty by default; configured via Settings or environment)
+const DEFAULT_SUPABASE_URL = '';
+const DEFAULT_SUPABASE_ANON_KEY = '';
 
 // Retrieve credentials from environment variables or custom localStorage overrides
 const getSupabaseConfig = () => {
@@ -51,16 +51,24 @@ const getSupabaseConfig = () => {
   const envUrl = import.meta.env.VITE_SUPABASE_URL;
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
   
-  const url = (localUrl && !localUrl.includes('placeholder') && !localUrl.includes('your_supabase_project_url')) 
-    ? localUrl 
-    : (envUrl && !envUrl.includes('placeholder') && !envUrl.includes('your_supabase_project_url')) 
-      ? envUrl 
+  const isValidUrl = (u?: string) => {
+    if (!u) return false;
+    const clean = u.trim();
+    return clean && 
+      !clean.includes('placeholder') && 
+      !clean.includes('your_supabase_project_url');
+  };
+
+  const url = (localUrl && isValidUrl(localUrl))
+    ? localUrl
+    : (envUrl && isValidUrl(envUrl))
+      ? envUrl
       : DEFAULT_SUPABASE_URL;
 
-  const key = (localKey && !localKey.includes('placeholder')) 
-    ? localKey 
-    : (envKey && !envKey.includes('placeholder')) 
-      ? envKey 
+  const key = (localKey && !localKey.includes('placeholder') && !localKey.includes('your_supabase_anon_key'))
+    ? localKey
+    : (envKey && !envKey.includes('placeholder') && !envKey.includes('your_supabase_anon_key'))
+      ? envKey
       : DEFAULT_SUPABASE_ANON_KEY;
   
   return { url, key };
@@ -70,12 +78,12 @@ const config = getSupabaseConfig();
 export const supabaseUrl = config.url;
 export const supabaseAnonKey = config.key;
 
-const hasRealCredentials = !!supabaseUrl && !!supabaseAnonKey && 
+export const hasRealCredentials = !!supabaseUrl && !!supabaseAnonKey && 
   !supabaseUrl.includes('placeholder') && 
   !supabaseUrl.includes('your_supabase_project_url');
 
-// Let's make isDemo a mutable exported let variable so ES Module bindings can update dynamically!
-export let isDemo = !hasRealCredentials || localStorage.getItem('supabase_force_demo') === 'true';
+// Live Database Mode: App runs in live production mode with server and cloud database sync
+export let isDemo = false;
 
 // Helper for checking if assessments table is missing in Supabase
 let isAssessmentsTableMissingState = false;
@@ -100,25 +108,68 @@ export const generateUUID = (): string => {
   });
 };
 
-export const setForceDemo = (val: boolean) => {
-  if (val) {
-    localStorage.setItem('supabase_force_demo', 'true');
-    isDemo = true;
-  } else {
+export const setForceDemo = (_val: boolean) => {
+  try {
     localStorage.removeItem('supabase_force_demo');
-    isDemo = !hasRealCredentials;
+  } catch {}
+  isDemo = false;
+};
+
+// Safe fetch wrapper that intercepts network failures and unconfigured states,
+// preventing unhandled "TypeError: Failed to fetch" crashes in browser/iframe runtimes.
+const safeSupabaseFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const urlStr = typeof input === 'string' 
+    ? input 
+    : (input instanceof Request ? input.url : input?.toString?.() || '');
+  
+  // If no live database credentials configured or pointing to placeholder, return safe 503 without crashing fetch
+  if (!hasRealCredentials || urlStr.includes('placeholder.supabase.co')) {
+    return new Response(JSON.stringify({ 
+      error: 'unconfigured_database',
+      message: 'Supabase database is not connected. Use Settings to configure live database.' 
+    }), {
+      status: 503,
+      statusText: 'Service Unavailable',
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  try {
+    const res = await fetch(input, init);
+    if (isSupabaseOfflineState && res.ok) {
+      setIsSupabaseOffline(false);
+    }
+    return res;
+  } catch (err: any) {
+    console.warn('[Supabase Fetch Interceptor] Gracefully caught connection error:', err?.message || err);
+    setIsSupabaseOffline(true);
+    setLastSupabaseError(err);
+
+    // Return synthetic 503 response so Supabase SDK resolves with an error object instead of throwing an unhandled TypeError: Failed to fetch
+    return new Response(JSON.stringify({
+      error: 'network_error',
+      message: 'Network connection to Supabase failed or project is unreachable.',
+      details: err?.message || 'Failed to fetch'
+    }), {
+      status: 503,
+      statusText: 'Service Unavailable',
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 };
 
-// Create the Supabase client - Always use real credentials if available, so it's fully functional on dynamic logins
+// Create the Supabase client - Uses real credentials if configured; otherwise safe sandbox client
 export const supabase = createClient(
   hasRealCredentials ? supabaseUrl : 'https://placeholder.supabase.co',
   hasRealCredentials ? supabaseAnonKey : 'placeholder',
   {
     auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true
+      persistSession: hasRealCredentials,
+      autoRefreshToken: hasRealCredentials,
+      detectSessionInUrl: hasRealCredentials
+    },
+    global: {
+      fetch: safeSupabaseFetch
     }
   }
 );
@@ -182,7 +233,64 @@ export let currentUserEmail: string | null = null;
 export let currentUserName: string | null = null;
 export let currentUserRole: string = 'therapist';
 
+// ==========================================
+// POSTGREST EGRESS OPTIMIZATION & CACHE LAYER
+// ==========================================
+export const PATIENT_LIST_COLUMNS = 'id, clinic_id, created_by, full_name, age, gender, height, weight, phone, email, address, city, diagnosis, medical_condition, doctor_name, hospital, notes, created_at, updated_at, created_by_email, created_by_name, therapist_id';
+
+export const ASSESSMENT_LIST_COLUMNS = 'id, patient_id, patient_name, hospital_name, doctor_ref, garment_type, silicone_pasting, compression, measurements, notes, sub_options, age, gender, city, created_at, created_by';
+
+export const ORDER_LIST_COLUMNS = 'id, patient_id, measurement_id, garment_type, status, config, created_at, updated_at, created_by';
+
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  userKey: string;
+}
+
+export const CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
+let patientsCache: CacheEntry<Patient[]> | null = null;
+let assessmentsCache: CacheEntry<any[]> | null = null;
+let ordersCache: CacheEntry<any[]> | null = null;
+
+let inFlightPatientsPromise: Promise<Patient[]> | null = null;
+let inFlightAssessmentsPromise: Promise<any[]> | null = null;
+let inFlightOrdersPromise: Promise<any[]> | null = null;
+
+export const getUserCacheKey = () => {
+  const ctx = getActiveUserContext();
+  return `${ctx.isAdmin ? 'admin' : (ctx.uid || ctx.email || 'user')}`;
+};
+
+export const clearMemoryCache = () => {
+  patientsCache = null;
+  assessmentsCache = null;
+  ordersCache = null;
+  inFlightPatientsPromise = null;
+  inFlightAssessmentsPromise = null;
+  inFlightOrdersPromise = null;
+};
+
+export const invalidatePatientsCache = () => {
+  patientsCache = null;
+  inFlightPatientsPromise = null;
+};
+
+export const invalidateAssessmentsCache = () => {
+  assessmentsCache = null;
+  inFlightAssessmentsPromise = null;
+};
+
+export const invalidateOrdersCache = () => {
+  ordersCache = null;
+  inFlightOrdersPromise = null;
+};
+
 export const updateCurrentUserContext = (id: string | null, email: string | null, role: string, fullName?: string) => {
+  if (currentUserId !== id || currentUserEmail !== email || currentUserRole !== role) {
+    clearMemoryCache();
+  }
   currentUserId = id;
   currentUserEmail = email;
   currentUserRole = role;
@@ -382,7 +490,7 @@ try {
  * handling UUID constraints, and retrying progressively down to universal minimal columns.
  */
 export const adaptiveUpsertPatient = async (patient: any): Promise<{ data: any; synced: boolean; error?: any }> => {
-  if (isDemo) {
+  if (!hasRealCredentials) {
     return { data: patient, synced: false };
   }
 
@@ -428,11 +536,12 @@ export const adaptiveUpsertPatient = async (patient: any): Promise<{ data: any; 
       const { data, error } = await supabase
         .from('patients')
         .upsert(currentPayload, { onConflict: 'id' })
-        .select()
+        .select('id, full_name, created_at')
         .single();
 
       if (!error && data) {
         isPatientsTableMissingState = false;
+        invalidatePatientsCache();
         return { data: { ...patient, ...data, id: targetId, _isSynced: true }, synced: true };
       }
 
@@ -536,12 +645,12 @@ export const syncAllLocalPatientsToSupabase = async (): Promise<{
   errors: string[];
   patients: Patient[];
 }> => {
-  if (isDemo) {
+  if (!hasRealCredentials) {
     return {
       total: 0,
       synced: 0,
       failed: 0,
-      errors: ['App is in Demo Mode. Please connect real Supabase URL and Anon Key in Settings.'],
+      errors: ['Supabase URL and Anon Key not configured yet. Configure them in Settings ➔ Database & Cloud Sync.'],
       patients: getLocalStoragePatients()
     };
   }
@@ -575,7 +684,7 @@ export const syncAllLocalPatientsToSupabase = async (): Promise<{
 };
 
 export const adaptiveUpsertAssessment = async (assessment: any): Promise<{ data: any; synced: boolean }> => {
-  if (isDemo) {
+  if (!hasRealCredentials) {
     return { data: assessment, synced: false };
   }
 
@@ -618,11 +727,12 @@ export const adaptiveUpsertAssessment = async (assessment: any): Promise<{ data:
       const { data, error } = await supabase
         .from('assessments')
         .upsert(currentPayload, { onConflict: 'id' })
-        .select()
+        .select('id, created_at')
         .single();
 
       if (!error && data) {
         isAssessmentsTableMissingState = false;
+        invalidateAssessmentsCache();
         return { data: { ...assessment, ...data, id: targetId, _isSynced: true }, synced: true };
       }
 
@@ -687,127 +797,146 @@ export const adaptiveUpsertAssessment = async (assessment: any): Promise<{ data:
 
 export const dbService = {
   patients: {
-    async getAll() {
-      let result: Patient[] = [];
-      if (isDemo) {
-        result = getLocalStoragePatients();
-      } else {
+    async getAll(options?: { forceRefresh?: boolean }) {
+      const userKey = getUserCacheKey();
+      if (!options?.forceRefresh && patientsCache && patientsCache.userKey === userKey && (Date.now() - patientsCache.timestamp) < CACHE_TTL_MS) {
+        return patientsCache.data;
+      }
+
+      if (!options?.forceRefresh && inFlightPatientsPromise) {
+        return inFlightPatientsPromise;
+      }
+
+      inFlightPatientsPromise = (async () => {
         try {
-          const { data, error } = await promiseWithTimeout(supabase.from('patients').select('*').order('created_at', { ascending: false }));
-          if (error) {
-            if (error.code === '42P01' || error.message?.includes('does not exist')) {
-              isPatientsTableMissingState = true;
-            }
-            throw error;
-          }
-          isPatientsTableMissingState = false;
-          isSupabaseOfflineState = false;
-          lastSupabaseError = null;
-          
-          // In live mode, exclude mock/demo profiles with IDs '1' and '2' and exclude deleted patients
-          const localPatients = getLocalStoragePatients().filter(p => p && p.id && !isPatientDeleted(p.id) && p.id !== '1' && p.id !== '2');
-          const allRemotePatients = (data || []) as Patient[];
-
-          // Purge any tombstoned/deleted patients that exist on remote Supabase in background
-          const remoteDeleted = allRemotePatients.filter(p => p && p.id && isPatientDeleted(p.id));
-          if (remoteDeleted.length > 0) {
-            remoteDeleted.forEach(dp => {
-              const dpId = String(dp.id).trim();
-              Promise.allSettled([
-                supabase.from('orders').delete().eq('patient_id', dpId),
-                supabase.from('assessments').delete().eq('patient_id', dpId),
-                supabase.from('measurements').delete().eq('patient_id', dpId),
-                supabase.from('clinical_assessments').delete().eq('patient_id', dpId),
-                supabase.from('patient_photos').delete().eq('patient_id', dpId),
-                supabase.from('patients').delete().eq('id', dpId),
-                supabase.from('patients').delete().eq('patient_id', dpId)
-              ]).then(() => {});
-
-              fetch('/api/delete-patient', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: dpId })
-              }).catch(() => {});
-            });
-          }
-
-          const remotePatients = allRemotePatients.filter(p => p && p.id && !isPatientDeleted(p.id));
-          const remoteIds = new Set(remotePatients.map(p => p.id));
-
-          // Background Auto-Sync: Automatically upload local patients that are not in the remote database using adaptive upsert
-          const unsyncedPatients = localPatients.filter(p => p && p.id && !remoteIds.has(p.id) && !isPatientDeleted(p.id));
-          if (unsyncedPatients.length > 0) {
-            console.log(`[Sync] Found ${unsyncedPatients.length} unsynced local patients. Uploading to live database...`);
-            for (const p of unsyncedPatients) {
-              try {
-                const res = await adaptiveUpsertPatient(p);
-                if (res.synced) {
-                  console.log(`[Sync] Successfully synced patient "${p.full_name}" to Supabase!`);
-                  p._isSynced = true;
-                  remotePatients.push(res.data);
-                  remoteIds.add(res.data.id);
+          let result: Patient[] = [];
+          if (!hasRealCredentials) {
+            result = getLocalStoragePatients();
+          } else {
+            try {
+              const { data, error } = await promiseWithTimeout(
+                supabase.from('patients').select(PATIENT_LIST_COLUMNS).order('created_at', { ascending: false })
+              );
+              if (error) {
+                if (error.code === '42P01' || error.message?.includes('does not exist')) {
+                  isPatientsTableMissingState = true;
                 }
-              } catch (syncErr: any) {
-                console.warn(`[Sync] Auto-sync failed for patient "${p.full_name}":`, syncErr.message || syncErr);
+                throw error;
               }
+              isPatientsTableMissingState = false;
+              isSupabaseOfflineState = false;
+              lastSupabaseError = null;
+              
+              // In live mode, exclude mock/demo profiles with IDs '1' and '2' and exclude deleted patients
+              const localPatients = getLocalStoragePatients().filter(p => p && p.id && !isPatientDeleted(p.id) && p.id !== '1' && p.id !== '2');
+              const allRemotePatients = (data || []) as Patient[];
+
+              // Purge any tombstoned/deleted patients that exist on remote Supabase in background
+              const remoteDeleted = allRemotePatients.filter(p => p && p.id && isPatientDeleted(p.id));
+              if (remoteDeleted.length > 0) {
+                remoteDeleted.forEach(dp => {
+                  const dpId = String(dp.id).trim();
+                  Promise.allSettled([
+                    supabase.from('orders').delete().eq('patient_id', dpId),
+                    supabase.from('assessments').delete().eq('patient_id', dpId),
+                    supabase.from('measurements').delete().eq('patient_id', dpId),
+                    supabase.from('clinical_assessments').delete().eq('patient_id', dpId),
+                    supabase.from('patient_photos').delete().eq('patient_id', dpId),
+                    supabase.from('patients').delete().eq('id', dpId),
+                    supabase.from('patients').delete().eq('patient_id', dpId)
+                  ]).then(() => {});
+
+                  fetch('/api/delete-patient', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: dpId })
+                  }).catch(() => {});
+                });
+              }
+
+              const remotePatients = allRemotePatients.filter(p => p && p.id && !isPatientDeleted(p.id));
+              const remoteIds = new Set(remotePatients.map(p => p.id));
+
+              // Background Auto-Sync: Automatically upload local patients that are not in the remote database using adaptive upsert
+              const unsyncedPatients = localPatients.filter(p => p && p.id && !remoteIds.has(p.id) && !isPatientDeleted(p.id));
+              if (unsyncedPatients.length > 0) {
+                console.log(`[Sync] Found ${unsyncedPatients.length} unsynced local patients. Uploading to live database...`);
+                for (const p of unsyncedPatients) {
+                  try {
+                    const res = await adaptiveUpsertPatient(p);
+                    if (res.synced) {
+                      console.log(`[Sync] Successfully synced patient "${p.full_name}" to Supabase!`);
+                      p._isSynced = true;
+                      remotePatients.push(res.data);
+                      remoteIds.add(res.data.id);
+                    }
+                  } catch (syncErr: any) {
+                    console.warn(`[Sync] Auto-sync failed for patient "${p.full_name}":`, syncErr.message || syncErr);
+                  }
+                }
+              }
+
+              const patientMap = new Map<string, Patient>();
+              
+              localPatients.forEach(p => {
+                if (p && p.id && !isPatientDeleted(p.id)) {
+                  const isSynced = remoteIds.has(p.id);
+                  patientMap.set(p.id, { ...p, _isSynced: isSynced });
+                }
+              });
+              
+              remotePatients.forEach(p => {
+                if (p && p.id && !isPatientDeleted(p.id)) {
+                  const localVersion = patientMap.get(p.id);
+                  patientMap.set(p.id, {
+                    ...localVersion,
+                    ...p,
+                    created_by: p.created_by || localVersion?.created_by,
+                    created_by_email: p.created_by_email || localVersion?.created_by_email,
+                    created_by_name: p.created_by_name || localVersion?.created_by_name,
+                    created_by_role: p.created_by_role || localVersion?.created_by_role,
+                    therapist_id: p.therapist_id || localVersion?.therapist_id,
+                    therapist_name: p.therapist_name || localVersion?.therapist_name,
+                    _isSynced: true
+                  });
+                }
+              });
+              
+              const mergedList = Array.from(patientMap.values()).filter(p => !isPatientDeleted(p.id)).sort((a, b) => {
+                return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+              });
+              
+              saveToLocal(mergedList);
+              result = mergedList;
+            } catch (err: any) {
+              console.warn('Supabase Offline or Error. Falling back to LocalStorage:', err);
+              isSupabaseOfflineState = true;
+              lastSupabaseError = err;
+              result = getLocalStoragePatients()
+                .filter(p => p && p.id && !isPatientDeleted(p.id) && p.id !== '1' && p.id !== '2')
+                .map(p => ({ ...p, _isSynced: false }));
             }
           }
 
-          const patientMap = new Map<string, Patient>();
-          
-          localPatients.forEach(p => {
-            if (p && p.id && !isPatientDeleted(p.id)) {
-              const isSynced = remoteIds.has(p.id);
-              patientMap.set(p.id, { ...p, _isSynced: isSynced });
-            }
-          });
-          
-          remotePatients.forEach(p => {
-            if (p && p.id && !isPatientDeleted(p.id)) {
-              const localVersion = patientMap.get(p.id);
-              patientMap.set(p.id, {
-                ...localVersion,
-                ...p,
-                created_by: p.created_by || localVersion?.created_by,
-                created_by_email: p.created_by_email || localVersion?.created_by_email,
-                created_by_name: p.created_by_name || localVersion?.created_by_name,
-                created_by_role: p.created_by_role || localVersion?.created_by_role,
-                therapist_id: p.therapist_id || localVersion?.therapist_id,
-                therapist_name: p.therapist_name || localVersion?.therapist_name,
-                _isSynced: true
-              });
-            }
-          });
-          
-          const mergedList = Array.from(patientMap.values()).filter(p => !isPatientDeleted(p.id)).sort((a, b) => {
-            return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-          });
-          
-          saveToLocal(mergedList);
-          result = mergedList;
-        } catch (err: any) {
-          console.warn('Supabase Offline or Error. Falling back to LocalStorage:', err);
-          isSupabaseOfflineState = true;
-          lastSupabaseError = err;
-          // Filter out mock patients and deleted patients in live fallback too
-          result = getLocalStoragePatients()
-            .filter(p => p && p.id && !isPatientDeleted(p.id) && p.id !== '1' && p.id !== '2')
-            .map(p => ({ ...p, _isSynced: false }));
+          // Check Active User Context and Scope Access
+          const context = getActiveUserContext();
+          const userPatients = context.isAdmin
+            ? result.filter(p => !isPatientDeleted(p.id))
+            : result.filter(p => !isPatientDeleted(p.id) && isRecordOwnedByCurrentUser(p, context));
+
+          patientsCache = {
+            data: userPatients,
+            timestamp: Date.now(),
+            userKey
+          };
+
+          return userPatients;
+        } finally {
+          inFlightPatientsPromise = null;
         }
-      }
+      })();
 
-      // Check Active User Context and Scope Access
-      const context = getActiveUserContext();
-      if (context.isAdmin) {
-        // Admin sees ALL registered patients from all accounts
-        return result.filter(p => !isPatientDeleted(p.id));
-      }
-
-      // Regular user (therapist/technician): Only see their own registered patients
-      // Admin-created records and other users' records are strictly excluded
-      const userPatients = result.filter(p => !isPatientDeleted(p.id) && isRecordOwnedByCurrentUser(p, context));
-
-      return userPatients;
+      return inFlightPatientsPromise;
     },
     async create(patient: Partial<Patient>) {
       const context = getActiveUserContext();
@@ -836,13 +965,13 @@ export const dbService = {
       try {
         const localList = getLocalStoragePatients();
         // Filter out mock patients from saving in live mode to avoid re-pollution
-        const filteredLocalList = isDemo ? localList : localList.filter(p => p.id !== '1' && p.id !== '2');
+        const filteredLocalList = localList.filter(p => p.id !== '1' && p.id !== '2');
         saveToLocal([newPatientLocalObj, ...filteredLocalList]);
       } catch (localWriteErr) {
         console.warn("Failed immediate local patient caching:", localWriteErr);
       }
 
-      if (isDemo) {
+      if (!hasRealCredentials) {
         return newPatientLocalObj;
       }
 
@@ -854,6 +983,7 @@ export const dbService = {
         const localList = getLocalStoragePatients().filter(p => p.id !== '1' && p.id !== '2');
         const filteredList = localList.filter(p => p.id !== generatedId && p.id !== insertedPatient.id);
         saveToLocal([insertedPatient, ...filteredList]);
+        invalidatePatientsCache();
         
         return insertedPatient;
       } catch (err: any) {
@@ -862,10 +992,12 @@ export const dbService = {
         if (err.message?.includes('Row Level Security') || err.code === '42P01') {
           throw err;
         }
+        invalidatePatientsCache();
         return newPatientLocalObj;
       }
     },
     async update(id: string, updates: Partial<Patient>) {
+      invalidatePatientsCache();
       try {
         const list = getLocalStoragePatients();
         const index = list.findIndex(p => p.id === id);
@@ -878,7 +1010,7 @@ export const dbService = {
         console.warn("Failed immediate local patient update caching:", e);
       }
 
-      if (isDemo) {
+      if (!hasRealCredentials) {
         const list = getLocalStoragePatients();
         const found = list.find(p => p.id === id);
         return found || { ...updates, id } as Patient;
@@ -898,6 +1030,7 @@ export const dbService = {
           updatedList[index] = updatedPatient;
           saveToLocal(updatedList);
         }
+        invalidatePatientsCache();
         return updatedPatient;
       } catch (err: any) {
         console.warn('Could not update in Supabase. Falling back to LocalStorage backup:', err);
@@ -908,7 +1041,7 @@ export const dbService = {
     async getById(id: string) {
       if (isPatientDeleted(id)) return null;
       let patient: Patient | null = null;
-      if (isDemo) {
+      if (!hasRealCredentials) {
         const list = getLocalStoragePatients();
         patient = list.find(p => p.id === id) || null;
       } else {
@@ -944,6 +1077,9 @@ export const dbService = {
 
       // 1. Mark as permanently deleted in local persistent storage + indexedDB + memory + server
       markPatientAsDeleted(cleanId);
+      invalidatePatientsCache();
+      invalidateAssessmentsCache();
+      invalidateOrdersCache();
 
       // 2. Immediate server persistence deletion and remote cascade
       try {
@@ -954,7 +1090,7 @@ export const dbService = {
         }).catch(() => {});
       } catch {}
 
-      if (isDemo) {
+      if (!hasRealCredentials) {
         return true;
       }
 
@@ -979,46 +1115,83 @@ export const dbService = {
     }
   },
   orders: {
-    async getAll() {
-      let result: any[] = [];
-      if (isDemo) {
-        result = getLocalStorageOrders();
-      } else {
+    async getAll(options?: { forceRefresh?: boolean }) {
+      const userKey = getUserCacheKey();
+      if (!options?.forceRefresh && ordersCache && ordersCache.userKey === userKey && (Date.now() - ordersCache.timestamp) < CACHE_TTL_MS) {
+        return ordersCache.data;
+      }
+
+      if (!options?.forceRefresh && inFlightOrdersPromise) {
+        return inFlightOrdersPromise;
+      }
+
+      inFlightOrdersPromise = (async () => {
         try {
-          const { data, error } = await promiseWithTimeout(supabase.from('orders').select('*').order('created_at', { ascending: false }));
-          if (error) throw error;
-          result = data || [];
-        } catch (err) {
-          isSupabaseOfflineState = true;
-          result = getLocalStorageOrders();
+          let result: any[] = [];
+          if (!hasRealCredentials) {
+            result = getLocalStorageOrders();
+          } else {
+            try {
+              const { data, error } = await promiseWithTimeout(
+                supabase.from('orders').select(ORDER_LIST_COLUMNS).order('created_at', { ascending: false })
+              );
+              if (error) throw error;
+              result = data || [];
+            } catch (err) {
+              isSupabaseOfflineState = true;
+              result = getLocalStorageOrders();
+            }
+          }
+
+          const context = getActiveUserContext();
+          if (context.isAdmin) {
+            ordersCache = { data: result, timestamp: Date.now(), userKey };
+            return result;
+          }
+
+          // Non-admin: use cached patient metadata to filter owned orders
+          const myPatients = await dbService.patients.getAll();
+          const myPatientIds = new Set<string>(myPatients.map(p => p.id).filter(Boolean));
+          const myPatientNames = new Set<string>(myPatients.map(p => (p.full_name || '').toLowerCase().trim()).filter(Boolean));
+
+          const userOrders = result.filter(o => isRecordOwnedByCurrentUser(o, context, myPatientIds, myPatientNames));
+          ordersCache = { data: userOrders, timestamp: Date.now(), userKey };
+          return userOrders;
+        } finally {
+          inFlightOrdersPromise = null;
         }
-      }
+      })();
 
-      // Filter out deleted orders and orders for deleted patients
-      result = result.filter(o => o && o.id && !isOrderDeleted(o.id) && (!o.patient_id || !isPatientDeleted(o.patient_id)));
-
-      const context = getActiveUserContext();
-      if (context.isAdmin) {
-        return result;
-      }
-
-      // Collect this user's patient IDs and names to correlate orders
-      const myPatients = await dbService.patients.getAll();
-      const myPatientIds = new Set<string>(myPatients.map(p => p.id).filter(Boolean));
-      const myPatientNames = new Set<string>(myPatients.map(p => (p.full_name || '').toLowerCase().trim()).filter(Boolean));
-
-      return result.filter(o => isRecordOwnedByCurrentUser(o, context, myPatientIds, myPatientNames));
+      return inFlightOrdersPromise;
     },
     async getRecent() {
       const allOrders = await this.getAll();
       return allOrders.slice(0, 5);
     },
     async getByPatient(patientId: string) {
-      if (isPatientDeleted(patientId)) return [];
-      const allOrders = await this.getAll();
-      return allOrders.filter(o => o.patient_id === patientId);
+      if (!patientId || isPatientDeleted(patientId)) return [];
+      if (!hasRealCredentials) {
+        const list = getLocalStorageOrders();
+        return list.filter(o => o.patient_id === patientId && !isOrderDeleted(o.id));
+      }
+      try {
+        const { data, error } = await promiseWithTimeout(
+          supabase
+            .from('orders')
+            .select(ORDER_LIST_COLUMNS)
+            .eq('patient_id', patientId)
+            .order('created_at', { ascending: false })
+        );
+        if (error) throw error;
+        return (data || []).filter(o => !isOrderDeleted(o.id));
+      } catch (err) {
+        console.warn('Failed targeted orders query, falling back to local storage:', err);
+        const list = getLocalStorageOrders();
+        return list.filter(o => o.patient_id === patientId && !isOrderDeleted(o.id));
+      }
     },
     async create(order: any) {
+      invalidateOrdersCache();
       const context = getActiveUserContext();
       const { uid, email, name, role, isAdmin } = context;
       const fullOrderPayload = {
@@ -1030,7 +1203,7 @@ export const dbService = {
         therapist_id: order.therapist_id || uid || undefined
       };
 
-      if (isDemo) {
+      if (!hasRealCredentials) {
         const list = getLocalStorageOrders();
         const newOrderLocal = {
           ...fullOrderPayload,
@@ -1043,9 +1216,9 @@ export const dbService = {
         return newOrderLocal;
       }
       try {
-        const { data, error } = await supabase.from('orders').insert(fullOrderPayload).select().single();
+        const { data, error } = await supabase.from('orders').insert(fullOrderPayload).select('id, created_at').single();
         if (error) throw error;
-        return data;
+        return { ...fullOrderPayload, ...data };
       } catch (err) {
         isSupabaseOfflineState = true;
         const list = getLocalStorageOrders();
@@ -1061,6 +1234,7 @@ export const dbService = {
       }
     },
     async update(id: string, updates: any) {
+      invalidateOrdersCache();
       if (isDemo) {
         const list = getLocalStorageOrders();
         let updatedOrder = null;
@@ -1075,9 +1249,9 @@ export const dbService = {
         return updatedOrder;
       }
       try {
-        const { data, error } = await supabase.from('orders').update(updates).eq('id', id).select().single();
+        const { data, error } = await supabase.from('orders').update(updates).eq('id', id).select('id, status, updated_at').single();
         if (error) throw error;
-        return data;
+        return { ...updates, ...data, id };
       } catch (err) {
         isSupabaseOfflineState = true;
         const list = getLocalStorageOrders();
@@ -1097,6 +1271,7 @@ export const dbService = {
       const cleanId = String(id || '').trim();
       if (!cleanId) return true;
 
+      invalidateOrdersCache();
       markOrderAsDeleted(cleanId);
       try {
         fetch('/api/delete-order', {
@@ -1119,117 +1294,187 @@ export const dbService = {
     }
   },
   assessments: {
-    async getAll() {
-      let rawList: any[] = [];
-      if (isDemo) {
-        rawList = getLocalStorageAssessments();
-      } else {
+    async getAll(options?: { forceRefresh?: boolean }) {
+      const userKey = getUserCacheKey();
+      if (!options?.forceRefresh && assessmentsCache && assessmentsCache.userKey === userKey && (Date.now() - assessmentsCache.timestamp) < CACHE_TTL_MS) {
+        return assessmentsCache.data;
+      }
+
+      if (!options?.forceRefresh && inFlightAssessmentsPromise) {
+        return inFlightAssessmentsPromise;
+      }
+
+      inFlightAssessmentsPromise = (async () => {
         try {
-          const { data, error } = await promiseWithTimeout(
-            supabase.from('assessments').select('*').order('created_at', { ascending: false })
-          );
-          if (error) {
-            if (error.code === '42P01' || error.message?.includes('does not exist')) {
-              isAssessmentsTableMissingState = true;
-            }
-            throw error;
-          }
-          isAssessmentsTableMissingState = false;
-          
-          const allRemoteAssessments = data || [];
-
-          // Purge remote assessments that have been marked deleted
-          const remoteDeletedAsms = allRemoteAssessments.filter(a => a && a.id && (isAssessmentDeleted(a.id) || (a.patient_id && isPatientDeleted(a.patient_id))));
-          if (remoteDeletedAsms.length > 0) {
-            remoteDeletedAsms.forEach(da => {
-              supabase.from('assessments').delete().eq('id', da.id).then(() => {});
-            });
-          }
-
-          const remoteAssessments = allRemoteAssessments.filter(a => a && a.id && !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id)));
-          const remoteIds = new Set(remoteAssessments.map(a => a.id));
-          
-          // Merge with local storage assessments so no client work is lost
-          const localAssessments = getLocalStorageAssessments().filter(a => a && a.id && !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id)));
-          
-          // Background Auto-Sync: Automatically upload local assessments that are not in the remote database using adaptive upsert
-          const unsyncedAssessments = localAssessments.filter(a => a && a.id && !remoteIds.has(a.id) && !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id)));
-          if (unsyncedAssessments.length > 0) {
-            console.log(`[Sync] Found ${unsyncedAssessments.length} unsynced local assessments. Uploading to live database...`);
-            for (const asm of unsyncedAssessments) {
-              try {
-                const res = await adaptiveUpsertAssessment(asm);
-                if (res.synced) {
-                  console.log(`[Sync] Successfully synced assessment for "${asm.patient_name || asm.id}" to Supabase!`);
-                  asm._isSynced = true;
-                  remoteAssessments.push(res.data);
-                  remoteIds.add(res.data.id);
+          let rawList: any[] = [];
+          if (isDemo) {
+            rawList = getLocalStorageAssessments();
+          } else {
+            try {
+              const { data, error } = await promiseWithTimeout(
+                supabase.from('assessments').select(ASSESSMENT_LIST_COLUMNS).order('created_at', { ascending: false })
+              );
+              if (error) {
+                if (error.code === '42P01' || error.message?.includes('does not exist')) {
+                  isAssessmentsTableMissingState = true;
                 }
-              } catch (syncErr: any) {
-                console.warn(`[Sync] Auto-sync failed for assessment "${asm.id}":`, syncErr.message || syncErr);
+                throw error;
               }
+              isAssessmentsTableMissingState = false;
+              
+              const allRemoteAssessments = data || [];
+
+              // Purge remote assessments that have been marked deleted
+              const remoteDeletedAsms = allRemoteAssessments.filter(a => a && a.id && (isAssessmentDeleted(a.id) || (a.patient_id && isPatientDeleted(a.patient_id))));
+              if (remoteDeletedAsms.length > 0) {
+                remoteDeletedAsms.forEach(da => {
+                  supabase.from('assessments').delete().eq('id', da.id).then(() => {});
+                });
+              }
+
+              const remoteAssessments = allRemoteAssessments.filter(a => a && a.id && !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id)));
+              const remoteIds = new Set(remoteAssessments.map(a => a.id));
+              
+              // Merge with local storage assessments so no client work is lost
+              const localAssessments = getLocalStorageAssessments().filter(a => a && a.id && !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id)));
+              
+              // Background Auto-Sync: Automatically upload local assessments that are not in the remote database using adaptive upsert
+              const unsyncedAssessments = localAssessments.filter(a => a && a.id && !remoteIds.has(a.id) && !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id)));
+              if (unsyncedAssessments.length > 0) {
+                console.log(`[Sync] Found ${unsyncedAssessments.length} unsynced local assessments. Uploading to live database...`);
+                for (const asm of unsyncedAssessments) {
+                  try {
+                    const res = await adaptiveUpsertAssessment(asm);
+                    if (res.synced) {
+                      console.log(`[Sync] Successfully synced assessment for "${asm.patient_name || asm.id}" to Supabase!`);
+                      asm._isSynced = true;
+                      remoteAssessments.push(res.data);
+                      remoteIds.add(res.data.id);
+                    }
+                  } catch (syncErr: any) {
+                    console.warn(`[Sync] Auto-sync failed for assessment "${asm.id}":`, syncErr.message || syncErr);
+                  }
+                }
+              }
+
+              const assessmentMap = new Map<string, any>();
+              
+              localAssessments.forEach(a => {
+                if (a && a.id && !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id))) {
+                  const isSynced = remoteIds.has(a.id);
+                  assessmentMap.set(a.id, { ...a, _isSynced: isSynced });
+                }
+              });
+              
+              remoteAssessments.forEach(a => {
+                if (a && a.id && !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id))) {
+                  const localVersion = assessmentMap.get(a.id);
+                  assessmentMap.set(a.id, {
+                    ...localVersion,
+                    ...a,
+                    created_by: a.created_by || localVersion?.created_by,
+                    created_by_email: a.created_by_email || localVersion?.created_by_email,
+                    created_by_name: a.created_by_name || localVersion?.created_by_name,
+                    created_by_role: a.created_by_role || localVersion?.created_by_role,
+                    therapist_id: a.therapist_id || localVersion?.therapist_id,
+                    therapist_name: a.therapist_name || localVersion?.therapist_name,
+                    assessor_name: a.assessor_name || localVersion?.assessor_name,
+                    _isSynced: true
+                  });
+                }
+              });
+              
+              const mergedList = Array.from(assessmentMap.values()).filter(a => !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id))).sort((a, b) => {
+                return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+              });
+              
+              saveAssessmentsToLocal(mergedList);
+              
+              rawList = mergedList;
+            } catch (err: any) {
+              console.warn('Could not fetch assessments from Supabase. Sourcing from LocalStorage:', err);
+              rawList = getLocalStorageAssessments().filter(a => !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id))).map(a => ({ ...a, _isSynced: false }));
             }
           }
 
-          const assessmentMap = new Map<string, any>();
-          
-          localAssessments.forEach(a => {
-            if (a && a.id && !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id))) {
-              const isSynced = remoteIds.has(a.id);
-              assessmentMap.set(a.id, { ...a, _isSynced: isSynced });
-            }
-          });
-          
-          remoteAssessments.forEach(a => {
-            if (a && a.id && !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id))) {
-              const localVersion = assessmentMap.get(a.id);
-              assessmentMap.set(a.id, {
-                ...localVersion,
-                ...a,
-                created_by: a.created_by || localVersion?.created_by,
-                created_by_email: a.created_by_email || localVersion?.created_by_email,
-                created_by_name: a.created_by_name || localVersion?.created_by_name,
-                created_by_role: a.created_by_role || localVersion?.created_by_role,
-                therapist_id: a.therapist_id || localVersion?.therapist_id,
-                therapist_name: a.therapist_name || localVersion?.therapist_name,
-                assessor_name: a.assessor_name || localVersion?.assessor_name,
-                _isSynced: true
-              });
-            }
-          });
-          
-          const mergedList = Array.from(assessmentMap.values()).filter(a => !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id))).sort((a, b) => {
-            return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-          });
-          
-          saveAssessmentsToLocal(mergedList);
-          
-          rawList = mergedList;
-        } catch (err: any) {
-          console.warn('Could not fetch assessments from Supabase. Sourcing from LocalStorage:', err);
-          rawList = getLocalStorageAssessments().filter(a => !isAssessmentDeleted(a.id) && (!a.patient_id || !isPatientDeleted(a.patient_id))).map(a => ({ ...a, _isSynced: false }));
+          // Check Active User Context and Scope Access
+          const context = getActiveUserContext();
+          if (context.isAdmin) {
+            assessmentsCache = { data: rawList, timestamp: Date.now(), userKey };
+            return rawList;
+          }
+
+          // Regular user: use cached patient metadata to filter owned assessments
+          const myPatients = await dbService.patients.getAll();
+          const myPatientIds = new Set<string>(myPatients.map(p => p.id).filter(Boolean));
+          const myPatientNames = new Set<string>(myPatients.map(p => (p.full_name || '').toLowerCase().trim()).filter(Boolean));
+
+          const userAssessments = rawList.filter(a => isRecordOwnedByCurrentUser(a, context, myPatientIds, myPatientNames));
+          assessmentsCache = { data: userAssessments, timestamp: Date.now(), userKey };
+          return userAssessments;
+        } finally {
+          inFlightAssessmentsPromise = null;
         }
+      })();
+
+      return inFlightAssessmentsPromise;
+    },
+    async getById(id: string) {
+      if (!id || isAssessmentDeleted(id)) return null;
+      if (isDemo || !hasRealCredentials) {
+        const list = getLocalStorageAssessments();
+        return list.find(a => a.id === id) || null;
+      }
+      try {
+        const { data, error } = await supabase.from('assessments').select('*').eq('id', id).single();
+        if (error) throw error;
+        return data;
+      } catch (err) {
+        console.warn('Could not fetch single assessment from Supabase:', err);
+        const list = getLocalStorageAssessments();
+        return list.find(a => a.id === id) || null;
+      }
+    },
+    async getByPatient(patientId: string, patientName?: string) {
+      if (!patientId || isPatientDeleted(patientId)) return [];
+      const cleanName = (patientName || '').trim();
+
+      if (isDemo || !hasRealCredentials) {
+        const list = getLocalStorageAssessments();
+        const pNameLower = cleanName.toLowerCase();
+        return list.filter(a =>
+          !isAssessmentDeleted(a.id) &&
+          (a.patient_id === patientId || (pNameLower && a.patient_name && a.patient_name.toLowerCase().trim() === pNameLower))
+        );
       }
 
-      // Check Active User Context and Scope Access
-      const context = getActiveUserContext();
-      if (context.isAdmin) {
-        // Admin sees ALL assessments from all user accounts
-        return rawList;
+      try {
+        let query = supabase
+          .from('assessments')
+          .select(ASSESSMENT_LIST_COLUMNS)
+          .order('created_at', { ascending: false });
+
+        if (cleanName) {
+          query = query.or(`patient_id.eq.${patientId},patient_name.ilike.${cleanName}`);
+        } else {
+          query = query.eq('patient_id', patientId);
+        }
+
+        const { data, error } = await promiseWithTimeout(query);
+        if (error) throw error;
+        return (data || []).filter(a => !isAssessmentDeleted(a.id));
+      } catch (err) {
+        console.warn('Failed targeted assessment query, falling back to local storage:', err);
+        const list = getLocalStorageAssessments();
+        const pNameLower = cleanName.toLowerCase();
+        return list.filter(a =>
+          !isAssessmentDeleted(a.id) &&
+          (a.patient_id === patientId || (pNameLower && a.patient_name && a.patient_name.toLowerCase().trim() === pNameLower))
+        );
       }
-
-      // Collect this user's patient IDs and names to correlate assessments
-      const myPatients = await dbService.patients.getAll();
-      const myPatientIds = new Set<string>(myPatients.map(p => p.id).filter(Boolean));
-      const myPatientNames = new Set<string>(myPatients.map(p => (p.full_name || '').toLowerCase().trim()).filter(Boolean));
-
-      // Regular user (therapist/technician): Only see their own assessments
-      // Admin-created assessments and other users' assessments are strictly excluded
-      const userAssessments = rawList.filter(a => isRecordOwnedByCurrentUser(a, context, myPatientIds, myPatientNames));
-
-      return userAssessments;
     },
     async create(assessment: any) {
+      invalidateAssessmentsCache();
       const context = getActiveUserContext();
       const { uid, email, name, role, isAdmin } = context;
       const generatedId = assessment.id || 'asm-' + Math.random().toString(36).substr(2, 9);
@@ -1268,6 +1513,7 @@ export const dbService = {
         const localList = getLocalStorageAssessments();
         const filteredList = localList.filter(a => a.id !== generatedId && a.id !== insertedAssessment.id);
         saveAssessmentsToLocal([insertedAssessment, ...filteredList]);
+        invalidateAssessmentsCache();
         
         return insertedAssessment;
       } catch (err: any) {
@@ -1279,6 +1525,7 @@ export const dbService = {
       }
     },
     async update(id: string, updates: any) {
+      invalidateAssessmentsCache();
       try {
         const list = getLocalStorageAssessments();
         const index = list.findIndex(a => a.id === id);
@@ -1301,16 +1548,17 @@ export const dbService = {
         const cleanPayload = { ...updates };
         delete (cleanPayload as any).id;
         delete (cleanPayload as any)._isSynced;
-        const { data, error } = await supabase.from('assessments').update(cleanPayload).eq('id', id).select().single();
+        const { data, error } = await supabase.from('assessments').update(cleanPayload).eq('id', id).select('id, updated_at').single();
         if (error) throw error;
         
-        const updatedAssessment = data || { ...updates, id };
+        const updatedAssessment = { ...updates, ...data, id };
         const localList = getLocalStorageAssessments();
         const idx = localList.findIndex(a => a.id === id);
         if (idx !== -1) {
           localList[idx] = { ...localList[idx], ...updatedAssessment };
           saveAssessmentsToLocal(localList);
         }
+        invalidateAssessmentsCache();
         return updatedAssessment;
       } catch (err) {
         console.warn('Could not update assessment in Supabase. Fallback active in LocalStorage:', err);
@@ -1323,6 +1571,7 @@ export const dbService = {
       const cleanId = String(id || '').trim();
       if (!cleanId) return true;
 
+      invalidateAssessmentsCache();
       markAssessmentAsDeleted(cleanId);
       try {
         fetch('/api/delete-assessment', {
@@ -1347,14 +1596,14 @@ export const dbService = {
   },
   profiles: {
     async getAll() {
-      if (isDemo) {
+      if (!hasRealCredentials) {
         const stored = localStorage.getItem('demo_profiles');
         return stored ? JSON.parse(stored) : [];
       }
       try {
         const { data, error } = await supabase.from('profiles').select('*');
         if (error) throw error;
-        return data;
+        return data || [];
       } catch (err) {
         const stored = localStorage.getItem('demo_profiles');
         return stored ? JSON.parse(stored) : [];
@@ -1371,7 +1620,7 @@ export const testSupabaseSync = async (): Promise<{
 }> => {
   const steps: { name: string; success: boolean; detail?: string }[] = [];
   
-  if (isDemo) {
+  if (!hasRealCredentials) {
     return {
       success: false,
       message: 'App is running in DEMO mode because no real Supabase credentials (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) are configured.',

@@ -31,6 +31,7 @@ interface PatientProfileProps {
 }
 
 const PatientProfile: React.FC<PatientProfileProps> = ({ patient, onBack, onStartAssessment, onViewOrder }) => {
+  const [currentPatient, setCurrentPatient] = useState<Patient>(patient);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
@@ -43,24 +44,27 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patient, onBack, onStar
   const [deletingAsmId, setDeletingAsmId] = useState<string | null>(null);
 
   useEffect(() => {
+    setCurrentPatient(patient);
+    // On-demand load full patient details and photo without bloat in listings
+    if (!patient.photo_url) {
+      dbService.patients.getById(patient.id).then(full => {
+        if (full) setCurrentPatient(full);
+      }).catch(() => {});
+    }
+  }, [patient]);
+
+  useEffect(() => {
     const fetchData = async () => {
       setIsLoadingOrders(true);
       setLoadingAssessments(true);
       try {
         const [ordersData, assessmentsData] = await Promise.all([
           dbService.orders.getByPatient(patient.id),
-          dbService.assessments.getAll()
+          dbService.assessments.getByPatient(patient.id, patient.full_name)
         ]);
         
         setOrders(ordersData || []);
-        
-        // Filter assessments for this specific patient
-        const pId = patient.id;
-        const pName = patient.full_name?.toLowerCase().trim();
-        const filteredAsms = (assessmentsData || []).filter((a: any) => 
-          a.patient_id === pId || (a.patient_name && a.patient_name.toLowerCase().trim() === pName)
-        );
-        setAssessments(filteredAsms);
+        setAssessments(assessmentsData || []);
       } catch (err) {
         console.error('Failed to fetch patient data:', err);
       } finally {
@@ -70,6 +74,8 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patient, onBack, onStar
     };
     fetchData();
   }, [patient.id, patient.full_name]);
+
+  const activePatient = currentPatient || patient;
 
   const handleDeleteAssessment = async (id: string) => {
     try {
@@ -88,7 +94,7 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patient, onBack, onStar
       <ReportModal 
         isOpen={isReportOpen} 
         onClose={() => setIsReportOpen(false)} 
-        patient={patient} 
+        patient={activePatient} 
       />
 
       {isAsmSummaryOpen && selectedAsm && (
@@ -98,7 +104,7 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patient, onBack, onStar
             setIsAsmSummaryOpen(false);
             setSelectedAsm(null);
           }}
-          patient={patient}
+          patient={activePatient}
           assessmentPayload={selectedAsm}
         />
       )}
@@ -121,16 +127,16 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patient, onBack, onStar
         <div className="lg:col-span-1 space-y-6">
           <div className="medical-card p-8 text-center space-y-6 bg-white border border-slate-100 shadow-sm rounded-3xl">
             <div className="mx-auto w-32 h-32 bg-slate-100 rounded-[2.5rem] flex items-center justify-center overflow-hidden border-4 border-white shadow-xl">
-              {patient.photo_url ? (
-                <img src={patient.photo_url} alt={patient.full_name} className="w-full h-full object-cover" />
+              {activePatient.photo_url ? (
+                <img src={activePatient.photo_url} alt={activePatient.full_name} className="w-full h-full object-cover" />
               ) : (
                 <User className="w-16 h-16 text-slate-300" />
               )}
             </div>
             
             <div>
-              <h2 className="text-2xl font-bold text-green-700">{patient.full_name}</h2>
-              <p className="text-green-600 font-medium">Patient ID: {patient.id.slice(0, 8)}</p>
+              <h2 className="text-2xl font-bold text-green-700">{activePatient.full_name}</h2>
+              <p className="text-green-600 font-medium">Patient ID: {activePatient.id.slice(0, 8)}</p>
             </div>
 
             <div className="pt-6 border-t border-slate-100 grid grid-cols-2 gap-4">

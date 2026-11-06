@@ -182,7 +182,7 @@ ALTER TABLE IF EXISTS orders DISABLE ROW LEVEL SECURITY;`;
   const getSupabaseProjectId = () => {
     const url = localStorage.getItem('VITE_SUPABASE_URL') || import.meta.env.VITE_SUPABASE_URL || '';
     const match = url.match(/https?:\/\/([^.]+)/);
-    return match ? match[1] : 'avltksamccylkfgpfgea';
+    return match ? match[1] : '';
   };
 
   const handleQuickSaveDb = async () => {
@@ -322,11 +322,19 @@ ALTER TABLE IF EXISTS orders DISABLE ROW LEVEL SECURITY;`;
     }
   };
 
-  const handleEdit = (e: React.MouseEvent, patient: Patient) => {
+  const handleEdit = async (e: React.MouseEvent, patient: Patient) => {
     e.preventDefault();
     e.stopPropagation();
     setEditingPatient(patient);
     setIsModalOpen(true);
+    if (!patient.photo_url && patient.id) {
+      try {
+        const full = await dbService.patients.getById(patient.id);
+        if (full?.photo_url) {
+          setEditingPatient(full);
+        }
+      } catch {}
+    }
   };
 
   const handleCloseModal = () => {

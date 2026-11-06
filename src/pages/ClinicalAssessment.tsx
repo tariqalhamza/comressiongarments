@@ -49,11 +49,18 @@ export const GARMENT_FIELDS: Record<string, { id: string; label: string; placeho
   ],
   'Connecting Sleeves': [
     { id: 'shoulder', label: 'Shoulder', placeholder: 'e.g., 42 cm' },
-    { id: 'arm_pit', label: 'Arm pit', placeholder: 'e.g., 28 cm' },
-    { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 24 cm' },
-    { id: 'open_end', label: 'Open End', placeholder: 'e.g., 18 cm' },
-    { id: 'close_end', label: 'Close End', placeholder: 'e.g., 14 cm' },
-    { id: 'total_arm_length', label: 'Total arm length', placeholder: 'e.g., 60 cm' }
+    // Right Arm Measurements
+    { id: 'right_arm_pit', label: 'Right Arm pit', placeholder: 'e.g., 28 cm' },
+    { id: 'right_open_end', label: 'Right Open End', placeholder: 'e.g., 18 cm' },
+    { id: 'right_elbow', label: 'Right Elbow', placeholder: 'e.g., 24 cm' },
+    { id: 'right_close_end', label: 'Right Close End', placeholder: 'e.g., 14 cm' },
+    { id: 'right_total_arm_length', label: 'Right Total arm length', placeholder: 'e.g., 60 cm' },
+    // Left Arm Measurements
+    { id: 'left_arm_pit', label: 'Left Arm pit', placeholder: 'e.g., 28 cm' },
+    { id: 'left_open_end', label: 'Left Open End', placeholder: 'e.g., 18 cm' },
+    { id: 'left_elbow', label: 'Left Elbow', placeholder: 'e.g., 24 cm' },
+    { id: 'left_close_end', label: 'Left Close End', placeholder: 'e.g., 14 cm' },
+    { id: 'left_total_arm_length', label: 'Left Total arm length', placeholder: 'e.g., 60 cm' }
   ],
   'Arm sleeve Right Hand': [
     { id: 'arm_pit', label: 'Open End', placeholder: 'e.g., 28 cm' },
@@ -69,11 +76,18 @@ export const GARMENT_FIELDS: Record<string, { id: string; label: string; placeho
   ],
   'Connecting Sleeves/Arm Sleeve': [
     { id: 'shoulder', label: 'Shoulder', placeholder: 'e.g., 42 cm' },
-    { id: 'arm_pit', label: 'Arm pit', placeholder: 'e.g., 28 cm' },
-    { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 24 cm' },
-    { id: 'open_end', label: 'Open End', placeholder: 'e.g., 18 cm' },
-    { id: 'close_end', label: 'Close End', placeholder: 'e.g., 14 cm' },
-    { id: 'total_arm_length', label: 'Total arm length', placeholder: 'e.g., 60 cm' }
+    // Right Arm Measurements
+    { id: 'right_arm_pit', label: 'Right Arm pit', placeholder: 'e.g., 28 cm' },
+    { id: 'right_open_end', label: 'Right Open End', placeholder: 'e.g., 18 cm' },
+    { id: 'right_elbow', label: 'Right Elbow', placeholder: 'e.g., 24 cm' },
+    { id: 'right_close_end', label: 'Right Close End', placeholder: 'e.g., 14 cm' },
+    { id: 'right_total_arm_length', label: 'Right Total arm length', placeholder: 'e.g., 60 cm' },
+    // Left Arm Measurements
+    { id: 'left_arm_pit', label: 'Left Arm pit', placeholder: 'e.g., 28 cm' },
+    { id: 'left_open_end', label: 'Left Open End', placeholder: 'e.g., 18 cm' },
+    { id: 'left_elbow', label: 'Left Elbow', placeholder: 'e.g., 24 cm' },
+    { id: 'left_close_end', label: 'Left Close End', placeholder: 'e.g., 14 cm' },
+    { id: 'left_total_arm_length', label: 'Left Total arm length', placeholder: 'e.g., 60 cm' }
   ],
   'All Jacket': [
     { id: 'neck_around', label: 'Neck around', placeholder: 'e.g., 36 cm' },
@@ -156,12 +170,20 @@ export const GARMENT_FIELDS: Record<string, { id: string; label: string; placeho
     { id: 'total_length', label: 'Total length', placeholder: 'e.g., 68 cm' }
   ],
   'All Socks': [
-    { id: 'feet', label: 'Feet', placeholder: 'e.g., 24 cm' },
-    { id: 'ankle', label: 'Ankle', placeholder: 'e.g., 22 cm' },
-    { id: 'above_ankle_open_end', label: 'Above ankle open end', placeholder: 'e.g., 26 cm' },
-    { id: 'close_end', label: 'Close end', placeholder: 'e.g., 20 cm' },
-    { id: 'feet_length', label: 'Feet length', placeholder: 'e.g., 25 cm' },
-    { id: 'len_heel_to_close_end', label: 'Length heel to close end', placeholder: 'e.g., 18 cm' }
+    // Right Sock Measurements
+    { id: 'right_above_ankle_open_end', label: 'Right Open End', placeholder: 'e.g., 26 cm' },
+    { id: 'right_close_end', label: 'Right Close End', placeholder: 'e.g., 20 cm' },
+    { id: 'right_len_heel_to_close_end', label: 'Right Heel to End', placeholder: 'e.g., 18 cm' },
+    { id: 'right_ankle', label: 'Right Ankle', placeholder: 'e.g., 22 cm' },
+    { id: 'right_feet', label: 'Right Feet', placeholder: 'e.g., 24 cm' },
+    { id: 'right_feet_length', label: 'Right Feet Length', placeholder: 'e.g., 25 cm' },
+    // Left Sock Measurements
+    { id: 'left_above_ankle_open_end', label: 'Left Open End', placeholder: 'e.g., 26 cm' },
+    { id: 'left_close_end', label: 'Left Close End', placeholder: 'e.g., 20 cm' },
+    { id: 'left_len_heel_to_close_end', label: 'Left Heel to End', placeholder: 'e.g., 18 cm' },
+    { id: 'left_ankle', label: 'Left Ankle', placeholder: 'e.g., 22 cm' },
+    { id: 'left_feet', label: 'Left Feet', placeholder: 'e.g., 24 cm' },
+    { id: 'left_feet_length', label: 'Left Feet Length', placeholder: 'e.g., 25 cm' }
   ],
   'Body Shaper': [
     { id: 'neck_around', label: 'Neck around', placeholder: 'e.g., 36 cm' },
@@ -671,7 +693,30 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
       
       // Fallback mappings for backwards compatibility
       if (!val) {
-        if (label === 'Open End' || label === 'Open end') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Open End'] || garment.subOptions?.['Open end'] || garment.subOptions?.['Arm pit'] || garment.subOptions?.['arm_pit'];
+        if (label === 'Left Arm pit' || label === 'L. Arm pit') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Left Arm pit'] || garment.subOptions?.['left_arm_pit'] || garment.subOptions?.['Arm pit (Left)'] || garment.subOptions?.['Arm pit'] || garment.subOptions?.['arm_pit'];
+        else if (label === 'Right Arm pit' || label === 'R. Arm pit') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Right Arm pit'] || garment.subOptions?.['right_arm_pit'] || garment.subOptions?.['Arm pit (Right)'] || garment.subOptions?.['Arm pit'] || garment.subOptions?.['arm_pit'];
+        else if (label === 'Left Open End' || label === 'L. Open End') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Left Open End'] || garment.subOptions?.['left_open_end'] || garment.subOptions?.['Open End (Left)'] || garment.subOptions?.['Open End'] || garment.subOptions?.['open_end'];
+        else if (label === 'Right Open End' || label === 'R. Open End') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Right Open End'] || garment.subOptions?.['right_open_end'] || garment.subOptions?.['Open End (Right)'] || garment.subOptions?.['Open End'] || garment.subOptions?.['open_end'];
+        else if (label === 'Left Elbow' || label === 'L. Elbow') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Left Elbow'] || garment.subOptions?.['left_elbow'] || garment.subOptions?.['Elbow (Left)'] || garment.subOptions?.['Elbow'] || garment.subOptions?.['elbow'];
+        else if (label === 'Right Elbow' || label === 'R. Elbow') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Right Elbow'] || garment.subOptions?.['right_elbow'] || garment.subOptions?.['Elbow (Right)'] || garment.subOptions?.['Elbow'] || garment.subOptions?.['elbow'];
+        else if (label === 'Left Close End' || label === 'L. Close End') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Left Close End'] || garment.subOptions?.['left_close_end'] || garment.subOptions?.['Close End (Left)'] || garment.subOptions?.['Close End'] || garment.subOptions?.['close_end'] || garment.subOptions?.['Wrist'] || garment.subOptions?.['wrist'];
+        else if (label === 'Right Close End' || label === 'R. Close End') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Right Close End'] || garment.subOptions?.['right_close_end'] || garment.subOptions?.['Close End (Right)'] || garment.subOptions?.['Close End'] || garment.subOptions?.['close_end'] || garment.subOptions?.['Wrist'] || garment.subOptions?.['wrist'];
+        else if (label === 'Left Total arm length' || label === 'Left Total Arm' || label === 'L. Total Arm') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Left Total arm length'] || garment.subOptions?.['left_total_arm_length'] || garment.subOptions?.['Left Total Arm'] || garment.subOptions?.['Total arm length'] || garment.subOptions?.['total_arm_length'];
+        else if (label === 'Right Total arm length' || label === 'Right Total Arm' || label === 'R. Total Arm') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Right Total arm length'] || garment.subOptions?.['right_total_arm_length'] || garment.subOptions?.['Right Total Arm'] || garment.subOptions?.['Total arm length'] || garment.subOptions?.['total_arm_length'];
+        // All Socks Left & Right fallbacks
+        else if (label === 'Right Open End' || label === 'R-Open' || label === 'Right Above ankle open end') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Right Open End'] || garment.subOptions?.['right_above_ankle_open_end'] || garment.subOptions?.['Above ankle open end'] || garment.subOptions?.['above_ankle_open_end'] || garment.subOptions?.['Open End'] || garment.subOptions?.['open_end'];
+        else if (label === 'Left Open End' || label === 'L-Open' || label === 'Left Above ankle open end') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Left Open End'] || garment.subOptions?.['left_above_ankle_open_end'] || garment.subOptions?.['Above ankle open end'] || garment.subOptions?.['above_ankle_open_end'] || garment.subOptions?.['Open End'] || garment.subOptions?.['open_end'];
+        else if (label === 'Right Close End' || label === 'R-Close') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Right Close End'] || garment.subOptions?.['right_close_end'] || garment.subOptions?.['Close end'] || garment.subOptions?.['close_end'] || garment.subOptions?.['Close End'];
+        else if (label === 'Left Close End' || label === 'L-Close') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Left Close End'] || garment.subOptions?.['left_close_end'] || garment.subOptions?.['Close end'] || garment.subOptions?.['close_end'] || garment.subOptions?.['Close End'];
+        else if (label === 'Right Heel to End' || label === 'R-Heel to End' || label === 'Right Length heel to close end') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Right Heel to End'] || garment.subOptions?.['right_len_heel_to_close_end'] || garment.subOptions?.['Length heel to close end'] || garment.subOptions?.['len_heel_to_close_end'];
+        else if (label === 'Left Heel to End' || label === 'L-Heel to End' || label === 'Left Length heel to close end') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Left Heel to End'] || garment.subOptions?.['left_len_heel_to_close_end'] || garment.subOptions?.['Length heel to close end'] || garment.subOptions?.['len_heel_to_close_end'];
+        else if (label === 'Right Ankle' || label === 'R-Ankle') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Right Ankle'] || garment.subOptions?.['right_ankle'] || garment.subOptions?.['Ankle'] || garment.subOptions?.['ankle'];
+        else if (label === 'Left Ankle' || label === 'L-Ankle') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Left Ankle'] || garment.subOptions?.['left_ankle'] || garment.subOptions?.['Ankle'] || garment.subOptions?.['ankle'];
+        else if (label === 'Right Feet' || label === 'R-Feet') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Right Feet'] || garment.subOptions?.['right_feet'] || garment.subOptions?.['Feet'] || garment.subOptions?.['feet'];
+        else if (label === 'Left Feet' || label === 'L-Feet') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Left Feet'] || garment.subOptions?.['left_feet'] || garment.subOptions?.['Feet'] || garment.subOptions?.['feet'];
+        else if (label === 'Right Feet Length' || label === 'R-Feet Len' || label === 'Right Feet length') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Right Feet Length'] || garment.subOptions?.['right_feet_length'] || garment.subOptions?.['Feet length'] || garment.subOptions?.['feet_length'];
+        else if (label === 'Left Feet Length' || label === 'L-Feet Len' || label === 'Left Feet length') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Left Feet Length'] || garment.subOptions?.['left_feet_length'] || garment.subOptions?.['Feet length'] || garment.subOptions?.['feet_length'];
+        else if (label === 'Open End' || label === 'Open end') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Open End'] || garment.subOptions?.['Open end'] || garment.subOptions?.['Arm pit'] || garment.subOptions?.['arm_pit'];
         else if (label === 'Close End' || label === 'Close end') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Close End'] || garment.subOptions?.['Close end'] || garment.subOptions?.['Wrist'] || garment.subOptions?.['wrist'];
         else if (label === 'Arm pit' || label === 'Arm Pit') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Arm pit'] || garment.subOptions?.['Arm Pit'] || garment.subOptions?.['Open End'] || garment.subOptions?.['Open end'];
         else if (label === 'Wrist') val = garment.subOptions?.[lookupLabel] || garment.subOptions?.['Wrist'] || garment.subOptions?.['Close End'] || garment.subOptions?.['Close end'];
@@ -811,6 +856,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
             <circle cx="65" cy="115" r="3.5" fill="#2563eb" />
             <circle cx="235" cy="115" r="3.5" fill="#2563eb" />
 
+            {/* LEFT SLEEVE (Viewer's Left - Left Arm) */}
             {/* 2. Arm Pit loop on left sleeve */}
             <ellipse cx="79" cy="131" rx="15" ry="5" transform="rotate(-40, 79, 131)" stroke="#10b981" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
 
@@ -826,30 +872,75 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
             {/* 6. Total arm length path along left sleeve-edge */}
             <path d="M 65,115 Q 52,185 48,260" stroke="#7c3aed" strokeWidth="2.2" strokeDasharray="3 3" fill="none" />
 
+            {/* RIGHT SLEEVE (Viewer's Right - Right Arm) */}
+            {/* 7. Arm Pit loop on right sleeve */}
+            <ellipse cx="221" cy="131" rx="15" ry="5" transform="rotate(40, 221, 131)" stroke="#10b981" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
+
+            {/* 8. Open End loop on right sleeve (between Arm pit and Elbow) */}
+            <ellipse cx="227.5" cy="156.5" rx="13" ry="4" transform="rotate(40, 227.5, 156.5)" stroke="#3b82f6" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
+
+            {/* 9. Elbow loop on right sleeve */}
+            <ellipse cx="234" cy="182" rx="11" ry="4" transform="rotate(40, 234, 182)" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
+
+            {/* 10. Close End loop on right sleeve */}
+            <ellipse cx="245" cy="259" rx="8" ry="3" transform="rotate(40, 245, 259)" stroke="#ec4899" strokeWidth="1.5" strokeDasharray="2 2" fill="none" />
+
+            {/* 11. Total arm length path along right sleeve-edge */}
+            <path d="M 235,115 Q 248,185 252,260" stroke="#7c3aed" strokeWidth="2.2" strokeDasharray="3 3" fill="none" />
+
+            {/* Arm Section Indicators */}
+            <text x="68" y="104" textAnchor="middle" className="fill-slate-500 font-extrabold" fontSize="8" letterSpacing="0.5">LEFT ARM</text>
+            <text x="232" y="104" textAnchor="middle" className="fill-slate-500 font-extrabold" fontSize="8" letterSpacing="0.5">RIGHT ARM</text>
+
             {/* Labels overlay */}
+            {/* Shoulder Badge (Top Center) */}
             <g transform="translate(150, 60)" className="text-[9px] font-bold">
               <rect x="-55" y="-7" width="110" height="14" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
               <text y="3" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="9">Shoulder: {formatVal('Shoulder')}</text>
             </g>
-            <g transform="translate(150, 290)" className="text-[9px] font-bold">
-              <rect x="-65" y="-7" width="130" height="14" rx="3" fill="white" stroke="#7c3aed" strokeWidth="0.5" />
-              <text y="3" textAnchor="middle" className="fill-purple-600 font-bold" fontSize="9">Total Arm: {formatVal('Total arm length')}</text>
+
+            {/* Left Arm Badges */}
+            <g transform="translate(112, 126)" className="text-[8px] font-bold">
+              <rect x="-35" y="-7" width="70" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="8">L-Arm pit: {formatVal('Left Arm pit')}</text>
             </g>
-            <g transform="translate(132, 122)" className="text-[9px] font-bold">
-              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
-              <text y="3" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="9">Arm pit: {formatVal('Arm pit')}</text>
+            <g transform="translate(110, 153.5)" className="text-[8px] font-bold">
+              <rect x="-35" y="-7" width="70" height="14" rx="3" fill="white" stroke="#3b82f6" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="8">L-Open: {formatVal('Left Open End')}</text>
             </g>
-            <g transform="translate(127, 153.5)" className="text-[9px] font-bold">
-              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#3b82f6" strokeWidth="0.5" />
-              <text y="3" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="9">Open End: {formatVal('Open End')}</text>
+            <g transform="translate(108, 185)" className="text-[8px] font-bold">
+              <rect x="-35" y="-7" width="70" height="14" rx="3" fill="white" stroke="#f59e0b" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="8">L-Elbow: {formatVal('Left Elbow')}</text>
             </g>
-            <g transform="translate(122, 185)" className="text-[9px] font-bold">
-              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#f59e0b" strokeWidth="0.5" />
-              <text y="3" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="9">Elbow: {formatVal('Elbow')}</text>
+            <g transform="translate(95, 258)" className="text-[8px] font-bold">
+              <rect x="-35" y="-7" width="70" height="14" rx="3" fill="white" stroke="#ec4899" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-rose-500 font-bold" fontSize="8">L-Close: {formatVal('Left Close End')}</text>
             </g>
-            <g transform="translate(102, 265)" className="text-[9px] font-bold">
-              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#ec4899" strokeWidth="0.5" />
-              <text y="3" textAnchor="middle" className="fill-rose-500 font-bold" fontSize="9">Close End: {formatVal('Close End')}</text>
+            <g transform="translate(95, 288)" className="text-[8px] font-bold">
+              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#7c3aed" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-purple-600 font-bold" fontSize="8">L-Total: {formatVal('Left Total arm length')}</text>
+            </g>
+
+            {/* Right Arm Badges */}
+            <g transform="translate(188, 126)" className="text-[8px] font-bold">
+              <rect x="-35" y="-7" width="70" height="14" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="8">R-Arm pit: {formatVal('Right Arm pit')}</text>
+            </g>
+            <g transform="translate(190, 153.5)" className="text-[8px] font-bold">
+              <rect x="-35" y="-7" width="70" height="14" rx="3" fill="white" stroke="#3b82f6" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="8">R-Open: {formatVal('Right Open End')}</text>
+            </g>
+            <g transform="translate(192, 185)" className="text-[8px] font-bold">
+              <rect x="-35" y="-7" width="70" height="14" rx="3" fill="white" stroke="#f59e0b" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="8">R-Elbow: {formatVal('Right Elbow')}</text>
+            </g>
+            <g transform="translate(205, 258)" className="text-[8px] font-bold">
+              <rect x="-35" y="-7" width="70" height="14" rx="3" fill="white" stroke="#ec4899" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-rose-500 font-bold" fontSize="8">R-Close: {formatVal('Right Close End')}</text>
+            </g>
+            <g transform="translate(205, 288)" className="text-[8px] font-bold">
+              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#7c3aed" strokeWidth="0.5" />
+              <text y="3" textAnchor="middle" className="fill-purple-600 font-bold" fontSize="8">R-Total: {formatVal('Right Total arm length')}</text>
             </g>
           </svg>
         );
@@ -1776,37 +1867,82 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
 
       case 'All Socks':
         return (
-          <svg viewBox="0 0 300 300" className="w-full h-full max-h-[600px]" style={{ minHeight: '400px' }}>
-            {/* Socks profile */}
-            <path d="M120,40 L190,40 L190,160 L260,210 L230,250 L110,160 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
-            
-            <line x1="120" y1="160" x2="190" y2="160" stroke="#2563eb" strokeWidth="2" strokeDasharray="3 3"/>
-            <line x1="110" y1="160" x2="230" y2="250" stroke="#10b981" strokeWidth="2" strokeDasharray="3 3"/>
-            <line x1="120" y1="40" x2="110" y2="160" stroke="#f59e0b" strokeWidth="2" />
+          <svg viewBox="0 0 520 320" className="w-full h-full max-h-[600px]" style={{ minHeight: '400px' }}>
+            {/* Center divider between Left and Right Socks */}
+            <line x1="260" y1="20" x2="260" y2="300" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="4 4" />
 
-            <g transform="translate(155, 30)" className="text-[8px] font-bold">
-              <rect x="-60" y="-7" width="120" height="13" rx="3" fill="white" stroke="#da70d6" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-purple-600 font-bold" fontSize="8">Open End: {formatVal('Above ankle open end')}</text>
+            {/* Headers */}
+            <g transform="translate(115, 18)">
+              <rect x="-65" y="-10" width="130" height="18" rx="5" fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="1" />
+              <text y="3" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="8.5" letterSpacing="0.5">LEFT SOCK / بایاں جراب</text>
             </g>
-            <g transform="translate(155, 75)" className="text-[8px] font-bold">
-              <rect x="-45" y="-7" width="90" height="13" rx="3" fill="white" stroke="#ff4500" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-orange-600 font-bold" fontSize="8">Close End: {formatVal('Close end')}</text>
+            <g transform="translate(405, 18)">
+              <rect x="-65" y="-10" width="130" height="18" rx="5" fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="1" />
+              <text y="3" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="8.5" letterSpacing="0.5">RIGHT SOCK / دایاں جراب</text>
             </g>
-            <g transform="translate(155, 145)" className="text-[8px] font-bold">
-              <rect x="-40" y="-7" width="80" height="13" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="8">Ankle: {formatVal('Ankle')}</text>
+
+            {/* LEFT SOCK (Profile facing Left) */}
+            <path d="M 155,50 L 80,50 L 80,170 L 20,220 L 50,255 L 160,170 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
+            <line x1="80" y1="170" x2="160" y2="170" stroke="#2563eb" strokeWidth="2" strokeDasharray="3 3"/>
+            <line x1="160" y1="170" x2="50" y2="255" stroke="#10b981" strokeWidth="2" strokeDasharray="3 3"/>
+            <line x1="155" y1="50" x2="160" y2="170" stroke="#f59e0b" strokeWidth="2" />
+
+            {/* Left Sock Badges */}
+            <g transform="translate(115, 38)" className="text-[8px] font-bold">
+              <rect x="-42" y="-7" width="84" height="13" rx="3" fill="white" stroke="#da70d6" strokeWidth="0.8" />
+              <text y="2.5" textAnchor="middle" className="fill-purple-600 font-bold" fontSize="7.5">L-Open: {formatVal('Left Open End')}</text>
             </g>
-            <g transform="translate(185, 205)" className="text-[8px] font-bold">
-              <rect x="-40" y="-7" width="80" height="13" rx="3" fill="white" stroke="#10b981" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="8">Feet: {formatVal('Feet')}</text>
+            <g transform="translate(115, 80)" className="text-[8px] font-bold">
+              <rect x="-42" y="-7" width="84" height="13" rx="3" fill="white" stroke="#ff4500" strokeWidth="0.8" />
+              <text y="2.5" textAnchor="middle" className="fill-orange-600 font-bold" fontSize="7.5">L-Close: {formatVal('Left Close End')}</text>
             </g>
-            <g transform="translate(230, 245)" className="text-[8px] font-bold">
-              <rect x="-55" y="-7" width="110" height="13" rx="3" fill="white" stroke="#db2777" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-pink-600 font-bold" fontSize="8">Feet Length: {formatVal('Feet length')}</text>
+            <g transform="translate(205, 110)" className="text-[8px] font-bold">
+              <rect x="-48" y="-7" width="96" height="13" rx="3" fill="white" stroke="#f59e0b" strokeWidth="0.8" />
+              <text y="2.5" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="7.5">L-Heel to End: {formatVal('Left Heel to End')}</text>
             </g>
-            <g transform="translate(80, 100)" className="text-[8px] font-bold">
-              <rect x="-60" y="-7" width="120" height="13" rx="3" fill="white" stroke="#f59e0b" strokeWidth="0.5" />
-              <text y="2.5" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="8">Heel to End: {formatVal('Length heel to close end')}</text>
+            <g transform="translate(115, 155)" className="text-[8px] font-bold">
+              <rect x="-38" y="-7" width="76" height="13" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.8" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="7.5">L-Ankle: {formatVal('Left Ankle')}</text>
+            </g>
+            <g transform="translate(75, 212)" className="text-[8px] font-bold">
+              <rect x="-36" y="-7" width="72" height="13" rx="3" fill="white" stroke="#10b981" strokeWidth="0.8" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="7.5">L-Feet: {formatVal('Left Feet')}</text>
+            </g>
+            <g transform="translate(55, 275)" className="text-[8px] font-bold">
+              <rect x="-46" y="-7" width="92" height="13" rx="3" fill="white" stroke="#db2777" strokeWidth="0.8" />
+              <text y="2.5" textAnchor="middle" className="fill-pink-600 font-bold" fontSize="7.5">L-Feet Len: {formatVal('Left Feet Length')}</text>
+            </g>
+
+            {/* RIGHT SOCK (Profile facing Right) */}
+            <path d="M 365,50 L 440,50 L 440,170 L 500,220 L 470,255 L 360,170 Z" fill="#eff6ff" stroke="#93c5fd" strokeWidth="2" />
+            <line x1="360" y1="170" x2="440" y2="170" stroke="#2563eb" strokeWidth="2" strokeDasharray="3 3"/>
+            <line x1="360" y1="170" x2="470" y2="255" stroke="#10b981" strokeWidth="2" strokeDasharray="3 3"/>
+            <line x1="365" y1="50" x2="360" y2="170" stroke="#f59e0b" strokeWidth="2" />
+
+            {/* Right Sock Badges */}
+            <g transform="translate(405, 38)" className="text-[8px] font-bold">
+              <rect x="-42" y="-7" width="84" height="13" rx="3" fill="white" stroke="#da70d6" strokeWidth="0.8" />
+              <text y="2.5" textAnchor="middle" className="fill-purple-600 font-bold" fontSize="7.5">R-Open: {formatVal('Right Open End')}</text>
+            </g>
+            <g transform="translate(405, 80)" className="text-[8px] font-bold">
+              <rect x="-42" y="-7" width="84" height="13" rx="3" fill="white" stroke="#ff4500" strokeWidth="0.8" />
+              <text y="2.5" textAnchor="middle" className="fill-orange-600 font-bold" fontSize="7.5">R-Close: {formatVal('Right Close End')}</text>
+            </g>
+            <g transform="translate(315, 110)" className="text-[8px] font-bold">
+              <rect x="-48" y="-7" width="96" height="13" rx="3" fill="white" stroke="#f59e0b" strokeWidth="0.8" />
+              <text y="2.5" textAnchor="middle" className="fill-amber-600 font-bold" fontSize="7.5">R-Heel to End: {formatVal('Right Heel to End')}</text>
+            </g>
+            <g transform="translate(405, 155)" className="text-[8px] font-bold">
+              <rect x="-38" y="-7" width="76" height="13" rx="3" fill="white" stroke="#2563eb" strokeWidth="0.8" />
+              <text y="2.5" textAnchor="middle" className="fill-blue-600 font-bold" fontSize="7.5">R-Ankle: {formatVal('Right Ankle')}</text>
+            </g>
+            <g transform="translate(445, 212)" className="text-[8px] font-bold">
+              <rect x="-36" y="-7" width="72" height="13" rx="3" fill="white" stroke="#10b981" strokeWidth="0.8" />
+              <text y="2.5" textAnchor="middle" className="fill-emerald-600 font-bold" fontSize="7.5">R-Feet: {formatVal('Right Feet')}</text>
+            </g>
+            <g transform="translate(465, 275)" className="text-[8px] font-bold">
+              <rect x="-46" y="-7" width="92" height="13" rx="3" fill="white" stroke="#db2777" strokeWidth="0.8" />
+              <text y="2.5" textAnchor="middle" className="fill-pink-600 font-bold" fontSize="7.5">R-Feet Len: {formatVal('Right Feet Length')}</text>
             </g>
           </svg>
         );
@@ -3832,7 +3968,15 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {activeGarmentFields.map(opt => (
                               <div key={opt.id} className="bg-white p-5 rounded-2xl border-2 border-slate-50 shadow-sm hover:border-blue-200 transition-all">
-                                <span className="block text-[11px] font-black text-slate-800 uppercase tracking-wider mb-2">{opt.label}</span>
+                                <span className="block text-[11px] font-black text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                  {opt.label.startsWith('Right') && (
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] bg-blue-100 text-blue-700 font-black">R / دایاں</span>
+                                  )}
+                                  {opt.label.startsWith('Left') && (
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] bg-purple-100 text-purple-700 font-black">L / بایاں</span>
+                                  )}
+                                  {opt.label}
+                                </span>
                                 <input
                                   type="text"
                                   placeholder={opt.placeholder}

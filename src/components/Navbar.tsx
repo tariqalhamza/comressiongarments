@@ -33,17 +33,10 @@ const Navbar: React.FC<NavbarProps> = ({ title, onToggleSidebar, isSidebarOpen }
         </motion.button>
         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 md:gap-6 min-w-0">
           <h2 className="text-sm sm:text-base md:text-xl lg:text-2xl font-black text-slate-900 tracking-tight uppercase truncate">{title}</h2>
-          {isDemo ? (
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full bg-amber-50 border border-amber-100 text-amber-600 text-[8px] sm:text-[9px] font-black tracking-widest uppercase shrink-0">
-              <Database className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-500 animate-pulse animate-duration-1000" />
-              DEMO
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 text-[8px] sm:text-[9px] font-black tracking-widest uppercase shrink-0">
-              <Database className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-500" />
-              LIVE
-            </span>
-          )}
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 text-[8px] sm:text-[9px] font-black tracking-widest uppercase shrink-0">
+            <Database className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-500" />
+            LIVE
+          </span>
         </div>
       </div>
 

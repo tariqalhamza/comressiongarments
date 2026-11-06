@@ -35,27 +35,19 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onNavigate, isOpen, on
 
   // Dynamic system connection status
   const getStatusDisplay = () => {
-    if (isDemo) {
-      return {
-        label: 'Local Storage Mode / ڈیمو موڈ',
-        color: 'bg-amber-500',
-        textClass: 'text-amber-700 font-extrabold',
-        tooltip: 'Database credentials not set or running in local fallback.'
-      };
-    }
     if (getIsSupabaseOffline()) {
       return {
         label: 'Offline (Local Cache) / آف لائن',
         color: 'bg-rose-500',
         textClass: 'text-rose-700 font-extrabold',
-        tooltip: 'Supabase is configured but currently offline/unreachable.'
+        tooltip: 'Database server is unreachable.'
       };
     }
     return {
-      label: 'Live DB Connected / کلاؤڈ سنک',
+      label: 'Live DB Connected / لائیو سنک',
       color: 'bg-emerald-500',
       textClass: 'text-emerald-700 font-extrabold',
-      tooltip: 'Connected and syncing successfully with Supabase!'
+      tooltip: 'Connected and syncing successfully with live database!'
     };
   };
 

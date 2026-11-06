@@ -29,7 +29,7 @@ import {
   Server
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { isDemo, clearDemoData, supabase, supabaseUrl, supabaseAnonKey, promiseWithTimeout, saveClinicalProfilesToServer, syncClinicalProfilesFromServer, testSupabaseConnection, syncAllLocalPatientsToSupabase } from '../services/supabase';
+import { isDemo, hasRealCredentials, clearDemoData, supabase, supabaseUrl, supabaseAnonKey, promiseWithTimeout, saveClinicalProfilesToServer, syncClinicalProfilesFromServer, testSupabaseConnection, syncAllLocalPatientsToSupabase } from '../services/supabase';
 import { useAuthStore } from '../services/authStore';
 import { createClient } from '@supabase/supabase-js';
 
@@ -75,7 +75,7 @@ const Settings: React.FC = () => {
 
       let finalProfiles: any[] = [];
 
-      if (isDemo) {
+      if (!hasRealCredentials) {
         finalProfiles = serverProfiles;
       } else {
         try {
@@ -1620,13 +1620,8 @@ CREATE POLICY "Allow individual insert own profile" ON public.profiles FOR INSER
                     <div>
                       <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
                         Database & Cloud Sync
-                        <span className={cn(
-                          "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider",
-                          !isDemo 
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
-                            : "bg-amber-50 text-amber-700 border border-amber-200"
-                        )}>
-                          {!isDemo ? '● Live Supabase Connected' : '○ Local Demo Cache'}
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          {hasRealCredentials ? '● Live Supabase Connected' : '● Live Server Database Active'}
                         </span>
                       </h3>
                       <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -1742,7 +1737,7 @@ CREATE POLICY "Allow individual insert own profile" ON public.profiles FOR INSER
                       className="px-4 py-3 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 border border-slate-200 text-slate-600 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      Clear Local Demo Cache
+                      Refresh Local Cache
                     </button>
                   </div>
                 </div>
@@ -1764,8 +1759,9 @@ CREATE POLICY "Allow individual insert own profile" ON public.profiles FOR INSER
                   <div className="flex flex-wrap items-center gap-2.5">
                     <button
                       onClick={handleFetchLivePatients}
-                      disabled={loadingLivePatients || isDemo}
+                      disabled={loadingLivePatients || !hasRealCredentials}
                       className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                      title={!hasRealCredentials ? "Connect Supabase credentials above to query live Supabase table" : "Check live Supabase patients table"}
                     >
                       {loadingLivePatients ? (
                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -1777,8 +1773,9 @@ CREATE POLICY "Allow individual insert own profile" ON public.profiles FOR INSER
 
                     <button
                       onClick={handleSyncAllPatientsNow}
-                      disabled={isSyncingAllPatients || isDemo}
+                      disabled={isSyncingAllPatients || !hasRealCredentials}
                       className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-md shadow-emerald-500/20 transition-all cursor-pointer disabled:opacity-50"
+                      title={!hasRealCredentials ? "Connect Supabase credentials above to sync patients to Supabase cloud" : "Upload all local patients to live Supabase"}
                     >
                       {isSyncingAllPatients ? (
                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />

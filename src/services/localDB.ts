@@ -9,66 +9,15 @@ const INITIALIZED_KEY = 'precision_data_initialized';
 const DELETED_PATIENTS_KEY = 'precision_deleted_patients_ids';
 const DELETED_ASSESSMENTS_KEY = 'precision_deleted_assessments_ids';
 const DELETED_ORDERS_KEY = 'precision_deleted_orders_ids';
+// Pure live database arrays (no dummy/mock patients or orders)
+const DEFAULT_MOCK_PATIENTS: Patient[] = [];
+const DEFAULT_MOCK_ORDERS: any[] = [];
 
-const DEFAULT_MOCK_PATIENTS: Patient[] = [
-  {
-    id: '1',
-    clinic_id: 'cl-001',
-    full_name: 'Zubair Ahmed',
-    age: 45,
-    gender: 'male',
-    height: 175,
-    weight: 78,
-    phone: '+92 300 1234567',
-    email: 'zubair@example.com',
-    address: 'Street 5, Area 2, Karachi',
-    diagnosis: 'Chronic venous insufficiency',
-    medical_condition: 'Stage 2 swelling in right leg.',
-    doctor_name: 'Dr. Faisal',
-    hospital: 'City Hospital',
-    created_at: new Date(Date.now() - 2592000000).toISOString(),
-  },
-  {
-    id: '2',
-    clinic_id: 'cl-001',
-    full_name: 'Sara Khan',
-    age: 32,
-    gender: 'female',
-    height: 160,
-    weight: 55,
-    phone: '+92 321 7654321',
-    email: 'sara@example.com',
-    address: 'Apartment 4B, Sector F, Islamabad',
-    diagnosis: 'Patient Registration',
-    medical_condition: 'Left arm swelling.',
-    doctor_name: 'Dr. Maria',
-    hospital: 'Metro Medical',
-    created_at: new Date(Date.now() - 1296000000).toISOString(),
-  }
-];
-
-const DEFAULT_MOCK_ORDERS: any[] = [
-  {
-    id: 'ORD-7721A',
-    patient_id: '1',
-    patient_name: 'Zubair Ahmed',
-    doctor_name: 'Dr. Faisal',
-    garment_type: 'Leg Sleeve (CCL2)',
-    status: 'In Production',
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-    config: { type: 'Lower Limb' }
-  },
-  {
-    id: 'ORD-8812B',
-    patient_id: '2',
-    patient_name: 'Sara Khan',
-    doctor_name: 'Dr. Maria',
-    garment_type: 'Arm Sleeve (CCL1)',
-    status: 'In Production',
-    created_at: new Date(Date.now() - 172800000).toISOString(),
-    config: { type: 'Upper Limb' }
-  }
-];
+export const isMockRecord = (id: string | null | undefined): boolean => {
+  if (!id) return false;
+  const clean = String(id).trim();
+  return clean === '1' || clean === '2' || clean === 'ORD-7721A' || clean === 'ORD-8812B';
+};
 
 // Persistent Tombstone / Deleted IDs retrieval
 export const getDeletedPatientIds = (): Set<string> => {
@@ -301,18 +250,18 @@ const hydrateFromLocalStorage = () => {
     const savedP = localStorage.getItem(STORAGE_KEY);
     if (savedP) {
       const parsed: Patient[] = JSON.parse(savedP);
-      inMemoryPatients = Array.isArray(parsed) ? parsed.filter(p => p && p.id && !delPatients.has(p.id)) : [];
+      inMemoryPatients = Array.isArray(parsed) ? parsed.filter(p => p && p.id && !delPatients.has(p.id) && !isMockRecord(p.id)) : [];
     } else {
-      inMemoryPatients = DEFAULT_MOCK_PATIENTS.filter(p => !delPatients.has(p.id));
+      inMemoryPatients = [];
       safeSetLocalStorage(STORAGE_KEY, inMemoryPatients);
     }
 
     const savedO = localStorage.getItem(ORDERS_STORAGE_KEY);
     if (savedO) {
       const parsed: any[] = JSON.parse(savedO);
-      inMemoryOrders = Array.isArray(parsed) ? parsed.filter(o => o && o.id && !delOrders.has(o.id)) : [];
+      inMemoryOrders = Array.isArray(parsed) ? parsed.filter(o => o && o.id && !delOrders.has(o.id) && !isMockRecord(o.id)) : [];
     } else {
-      inMemoryOrders = DEFAULT_MOCK_ORDERS.filter(o => !delOrders.has(o.id));
+      inMemoryOrders = [];
       safeSetLocalStorage(ORDERS_STORAGE_KEY, inMemoryOrders);
     }
 
@@ -392,11 +341,11 @@ export const initLocalDB = async () => {
       }
     } catch {}
 
-    // 3. Merge Patients (STRICTLY filter out any tombstoned / deleted patients)
+    // 3. Merge Patients (STRICTLY filter out any tombstoned / deleted / mock patients)
     const pMap = new Map<string, Patient>();
-    inMemoryPatients.forEach(p => p && p.id && !delPatients.has(String(p.id).trim()) && pMap.set(String(p.id).trim(), p));
-    dbPatients.forEach(p => p && p.id && !delPatients.has(String(p.id).trim()) && pMap.set(String(p.id).trim(), p));
-    srvPatients.forEach(p => p && p.id && !delPatients.has(String(p.id).trim()) && pMap.set(String(p.id).trim(), p));
+    inMemoryPatients.forEach(p => p && p.id && !delPatients.has(String(p.id).trim()) && !isMockRecord(p.id) && pMap.set(String(p.id).trim(), p));
+    dbPatients.forEach(p => p && p.id && !delPatients.has(String(p.id).trim()) && !isMockRecord(p.id) && pMap.set(String(p.id).trim(), p));
+    srvPatients.forEach(p => p && p.id && !delPatients.has(String(p.id).trim()) && !isMockRecord(p.id) && pMap.set(String(p.id).trim(), p));
     inMemoryPatients = Array.from(pMap.values());
 
     // 4. Merge Assessments (STRICTLY filter out any deleted assessments or assessments belonging to deleted patients)
@@ -406,11 +355,11 @@ export const initLocalDB = async () => {
     srvAssessments.forEach(a => a && a.id && !delAssessments.has(String(a.id).trim()) && (!a.patient_id || !delPatients.has(String(a.patient_id).trim())) && aMap.set(String(a.id).trim(), a));
     inMemoryAssessments = Array.from(aMap.values());
 
-    // 5. Merge Orders (STRICTLY filter out any deleted orders or orders belonging to deleted patients)
+    // 5. Merge Orders (STRICTLY filter out any deleted orders or orders belonging to deleted patients or mock orders)
     const oMap = new Map<string, any>();
-    inMemoryOrders.forEach(o => o && o.id && !delOrders.has(String(o.id).trim()) && (!o.patient_id || !delPatients.has(String(o.patient_id).trim())) && oMap.set(String(o.id).trim(), o));
-    dbOrders.forEach(o => o && o.id && !delOrders.has(String(o.id).trim()) && (!o.patient_id || !delPatients.has(String(o.patient_id).trim())) && oMap.set(String(o.id).trim(), o));
-    srvOrders.forEach(o => o && o.id && !delOrders.has(String(o.id).trim()) && (!o.patient_id || !delPatients.has(String(o.patient_id).trim())) && oMap.set(String(o.id).trim(), o));
+    inMemoryOrders.forEach(o => o && o.id && !delOrders.has(String(o.id).trim()) && !isMockRecord(o.id) && (!o.patient_id || !delPatients.has(String(o.patient_id).trim())) && oMap.set(String(o.id).trim(), o));
+    dbOrders.forEach(o => o && o.id && !delOrders.has(String(o.id).trim()) && !isMockRecord(o.id) && (!o.patient_id || !delPatients.has(String(o.patient_id).trim())) && oMap.set(String(o.id).trim(), o));
+    srvOrders.forEach(o => o && o.id && !delOrders.has(String(o.id).trim()) && !isMockRecord(o.id) && (!o.patient_id || !delPatients.has(String(o.patient_id).trim())) && oMap.set(String(o.id).trim(), o));
     inMemoryOrders = Array.from(oMap.values());
 
     // 6. Write unified clean records back to IndexedDB and LocalStorage safely

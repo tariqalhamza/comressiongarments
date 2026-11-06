@@ -64,7 +64,7 @@ const App: React.FC = () => {
         const res = await fetch('/api/get-config');
         if (res.ok) {
           const data = await res.json();
-          if (data.url && data.key) {
+          if (data.url && data.key && !data.url.includes('placeholder')) {
             const currentUrl = localStorage.getItem('VITE_SUPABASE_URL');
             const currentKey = localStorage.getItem('VITE_SUPABASE_ANON_KEY');
             

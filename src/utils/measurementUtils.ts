@@ -9,11 +9,18 @@ export const GARMENT_FIELDS: Record<string, { id: string; label: string; placeho
   ],
   'Connecting Sleeves': [
     { id: 'shoulder', label: 'Shoulder', placeholder: 'e.g., 42 cm' },
-    { id: 'arm_pit', label: 'Arm pit', placeholder: 'e.g., 28 cm' },
-    { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 24 cm' },
-    { id: 'open_end', label: 'Open End', placeholder: 'e.g., 18 cm' },
-    { id: 'close_end', label: 'Close End', placeholder: 'e.g., 14 cm' },
-    { id: 'total_arm_length', label: 'Total arm length', placeholder: 'e.g., 60 cm' }
+    // Right Arm Measurements
+    { id: 'right_arm_pit', label: 'Right Arm pit', placeholder: 'e.g., 28 cm' },
+    { id: 'right_open_end', label: 'Right Open End', placeholder: 'e.g., 18 cm' },
+    { id: 'right_elbow', label: 'Right Elbow', placeholder: 'e.g., 24 cm' },
+    { id: 'right_close_end', label: 'Right Close End', placeholder: 'e.g., 14 cm' },
+    { id: 'right_total_arm_length', label: 'Right Total arm length', placeholder: 'e.g., 60 cm' },
+    // Left Arm Measurements
+    { id: 'left_arm_pit', label: 'Left Arm pit', placeholder: 'e.g., 28 cm' },
+    { id: 'left_open_end', label: 'Left Open End', placeholder: 'e.g., 18 cm' },
+    { id: 'left_elbow', label: 'Left Elbow', placeholder: 'e.g., 24 cm' },
+    { id: 'left_close_end', label: 'Left Close End', placeholder: 'e.g., 14 cm' },
+    { id: 'left_total_arm_length', label: 'Left Total arm length', placeholder: 'e.g., 60 cm' }
   ],
   'Arm sleeve Right Hand': [
     { id: 'arm_pit', label: 'Open End', placeholder: 'e.g., 28 cm' },
@@ -29,11 +36,18 @@ export const GARMENT_FIELDS: Record<string, { id: string; label: string; placeho
   ],
   'Connecting Sleeves/Arm Sleeve': [
     { id: 'shoulder', label: 'Shoulder', placeholder: 'e.g., 42 cm' },
-    { id: 'arm_pit', label: 'Arm pit', placeholder: 'e.g., 28 cm' },
-    { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 24 cm' },
-    { id: 'open_end', label: 'Open End', placeholder: 'e.g., 18 cm' },
-    { id: 'close_end', label: 'Close End', placeholder: 'e.g., 14 cm' },
-    { id: 'total_arm_length', label: 'Total arm length', placeholder: 'e.g., 60 cm' }
+    // Right Arm Measurements
+    { id: 'right_arm_pit', label: 'Right Arm pit', placeholder: 'e.g., 28 cm' },
+    { id: 'right_open_end', label: 'Right Open End', placeholder: 'e.g., 18 cm' },
+    { id: 'right_elbow', label: 'Right Elbow', placeholder: 'e.g., 24 cm' },
+    { id: 'right_close_end', label: 'Right Close End', placeholder: 'e.g., 14 cm' },
+    { id: 'right_total_arm_length', label: 'Right Total arm length', placeholder: 'e.g., 60 cm' },
+    // Left Arm Measurements
+    { id: 'left_arm_pit', label: 'Left Arm pit', placeholder: 'e.g., 28 cm' },
+    { id: 'left_open_end', label: 'Left Open End', placeholder: 'e.g., 18 cm' },
+    { id: 'left_elbow', label: 'Left Elbow', placeholder: 'e.g., 24 cm' },
+    { id: 'left_close_end', label: 'Left Close End', placeholder: 'e.g., 14 cm' },
+    { id: 'left_total_arm_length', label: 'Left Total arm length', placeholder: 'e.g., 60 cm' }
   ],
   'All Jacket': [
     { id: 'neck_around', label: 'Neck around', placeholder: 'e.g., 36 cm' },
@@ -116,12 +130,20 @@ export const GARMENT_FIELDS: Record<string, { id: string; label: string; placeho
     { id: 'total_length', label: 'Total length', placeholder: 'e.g., 68 cm' }
   ],
   'All Socks': [
-    { id: 'feet', label: 'Feet', placeholder: 'e.g., 24 cm' },
-    { id: 'ankle', label: 'Ankle', placeholder: 'e.g., 22 cm' },
-    { id: 'above_ankle_open_end', label: 'Above ankle open end', placeholder: 'e.g., 26 cm' },
-    { id: 'close_end', label: 'Close end', placeholder: 'e.g., 20 cm' },
-    { id: 'feet_length', label: 'Feet length', placeholder: 'e.g., 25 cm' },
-    { id: 'len_heel_to_close_end', label: 'Length heel to close end', placeholder: 'e.g., 18 cm' }
+    // Right Sock Measurements
+    { id: 'right_above_ankle_open_end', label: 'Right Open End', placeholder: 'e.g., 26 cm' },
+    { id: 'right_close_end', label: 'Right Close End', placeholder: 'e.g., 20 cm' },
+    { id: 'right_len_heel_to_close_end', label: 'Right Heel to End', placeholder: 'e.g., 18 cm' },
+    { id: 'right_ankle', label: 'Right Ankle', placeholder: 'e.g., 22 cm' },
+    { id: 'right_feet', label: 'Right Feet', placeholder: 'e.g., 24 cm' },
+    { id: 'right_feet_length', label: 'Right Feet Length', placeholder: 'e.g., 25 cm' },
+    // Left Sock Measurements
+    { id: 'left_above_ankle_open_end', label: 'Left Open End', placeholder: 'e.g., 26 cm' },
+    { id: 'left_close_end', label: 'Left Close End', placeholder: 'e.g., 20 cm' },
+    { id: 'left_len_heel_to_close_end', label: 'Left Heel to End', placeholder: 'e.g., 18 cm' },
+    { id: 'left_ankle', label: 'Left Ankle', placeholder: 'e.g., 22 cm' },
+    { id: 'left_feet', label: 'Left Feet', placeholder: 'e.g., 24 cm' },
+    { id: 'left_feet_length', label: 'Left Feet Length', placeholder: 'e.g., 25 cm' }
   ],
   'Body Shaper': [
     { id: 'neck_around', label: 'Neck around', placeholder: 'e.g., 36 cm' },

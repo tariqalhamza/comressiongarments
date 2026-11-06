@@ -193,7 +193,7 @@ const Registration: React.FC<RegistrationProps> = ({
     photoUrl: ''
   });
 
-  const startEditingPatient = (patient: Patient) => {
+  const startEditingPatient = async (patient: Patient) => {
     setPatientToEdit(patient);
     setEditFormData({
       fullName: patient.full_name || '',
@@ -208,6 +208,15 @@ const Registration: React.FC<RegistrationProps> = ({
       affectedArea: patient.medical_condition !== 'General' ? (patient.medical_condition || '') : '',
       photoUrl: patient.photo_url || ''
     });
+
+    if (!patient.photo_url && patient.id) {
+      try {
+        const full = await dbService.patients.getById(patient.id);
+        if (full?.photo_url) {
+          setEditFormData(prev => ({ ...prev, photoUrl: full.photo_url || '' }));
+        }
+      } catch {}
+    }
   };
 
   const handleEditInputChange = (field: string, value: string) => {

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase, isDemo, promiseWithTimeout, updateCurrentUserContext } from './supabase';
+import { supabase, isDemo, promiseWithTimeout, updateCurrentUserContext, clearMemoryCache } from './supabase';
 import { User } from '@supabase/supabase-js';
 
 interface AuthState {
@@ -71,6 +71,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
   signOut: async () => {
+    clearMemoryCache();
     try {
       localStorage.removeItem('supabase_force_demo');
       localStorage.removeItem('demo_user_logged_in');
