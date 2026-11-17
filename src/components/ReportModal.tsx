@@ -18,6 +18,11 @@ import { Patient } from '../types';
 import { cn } from '../lib/utils';
 import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.png';
 import { useAuthStore } from '../services/authStore';
+import {
+  resolveConnectingSleeveSides,
+  resolveSockSideMode,
+  resolveArmSleeveSideLabel,
+} from '../utils/measurementUtils';
 
 // Helper to get garment type from clinical assessment diagnosis
 const getGarmentType = (diag: string) => {
@@ -31,11 +36,13 @@ const getGarmentType = (diag: string) => {
     'Left Connecting Sleeve',
     'Right Connecting Sleeve',
     'Connecting Sleeves',
+    'Arm Sleeve',
     'Arm sleeve Right Hand',
     'Arm sleeve Left Hand',
     'All Jacket',
     'Sports Bra',
     'All Gloves/Glove With Sleeve',
+    'Glove With Sleeve',
     'Belly Binder',
     'Belly Belt',
     'All Trouser',
@@ -59,6 +66,9 @@ const getGarmentType = (diag: string) => {
   }
   if (d.includes('right connecting')) {
     return 'Right Connecting Sleeve';
+  }
+  if (d.includes('arm sleeve')) {
+    return 'Arm Sleeve';
   }
   if (d.includes('arm') || d.includes('sleeve')) {
     return 'Connecting Sleeves';
@@ -107,6 +117,17 @@ const SmartDiagram: React.FC<{
 
     // Fallback mappings for backwards compatibility
     if (!val) {
+      const sub = subOptions || {};
+      const findSubVal = (candidates: string[]) => {
+        for (const c of candidates) {
+          const matchedKey = Object.keys(sub).find(k => k.toLowerCase() === c.toLowerCase());
+          if (matchedKey && sub[matchedKey] !== undefined && String(sub[matchedKey]).trim() !== '') {
+            return sub[matchedKey];
+          }
+        }
+        return undefined;
+      };
+
       if (label === 'Left Arm pit' || label === 'L. Arm pit') val = subOptions['Left Arm pit'] || subOptions['left_arm_pit'] || subOptions['Arm pit (Left)'] || subOptions['Arm pit'] || subOptions['arm_pit'];
       else if (label === 'Right Arm pit' || label === 'R. Arm pit') val = subOptions['Right Arm pit'] || subOptions['right_arm_pit'] || subOptions['Arm pit (Right)'] || subOptions['Arm pit'] || subOptions['arm_pit'];
       else if (label === 'Left Open End' || label === 'L. Open End') val = subOptions['Left Open End'] || subOptions['left_open_end'] || subOptions['Open End (Left)'] || subOptions['Open End'] || subOptions['open_end'];
@@ -130,8 +151,12 @@ const SmartDiagram: React.FC<{
       else if (label === 'Left Feet' || label === 'L-Feet') val = subOptions[lookupLabel] || subOptions['Left Feet'] || subOptions['left_feet'] || subOptions['Feet'] || subOptions['feet'];
       else if (label === 'Right Feet Length' || label === 'R-Feet Len' || label === 'Right Feet length') val = subOptions[lookupLabel] || subOptions['Right Feet Length'] || subOptions['right_feet_length'] || subOptions['Feet length'] || subOptions['feet_length'];
       else if (label === 'Left Feet Length' || label === 'L-Feet Len' || label === 'Left Feet length') val = subOptions[lookupLabel] || subOptions['Left Feet Length'] || subOptions['left_feet_length'] || subOptions['Feet length'] || subOptions['feet_length'];
-      else if (label === 'Open End' || label === 'Open end') val = subOptions['Open End'] || subOptions['Open end'] || subOptions['Arm pit'] || subOptions['arm_pit'];
-      else if (label === 'Close End' || label === 'Close end') val = subOptions['Close End'] || subOptions['Close end'] || subOptions['Wrist'] || subOptions['wrist'];
+      else if (label === 'Open End' || label === 'Open end') val = findSubVal(['Open End', 'Open end', 'open_end', 'Right Open End', 'Left Open End', 'Above ankle open end', 'above_ankle_open_end', 'Open end thigh', 'Arm pit', 'arm_pit']);
+      else if (label === 'Close End' || label === 'Close end') val = findSubVal(['Close End', 'Close end', 'close_end', 'Right Close End', 'Left Close End', 'Wrist', 'wrist']);
+      else if (label === 'Heel to End' || label === 'Length heel to close end') val = findSubVal(['Heel to End', 'Length heel to close end', 'len_heel_to_close_end', 'Right Heel to End', 'Left Heel to End']);
+      else if (label === 'Ankle') val = findSubVal(['Ankle', 'ankle', 'Right Ankle', 'Left Ankle']);
+      else if (label === 'Feet') val = findSubVal(['Feet', 'feet', 'Right Feet', 'Left Feet']);
+      else if (label === 'Feet Length' || label === 'Feet length') val = findSubVal(['Feet Length', 'Feet length', 'feet_length', 'Right Feet Length', 'Left Feet Length']);
       else if (label === 'Arm pit' || label === 'Arm Pit') val = subOptions['Arm pit'] || subOptions['Arm Pit'] || subOptions['Open End'] || subOptions['Open end'];
       else if (label === 'Wrist') val = subOptions['Wrist'] || subOptions['Close End'] || subOptions['Close end'];
       else if (label === 'Middle finger') val = subOptions['Medal finger'];
@@ -147,7 +172,6 @@ const SmartDiagram: React.FC<{
       else if (label === 'Shoulder') val = subOptions['Shoulder'] || subOptions['shoulder'];
       else if (label === 'Total length' || label === 'Total Length') val = subOptions['Total length'] || subOptions['Total Length'] || subOptions['total_length'];
       else if (label === 'West (Waist)' || label === 'West' || label === 'Waist') val = subOptions['Waist'] || subOptions['West (Waist)'] || subOptions['West'] || subOptions['waist'];
-      else if (label === 'Open End') val = subOptions['Open end thigh'];
       else if (label === 'Close End (Leg end)') val = subOptions['Close end thigh'];
       else if (label === 'Width diapharm to waist' || label === 'Width diaphrom to waist' || label === 'Length Diaphrom to West' || label === 'Length Diaphrom to Waist') val = subOptions['Length Diaphrom to Waist'] || subOptions['Length Diaphrom to West'] || subOptions['length diaphragm to waist'];
       else if (label === 'Short Length' || label === 'Waist to Close End') val = subOptions['Waist to Close End'] || subOptions['Short Length'] || subOptions['Length waist to close end'];
@@ -247,8 +271,7 @@ const SmartDiagram: React.FC<{
       case 'Right Connecting Sleeve':
       case 'Connecting Sleeves':
       case 'Connecting Sleeves/Arm Sleeve': {
-        const showLeft = garmentType !== 'Right Connecting Sleeve';
-        const showRight = garmentType !== 'Left Connecting Sleeve';
+        const { showLeft, showRight } = resolveConnectingSleeveSides(garmentType, subOptions);
         return (
           <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]">
             {/* Torso Back View Background */}
@@ -362,10 +385,20 @@ const SmartDiagram: React.FC<{
         );
       }
 
+      case 'Arm Sleeve':
       case 'Arm sleeve Right Hand':
-      case 'Arm sleeve Left Hand':
+      case 'Arm sleeve Left Hand': {
+        const armSideLabel = resolveArmSleeveSideLabel(garmentType, subOptions);
         return (
           <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]">
+            {/* Top Side Indicator Badge */}
+            <g transform="translate(150, 22)">
+              <rect x="-105" y="-11" width="210" height="22" rx="6" fill="#f8fafc" stroke="#1e293b" strokeWidth="1.5" />
+              <text y="3.5" textAnchor="middle" className="fill-slate-900 font-extrabold" fontSize="9.5" letterSpacing="0.5">
+                {armSideLabel.toUpperCase()}
+              </text>
+            </g>
+
             {/* Cylinder sleeve body */}
             <polygon points="190,85 78,175 102,205 230,135" fill="#eff6ff" stroke="#2563eb" strokeWidth="2" />
 
@@ -401,11 +434,12 @@ const SmartDiagram: React.FC<{
               <text y="3" textAnchor="middle" className="fill-amber-600 font-extrabold text-[9px]" fontSize="9">Elbow: {formatVal('Elbow')}</text>
             </g>
             <g transform="translate(75, 235)">
-              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#ec4899" stroke-width="0.5" />
+              <rect x="-42" y="-7" width="84" height="14" rx="3" fill="white" stroke="#ec4899" strokeWidth="0.5" />
               <text y="3" textAnchor="middle" className="fill-rose-500 font-extrabold text-[9px]" fontSize="9">Close End: {formatVal('Close End')}</text>
             </g>
           </svg>
         );
+      }
 
       case 'Sports Bra':
         return (
@@ -1271,130 +1305,136 @@ const SmartDiagram: React.FC<{
         );
 
       case 'Left Socks':
-        return (
-          <svg viewBox="0 0 540 440" className="w-full h-full max-h-[300px]">
-            {/* Header */}
-            <g transform="translate(270, 22)">
-              <rect x="-95" y="-12" width="190" height="24" rx="6" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
-              <text y="4" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="10.5" letterSpacing="0.5">
-                LEFT SOCK / بایاں جراب
-              </text>
-            </g>
-
-            {/* Left Sock Contour */}
-            <path 
-              d="M 330,70 L 230,70 L 230,245 L 130,320 L 160,360 L 345,245 Z" 
-              fill="#f0f7ff" 
-              stroke="#60a5fa" 
-              strokeWidth="2.5" 
-              strokeLinejoin="round" 
-            />
-
-            {/* Solid Amber line for Heel to End along the back edge */}
-            <line x1="330" y1="70" x2="345" y2="245" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" />
-
-            {/* Dashed Blue line across Ankle */}
-            <line x1="345" y1="245" x2="230" y2="245" stroke="#2563eb" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
-
-            {/* Dashed Emerald line across Feet / Instep */}
-            <line x1="345" y1="245" x2="195" y2="330" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
-
-            {/* Measurement Badges */}
-            <g transform="translate(280, 52)">
-              <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#c084fc" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="11">Open End: {formatVal('Open End')}</text>
-            </g>
-
-            <g transform="translate(280, 118)">
-              <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#fb923c" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="11">Close End: {formatVal('Close End')}</text>
-            </g>
-
-            <g transform="translate(425, 170)">
-              <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#f59e0b" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="11">Heel to End: {formatVal('Heel to End')}</text>
-            </g>
-
-            <g transform="translate(288, 228)">
-              <rect x="-62" y="-12" width="124" height="24" rx="6" fill="white" stroke="#3b82f6" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="11">Ankle: {formatVal('Ankle')}</text>
-            </g>
-
-            <g transform="translate(245, 312)">
-              <rect x="-60" y="-12" width="120" height="24" rx="6" fill="white" stroke="#10b981" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="11">Feet: {formatVal('Feet')}</text>
-            </g>
-
-            <g transform="translate(175, 390)">
-              <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#ec4899" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="11">Feet Length: {formatVal('Feet Length')}</text>
-            </g>
-          </svg>
-        );
-
       case 'Right Socks':
-        return (
-          <svg viewBox="0 0 540 440" className="w-full h-full max-h-[300px]">
-            {/* Header */}
-            <g transform="translate(270, 22)">
-              <rect x="-95" y="-12" width="190" height="24" rx="6" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
-              <text y="4" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="10.5" letterSpacing="0.5">
-                RIGHT SOCK / دایاں جراب
-              </text>
-            </g>
+      case 'All Socks': {
+        const sockMode = resolveSockSideMode(garmentType, subOptions);
 
-            {/* Right Sock Contour */}
-            <path 
-              d="M 210,70 L 310,70 L 310,245 L 410,320 L 380,360 L 195,245 Z" 
-              fill="#f0f7ff" 
-              stroke="#60a5fa" 
-              strokeWidth="2.5" 
-              strokeLinejoin="round" 
-            />
+        if (sockMode === 'Left') {
+          return (
+            <svg viewBox="0 0 540 440" className="w-full h-full max-h-[300px]">
+              {/* Header */}
+              <g transform="translate(270, 22)">
+                <rect x="-95" y="-12" width="190" height="24" rx="6" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
+                <text y="4" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="10.5" letterSpacing="0.5">
+                  LEFT SOCK / بایاں جراب
+                </text>
+              </g>
 
-            {/* Solid Amber line for Heel to End along the back edge */}
-            <line x1="210" y1="70" x2="195" y2="245" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" />
+              {/* Left Sock Contour */}
+              <path 
+                d="M 330,70 L 230,70 L 230,245 L 130,320 L 160,360 L 345,245 Z" 
+                fill="#f0f7ff" 
+                stroke="#60a5fa" 
+                strokeWidth="2.5" 
+                strokeLinejoin="round" 
+              />
 
-            {/* Dashed Blue line across Ankle */}
-            <line x1="195" y1="245" x2="310" y2="245" stroke="#2563eb" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
+              {/* Solid Amber line for Heel to End along the back edge */}
+              <line x1="330" y1="70" x2="345" y2="245" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" />
 
-            {/* Dashed Emerald line across Feet / Instep */}
-            <line x1="195" y1="245" x2="345" y2="330" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
+              {/* Dashed Blue line across Ankle */}
+              <line x1="345" y1="245" x2="230" y2="245" stroke="#2563eb" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
 
-            {/* Measurement Badges */}
-            <g transform="translate(260, 52)">
-              <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#c084fc" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="11">Open End: {formatVal('Open End')}</text>
-            </g>
+              {/* Dashed Emerald line across Feet / Instep */}
+              <line x1="345" y1="245" x2="195" y2="330" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
 
-            <g transform="translate(260, 118)">
-              <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#fb923c" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="11">Close End: {formatVal('Close End')}</text>
-            </g>
+              {/* Measurement Badges */}
+              <g transform="translate(280, 52)">
+                <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#c084fc" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="11">Open End: {formatVal('Open End')}</text>
+              </g>
 
-            <g transform="translate(115, 170)">
-              <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#f59e0b" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="11">Heel to End: {formatVal('Heel to End')}</text>
-            </g>
+              <g transform="translate(280, 118)">
+                <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#fb923c" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="11">Close End: {formatVal('Close End')}</text>
+              </g>
 
-            <g transform="translate(252, 228)">
-              <rect x="-62" y="-12" width="124" height="24" rx="6" fill="white" stroke="#3b82f6" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="11">Ankle: {formatVal('Ankle')}</text>
-            </g>
+              <g transform="translate(425, 170)">
+                <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#f59e0b" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="11">Heel to End: {formatVal('Heel to End')}</text>
+              </g>
 
-            <g transform="translate(295, 312)">
-              <rect x="-60" y="-12" width="120" height="24" rx="6" fill="white" stroke="#10b981" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="11">Feet: {formatVal('Feet')}</text>
-            </g>
+              <g transform="translate(288, 228)">
+                <rect x="-62" y="-12" width="124" height="24" rx="6" fill="white" stroke="#3b82f6" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="11">Ankle: {formatVal('Ankle')}</text>
+              </g>
 
-            <g transform="translate(365, 390)">
-              <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#ec4899" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="11">Feet Length: {formatVal('Feet Length')}</text>
-            </g>
-          </svg>
-        );
+              <g transform="translate(245, 312)">
+                <rect x="-60" y="-12" width="120" height="24" rx="6" fill="white" stroke="#10b981" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="11">Feet: {formatVal('Feet')}</text>
+              </g>
 
-      case 'All Socks':
+              <g transform="translate(175, 390)">
+                <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#ec4899" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="11">Feet Length: {formatVal('Feet Length')}</text>
+              </g>
+            </svg>
+          );
+        }
+
+        if (sockMode === 'Right') {
+          return (
+            <svg viewBox="0 0 540 440" className="w-full h-full max-h-[300px]">
+              {/* Header */}
+              <g transform="translate(270, 22)">
+                <rect x="-95" y="-12" width="190" height="24" rx="6" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
+                <text y="4" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="10.5" letterSpacing="0.5">
+                  RIGHT SOCK / دایاں جراب
+                </text>
+              </g>
+
+              {/* Right Sock Contour */}
+              <path 
+                d="M 210,70 L 310,70 L 310,245 L 410,320 L 380,360 L 195,245 Z" 
+                fill="#f0f7ff" 
+                stroke="#60a5fa" 
+                strokeWidth="2.5" 
+                strokeLinejoin="round" 
+              />
+
+              {/* Solid Amber line for Heel to End along the back edge */}
+              <line x1="210" y1="70" x2="195" y2="245" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" />
+
+              {/* Dashed Blue line across Ankle */}
+              <line x1="195" y1="245" x2="310" y2="245" stroke="#2563eb" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
+
+              {/* Dashed Emerald line across Feet / Instep */}
+              <line x1="195" y1="245" x2="345" y2="330" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
+
+              {/* Measurement Badges */}
+              <g transform="translate(260, 52)">
+                <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#c084fc" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="11">Open End: {formatVal('Open End')}</text>
+              </g>
+
+              <g transform="translate(260, 118)">
+                <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#fb923c" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="11">Close End: {formatVal('Close End')}</text>
+              </g>
+
+              <g transform="translate(115, 170)">
+                <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#f59e0b" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="11">Heel to End: {formatVal('Heel to End')}</text>
+              </g>
+
+              <g transform="translate(252, 228)">
+                <rect x="-62" y="-12" width="124" height="24" rx="6" fill="white" stroke="#3b82f6" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="11">Ankle: {formatVal('Ankle')}</text>
+              </g>
+
+              <g transform="translate(295, 312)">
+                <rect x="-60" y="-12" width="120" height="24" rx="6" fill="white" stroke="#10b981" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="11">Feet: {formatVal('Feet')}</text>
+              </g>
+
+              <g transform="translate(365, 390)">
+                <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#ec4899" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="11">Feet Length: {formatVal('Feet Length')}</text>
+              </g>
+            </svg>
+          );
+        }
+
         return (
           <svg viewBox="0 0 520 320" className="w-full h-full max-h-[300px]">
             {/* Center divider between Left and Right Socks */}
@@ -1475,6 +1515,7 @@ const SmartDiagram: React.FC<{
             </g>
           </svg>
         );
+      }
 
       case 'Body Shaper':
         return (
@@ -2214,7 +2255,7 @@ const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, patient }) =
                   <div className="p-8 bg-blue-600 rounded-[2.5rem] shadow-2xl shadow-blue-100 space-y-6">
                     <div className="space-y-1">
                       <p className="text-[9px] font-black text-blue-200 uppercase tracking-widest">Prescribed Garment</p>
-                      <p className="text-2xl font-black text-white uppercase tracking-tight">{(patient.diagnosis || 'Gloves').replace(/All Gloves\/Glove With Sleeve/gi, 'Gloves')}</p>
+                      <p className="text-2xl font-black text-white uppercase tracking-tight">{(patient.diagnosis || 'Gloves').replace(/All Gloves\/Glove With Sleeve/gi, 'Gloves').replace(/All Socks/gi, 'Socks')}</p>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="px-4 py-2 bg-white/20 rounded-xl backdrop-blur-md">

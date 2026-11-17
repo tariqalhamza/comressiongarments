@@ -38,6 +38,12 @@ export const GARMENT_FIELDS: Record<string, { id: string; label: string; placeho
     { id: 'left_close_end', label: 'Left Close End', placeholder: 'e.g., 14 cm' },
     { id: 'left_total_arm_length', label: 'Left Total arm length', placeholder: 'e.g., 60 cm' }
   ],
+  'Arm Sleeve': [
+    { id: 'arm_pit', label: 'Open End', placeholder: 'e.g., 28 cm' },
+    { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 24 cm' },
+    { id: 'wrist', label: 'Close End', placeholder: 'e.g., 16 cm' },
+    { id: 'total_arm_length', label: 'Total arm length', placeholder: 'e.g., 60 cm' }
+  ],
   'Arm sleeve Right Hand': [
     { id: 'arm_pit', label: 'Open End', placeholder: 'e.g., 28 cm' },
     { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 24 cm' },
@@ -255,6 +261,7 @@ export function isNonMeasurementKey(key: string): boolean {
     'garment type',
     'garment_type',
     'hand selection',
+    'side selection',
     'zipper',
     'zipper location',
     'zipper_location',
@@ -292,9 +299,97 @@ export function isNonMeasurementKey(key: string): boolean {
   return nonMeasurementKeys.includes(k);
 }
 
+export function getGarmentDisplayLabel(garmentType: string): string {
+  if (garmentType === 'All Gloves/Glove With Sleeve') return 'Gloves';
+  if (garmentType === 'All Socks') return 'Socks';
+  return garmentType || 'N/A';
+}
+
+export function getSideSelection(garmentType: string, subOptions?: Record<string, any>): string | undefined {
+  const sub = subOptions || {};
+  const explicit = sub['Side Selection'] || sub['side selection'] || sub['Side selection'];
+  if (explicit) return String(explicit).trim();
+  if (garmentType === 'Left Socks') return 'Left Sock';
+  if (garmentType === 'Right Socks') return 'Right Sock';
+  if (garmentType === 'Left Connecting Sleeve') return 'Left Connecting Sleeve';
+  if (garmentType === 'Right Connecting Sleeve') return 'Right Connecting Sleeve';
+  if (garmentType === 'Arm sleeve Left Hand') return 'Left Hand Arm Sleeve';
+  if (garmentType === 'Arm sleeve Right Hand') return 'Right Hand Arm Sleeve';
+  return undefined;
+}
+
+export function resolveConnectingSleeveSides(garmentType: string, subOptions?: Record<string, any>) {
+  const side = subOptions?.['Side Selection'] || subOptions?.['side selection'] || '';
+  if (garmentType === 'Right Connecting Sleeve' || side === 'Right Connecting Sleeve') {
+    return { showLeft: false, showRight: true };
+  }
+  if (garmentType === 'Left Connecting Sleeve' || side === 'Left Connecting Sleeve') {
+    return { showLeft: true, showRight: false };
+  }
+  return { showLeft: true, showRight: true };
+}
+
+export function resolveSockSideMode(garmentType: string, subOptions?: Record<string, any>): 'Left' | 'Right' | 'Both' {
+  const side = subOptions?.['Side Selection'] || subOptions?.['side selection'] || '';
+  if (garmentType === 'Left Socks' || side === 'Left Sock') return 'Left';
+  if (garmentType === 'Right Socks' || side === 'Right Sock') return 'Right';
+  return 'Both';
+}
+
+export function resolveArmSleeveSideLabel(garmentType: string, subOptions?: Record<string, any>): string {
+  const side = subOptions?.['Side Selection'] || subOptions?.['side selection'];
+  if (side) return String(side);
+  if (garmentType === 'Arm sleeve Left Hand') return 'Left Hand Arm Sleeve';
+  if (garmentType === 'Arm sleeve Right Hand') return 'Right Hand Arm Sleeve';
+  return 'Right Hand Arm Sleeve';
+}
+
+export function getActiveGarmentFields(
+  garmentType: string,
+  subOptions?: Record<string, any>
+): { id: string; label: string; placeholder: string }[] {
+  const sub = subOptions || {};
+  const handSelection = sub['Hand Selection'] || sub['hand selection'] || sub['Hand selection'];
+  const sideSelection = sub['Side Selection'] || sub['side selection'] || sub['Side selection'];
+
+  if (garmentType === 'Glove With Sleeve') {
+    return handSelection === 'Both Hand Glove'
+      ? BOTH_HAND_GLOVE_WITH_SLEEVE_FIELDS
+      : GARMENT_FIELDS['Glove With Sleeve'];
+  }
+  if (garmentType === 'All Gloves/Glove With Sleeve') {
+    return handSelection === 'Both Hand Glove'
+      ? BOTH_HAND_GLOVES_FIELDS
+      : GARMENT_FIELDS['All Gloves/Glove With Sleeve'];
+  }
+  if (garmentType === 'Connecting Sleeves' || garmentType === 'Connecting Sleeves/Arm Sleeve') {
+    if (sideSelection === 'Left Connecting Sleeve') {
+      return GARMENT_FIELDS['Left Connecting Sleeve'];
+    }
+    if (sideSelection === 'Right Connecting Sleeve') {
+      return GARMENT_FIELDS['Right Connecting Sleeve'];
+    }
+    return GARMENT_FIELDS['Connecting Sleeves'];
+  }
+  if (garmentType === 'Arm Sleeve') {
+    return GARMENT_FIELDS['Arm Sleeve'];
+  }
+  if (garmentType === 'All Socks') {
+    if (sideSelection === 'Left Sock') {
+      return GARMENT_FIELDS['Left Socks'];
+    }
+    if (sideSelection === 'Right Sock') {
+      return GARMENT_FIELDS['Right Socks'];
+    }
+    return GARMENT_FIELDS['All Socks'];
+  }
+  return GARMENT_FIELDS[garmentType] || [];
+}
+
 export interface ExtractedAssessmentData {
   garmentType: string;
   handSelection?: string;
+  sideSelection?: string;
   color: string;
   silicone: string;
   compression: string;
@@ -311,7 +406,7 @@ export interface ExtractedAssessmentData {
  */
 export function extractAssessmentMeasurements(assessment: any): ExtractedAssessmentData {
   const garmentTypeRaw = assessment.garment_type || assessment.type || 'N/A';
-  const garmentType = garmentTypeRaw === 'All Gloves/Glove With Sleeve' ? 'Gloves' : garmentTypeRaw;
+  const garmentType = getGarmentDisplayLabel(garmentTypeRaw);
   const isGloveWithSleeve = garmentTypeRaw === 'Glove With Sleeve';
   const isGloves = garmentTypeRaw === 'All Gloves/Glove With Sleeve' || garmentTypeRaw.toLowerCase() === 'gloves';
 
@@ -319,6 +414,7 @@ export function extractAssessmentMeasurements(assessment: any): ExtractedAssessm
   const measurementsRaw = assessment.measurements;
 
   const handSelection = subOptions['Hand Selection'] || subOptions['hand selection'] || subOptions['Hand selection'];
+  const sideSelection = getSideSelection(garmentTypeRaw, subOptions);
 
   // Check if both-hand glove measurements exist
   const hasBothHandKeys = Object.keys(subOptions).some(k => {
@@ -374,7 +470,7 @@ export function extractAssessmentMeasurements(assessment: any): ExtractedAssessm
   } else if (isGloves) {
     orderedFields = isBothHand ? BOTH_HAND_GLOVES_FIELDS : GARMENT_FIELDS['All Gloves/Glove With Sleeve'];
   } else {
-    orderedFields = GARMENT_FIELDS[garmentTypeRaw] || [];
+    orderedFields = getActiveGarmentFields(garmentTypeRaw, subOptions);
   }
 
   const coreMeasurements: [string, string][] = [];
@@ -450,6 +546,7 @@ export function extractAssessmentMeasurements(assessment: any): ExtractedAssessm
   return {
     garmentType,
     handSelection: handSelection || (isBothHand ? 'Both Hand Glove' : (isGloveWithSleeve || isGloves ? 'Right Hand Glove' : undefined)),
+    sideSelection,
     color,
     silicone,
     compression,
@@ -510,9 +607,13 @@ export function buildAssessmentWhatsAppText(params: {
   if (data.handSelection) {
     messageText += `• Hand Selection: *${data.handSelection}*\n`;
   }
+  if (data.sideSelection) {
+    messageText += `• Side Selection: *${data.sideSelection}*\n`;
+  }
   messageText += `• Color: *${data.color}*\n`;
   data.customDesignOptions.forEach(([key, val]) => {
-    if (key !== 'Hand Selection') {
+    const lk = key.toLowerCase();
+    if (lk !== 'hand selection' && lk !== 'side selection') {
       messageText += `• ${key}: *${val}*\n`;
     }
   });

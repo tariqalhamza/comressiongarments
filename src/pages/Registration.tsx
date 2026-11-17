@@ -488,6 +488,7 @@ const Registration: React.FC<RegistrationProps> = ({
       if (asm.garment_type === selectedGarmentType) return true;
       if (selectedGarmentType === 'All Socks' && (asm.garment_type === 'Left Socks' || asm.garment_type === 'Right Socks' || asm.garment_type === 'All Socks')) return true;
       if (selectedGarmentType === 'Connecting Sleeves' && (asm.garment_type === 'Left Connecting Sleeve' || asm.garment_type === 'Right Connecting Sleeve' || asm.garment_type === 'Connecting Sleeves' || asm.garment_type === 'Connecting Sleeves/Arm Sleeve')) return true;
+      if (selectedGarmentType === 'Arm Sleeve' && (asm.garment_type === 'Arm Sleeve' || asm.garment_type === 'Arm sleeve Right Hand' || asm.garment_type === 'Arm sleeve Left Hand')) return true;
       return false;
     });
 
@@ -1228,18 +1229,15 @@ CREATE POLICY "Allow public read/write access on patients" ON patients FOR ALL U
                   id="search-by-garment-select-marked"
                 >
                   <option value="All">All Garments / تمام گارمنٹس</option>
-                  <option value="Left Connecting Sleeve">Left Connecting Sleeve / بایاں جڑواں بازو</option>
-                  <option value="Right Connecting Sleeve">Right Connecting Sleeve / دایاں جڑواں بازو</option>
-                  <option value="Connecting Sleeves">Connecting Sleeves (All/Legacy) / تمام جڑواں بازو</option>
+                  <option value="Connecting Sleeves">Connecting Sleeves / جڑواں بازو</option>
+                  <option value="Arm Sleeve">Arm Sleeve / بازو کی آستین</option>
                   <option value="Upper Sleeve">Upper Sleeve / اوپر کی آستین</option>
                   <option value="Glove">Glove / دستانہ</option>
                   <option value="Face Mask">Face Mask / چہرے کا ماسک</option>
                   <option value="Belly Binder">Belly Binder / پیٹ کی پٹی</option>
                   <option value="All Trouser">All Trouser / پتلون</option>
                   <option value="All Leg Sleeves">All Leg Sleeves / ٹانگوں کی آستین</option>
-                  <option value="Left Socks">Left Socks / بایاں جراب</option>
-                  <option value="Right Socks">Right Socks / دایاں جراب</option>
-                  <option value="All Socks">All Socks (All/Legacy) / تمام جرابیں</option>
+                  <option value="All Socks">Socks / جرابیں</option>
                   <option value="Body Shaper">Body Shaper / باڈی شیپر</option>
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-450">

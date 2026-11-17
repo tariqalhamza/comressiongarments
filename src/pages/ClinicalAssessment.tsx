@@ -35,211 +35,21 @@ import { compressImage } from '../lib/imageUtils';
 import { Patient } from '../types';
 import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.png';
 import { useAuthStore } from '../services/authStore';
-import { extractAssessmentMeasurements, buildAssessmentWhatsAppText } from '../utils/measurementUtils';
+import {
+  GARMENT_FIELDS,
+  getActiveGarmentFields,
+  getGarmentDisplayLabel,
+  resolveConnectingSleeveSides,
+  resolveSockSideMode,
+  resolveArmSleeveSideLabel,
+  extractAssessmentMeasurements,
+  buildAssessmentWhatsAppText
+} from '../utils/measurementUtils';
+
+export { GARMENT_FIELDS };
 
 // --- Types ---
 type StepId = 'garment-select' | 'garment-type' | 'measurement-drawing' | 'review';
-
-export const GARMENT_FIELDS: Record<string, { id: string; label: string; placeholder: string }[]> = {
-  'Face Mask & Chin Binder': [
-    { id: 'around_neck', label: 'Around neck', placeholder: 'e.g., 38 cm' },
-    { id: 'around_head', label: 'Around head', placeholder: 'e.g., 54 cm' },
-    { id: 'around_chin', label: 'Around chin', placeholder: 'e.g., 32 cm' },
-    { id: 'neck_length', label: 'Neck length', placeholder: 'e.g., 12 cm' }
-  ],
-  'Left Connecting Sleeve': [
-    { id: 'shoulder', label: 'Shoulder', placeholder: 'e.g., 42 cm' },
-    { id: 'left_arm_pit', label: 'Left Arm pit', placeholder: 'e.g., 28 cm' },
-    { id: 'left_open_end', label: 'Left Open End', placeholder: 'e.g., 18 cm' },
-    { id: 'left_elbow', label: 'Left Elbow', placeholder: 'e.g., 24 cm' },
-    { id: 'left_close_end', label: 'Left Close End', placeholder: 'e.g., 14 cm' },
-    { id: 'left_total_arm_length', label: 'Left Total arm length', placeholder: 'e.g., 60 cm' }
-  ],
-  'Right Connecting Sleeve': [
-    { id: 'shoulder', label: 'Shoulder', placeholder: 'e.g., 42 cm' },
-    { id: 'right_arm_pit', label: 'Right Arm pit', placeholder: 'e.g., 28 cm' },
-    { id: 'right_open_end', label: 'Right Open End', placeholder: 'e.g., 18 cm' },
-    { id: 'right_elbow', label: 'Right Elbow', placeholder: 'e.g., 24 cm' },
-    { id: 'right_close_end', label: 'Right Close End', placeholder: 'e.g., 14 cm' },
-    { id: 'right_total_arm_length', label: 'Right Total arm length', placeholder: 'e.g., 60 cm' }
-  ],
-  'Connecting Sleeves': [
-    { id: 'shoulder', label: 'Shoulder', placeholder: 'e.g., 42 cm' },
-    // Right Arm Measurements
-    { id: 'right_arm_pit', label: 'Right Arm pit', placeholder: 'e.g., 28 cm' },
-    { id: 'right_open_end', label: 'Right Open End', placeholder: 'e.g., 18 cm' },
-    { id: 'right_elbow', label: 'Right Elbow', placeholder: 'e.g., 24 cm' },
-    { id: 'right_close_end', label: 'Right Close End', placeholder: 'e.g., 14 cm' },
-    { id: 'right_total_arm_length', label: 'Right Total arm length', placeholder: 'e.g., 60 cm' },
-    // Left Arm Measurements
-    { id: 'left_arm_pit', label: 'Left Arm pit', placeholder: 'e.g., 28 cm' },
-    { id: 'left_open_end', label: 'Left Open End', placeholder: 'e.g., 18 cm' },
-    { id: 'left_elbow', label: 'Left Elbow', placeholder: 'e.g., 24 cm' },
-    { id: 'left_close_end', label: 'Left Close End', placeholder: 'e.g., 14 cm' },
-    { id: 'left_total_arm_length', label: 'Left Total arm length', placeholder: 'e.g., 60 cm' }
-  ],
-  'Arm sleeve Right Hand': [
-    { id: 'arm_pit', label: 'Open End', placeholder: 'e.g., 28 cm' },
-    { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 24 cm' },
-    { id: 'wrist', label: 'Close End', placeholder: 'e.g., 16 cm' },
-    { id: 'total_arm_length', label: 'Total arm length', placeholder: 'e.g., 60 cm' }
-  ],
-  'Arm sleeve Left Hand': [
-    { id: 'arm_pit', label: 'Open End', placeholder: 'e.g., 28 cm' },
-    { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 24 cm' },
-    { id: 'wrist', label: 'Close End', placeholder: 'e.g., 16 cm' },
-    { id: 'total_arm_length', label: 'Total arm length', placeholder: 'e.g., 60 cm' }
-  ],
-  'Connecting Sleeves/Arm Sleeve': [
-    { id: 'shoulder', label: 'Shoulder', placeholder: 'e.g., 42 cm' },
-    // Right Arm Measurements
-    { id: 'right_arm_pit', label: 'Right Arm pit', placeholder: 'e.g., 28 cm' },
-    { id: 'right_open_end', label: 'Right Open End', placeholder: 'e.g., 18 cm' },
-    { id: 'right_elbow', label: 'Right Elbow', placeholder: 'e.g., 24 cm' },
-    { id: 'right_close_end', label: 'Right Close End', placeholder: 'e.g., 14 cm' },
-    { id: 'right_total_arm_length', label: 'Right Total arm length', placeholder: 'e.g., 60 cm' },
-    // Left Arm Measurements
-    { id: 'left_arm_pit', label: 'Left Arm pit', placeholder: 'e.g., 28 cm' },
-    { id: 'left_open_end', label: 'Left Open End', placeholder: 'e.g., 18 cm' },
-    { id: 'left_elbow', label: 'Left Elbow', placeholder: 'e.g., 24 cm' },
-    { id: 'left_close_end', label: 'Left Close End', placeholder: 'e.g., 14 cm' },
-    { id: 'left_total_arm_length', label: 'Left Total arm length', placeholder: 'e.g., 60 cm' }
-  ],
-  'All Jacket': [
-    { id: 'neck_around', label: 'Neck around', placeholder: 'e.g., 36 cm' },
-    { id: 'neck_length', label: 'Neck length', placeholder: 'e.g., 8 cm' },
-    { id: 'shoulder', label: 'Shoulder', placeholder: 'e.g., 44 cm' },
-    { id: 'arm_pit', label: 'Arm pit', placeholder: 'e.g., 32 cm' },
-    { id: 'arm_open_end', label: 'Arm open end', placeholder: 'e.g., 20 cm' },
-    { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 26 cm' },
-    { id: 'arm_close_end', label: 'Arm close end', placeholder: 'e.g., 16 cm' },
-    { id: 'arm_total_length', label: 'Arm total length', placeholder: 'e.g., 62 cm' },
-    { id: 'chest', label: 'Chest', placeholder: 'e.g., 98 cm' },
-    { id: 'diapharm', label: 'Diapharm', placeholder: 'e.g., 85 cm' },
-    { id: 'belly', label: 'Belly', placeholder: 'e.g., 90 cm' },
-    { id: 'waist', label: 'Waist', placeholder: 'e.g., 88 cm' },
-    { id: 'total_length', label: 'Total length', placeholder: 'e.g., 70 cm' }
-  ],
-  'All Gloves/Glove With Sleeve': [
-    { id: 'palm', label: 'Palm', placeholder: 'e.g., 20 cm' },
-    { id: 'wrist', label: 'Wrist', placeholder: 'e.g., 16 cm' },
-    { id: 'thumb', label: 'Thumb', placeholder: 'e.g., 5.5 cm' },
-    { id: 'index_finger', label: 'Index finger', placeholder: 'e.g., 7.5 cm' },
-    { id: 'middle_finger', label: 'Middle finger', placeholder: 'e.g., 8 cm' },
-    { id: 'ring_finger', label: 'Ring finger', placeholder: 'e.g., 7.5 cm' },
-    { id: 'little_finger', label: 'Little finger', placeholder: 'e.g., 6 cm' },
-    { id: 'total_len_medal_to_scar', label: 'Total length middle finger to end of scar', placeholder: 'e.g., 35 cm' }
-  ],
-  'Glove With Sleeve': [
-    { id: 'palm', label: 'Palm', placeholder: 'e.g., 20 cm' },
-    { id: 'wrist', label: 'Wrist', placeholder: 'e.g., 16 cm' },
-    { id: 'thumb', label: 'Thumb', placeholder: 'e.g., 5.5 cm' },
-    { id: 'index_finger', label: 'Index finger', placeholder: 'e.g., 7.5 cm' },
-    { id: 'middle_finger', label: 'Middle finger', placeholder: 'e.g., 8 cm' },
-    { id: 'ring_finger', label: 'Ring finger', placeholder: 'e.g., 7.5 cm' },
-    { id: 'little_finger', label: 'Little finger', placeholder: 'e.g., 6 cm' },
-    { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 24 cm' },
-    { id: 'close_end', label: 'Close end', placeholder: 'e.g., 18 cm' },
-    { id: 'len_middle_finger_to_wrist', label: 'Length middle finger to wrist', placeholder: 'e.g., 18 cm' },
-    { id: 'len_wrist_to_end_of_scar', label: 'Length wrist to end of scar', placeholder: 'e.g., 35 cm' }
-  ],
-  'Sports Bra': [
-    { id: 'diaphrarm', label: 'Diaphrarm', placeholder: 'e.g., 75 cm' },
-    { id: 'chest', label: 'Chest', placeholder: 'e.g., 85 cm' },
-    { id: 'armpit', label: 'Armpit', placeholder: 'e.g., 38 cm' },
-    { id: 'shoulder', label: 'Shoulder', placeholder: 'e.g., 36 cm' },
-    { id: 'total_length', label: 'Total length', placeholder: 'e.g., 32 cm' }
-  ],
-  'Belly Binder': [
-    { id: 'diaphrarm', label: 'Diaphrom', placeholder: 'e.g., 51 cm' },
-    { id: 'belly', label: 'Belly', placeholder: 'e.g., 53 cm' },
-    { id: 'waist', label: 'Waist', placeholder: 'e.g., 54 cm' },
-    { id: 'hips', label: 'Hips', placeholder: 'e.g., 58 cm' },
-    { id: 'open_end_thigh', label: 'Open End', placeholder: 'e.g., 35 cm' },
-    { id: 'close_end_thigh', label: 'Close End (Leg end)', placeholder: 'e.g., 25 cm' },
-    { id: 'len_diaphragm_to_waist', label: 'Length Diaphrom to Waist', placeholder: 'e.g., 18 cm' },
-    { id: 'len_waist_to_close_end', label: 'Waist to Close End', placeholder: 'e.g., 44 cm' }
-  ],
-  'Belly Belt': [
-    { id: 'diaphrarm', label: 'Diaphrom', placeholder: 'e.g., 75 cm' },
-    { id: 'belly', label: 'Belly', placeholder: 'e.g., 80 cm' },
-    { id: 'waist', label: 'Waist', placeholder: 'e.g., 78 cm' },
-    { id: 'len_diaphragm_to_waist', label: 'Width diapharm to waist', placeholder: 'e.g., 25 cm' }
-  ],
-  'All Trouser': [
-    { id: 'diaphrarm', label: 'Diaphrarm', placeholder: 'e.g., 96 cm' },
-    { id: 'belly', label: 'Belly', placeholder: 'e.g., 98 cm' },
-    { id: 'waist', label: 'Waist', placeholder: 'e.g., 98 cm' },
-    { id: 'hips', label: 'Hips', placeholder: 'e.g., 104 cm' },
-    { id: 'open_end_thigh', label: 'Open end thigh', placeholder: 'e.g., 56 cm' },
-    { id: 'close_end_thigh', label: 'Close end thigh', placeholder: 'e.g., 46 cm' },
-    { id: 'knee', label: 'Knee', placeholder: 'e.g., 42 cm' },
-    { id: 'ankle', label: 'Ankle', placeholder: 'e.g., 25 cm' },
-    { id: 'len_diaphragm_to_waist', label: 'length diaphragm to waist', placeholder: 'e.g., 20 cm' },
-    { id: 'len_waist_to_ankle', label: 'Length waist to ankle', placeholder: 'e.g., 86 cm' },
-    { id: 'total_length', label: 'Total Length', placeholder: 'e.g., 91 cm' }
-  ],
-  'All Leg Sleeves': [
-    { id: 'open_end', label: 'Open end', placeholder: 'e.g., 45 cm' },
-    { id: 'knee', label: 'Knee', placeholder: 'e.g., 35 cm' },
-    { id: 'close_end', label: 'Close end', placeholder: 'e.g., 22 cm' },
-    { id: 'total_length', label: 'Total length', placeholder: 'e.g., 68 cm' }
-  ],
-  'Left Socks': [
-    { id: 'open_end', label: 'Open End', placeholder: 'e.g., 26 cm' },
-    { id: 'close_end', label: 'Close End', placeholder: 'e.g., 20 cm' },
-    { id: 'len_heel_to_close_end', label: 'Heel to End', placeholder: 'e.g., 18 cm' },
-    { id: 'ankle', label: 'Ankle', placeholder: 'e.g., 22 cm' },
-    { id: 'feet', label: 'Feet', placeholder: 'e.g., 24 cm' },
-    { id: 'feet_length', label: 'Feet Length', placeholder: 'e.g., 25 cm' }
-  ],
-  'Right Socks': [
-    { id: 'open_end', label: 'Open End', placeholder: 'e.g., 26 cm' },
-    { id: 'close_end', label: 'Close End', placeholder: 'e.g., 20 cm' },
-    { id: 'len_heel_to_close_end', label: 'Heel to End', placeholder: 'e.g., 18 cm' },
-    { id: 'ankle', label: 'Ankle', placeholder: 'e.g., 22 cm' },
-    { id: 'feet', label: 'Feet', placeholder: 'e.g., 24 cm' },
-    { id: 'feet_length', label: 'Feet Length', placeholder: 'e.g., 25 cm' }
-  ],
-  'All Socks': [
-    // Right Sock Measurements
-    { id: 'right_above_ankle_open_end', label: 'Right Open End', placeholder: 'e.g., 26 cm' },
-    { id: 'right_close_end', label: 'Right Close End', placeholder: 'e.g., 20 cm' },
-    { id: 'right_len_heel_to_close_end', label: 'Right Heel to End', placeholder: 'e.g., 18 cm' },
-    { id: 'right_ankle', label: 'Right Ankle', placeholder: 'e.g., 22 cm' },
-    { id: 'right_feet', label: 'Right Feet', placeholder: 'e.g., 24 cm' },
-    { id: 'right_feet_length', label: 'Right Feet Length', placeholder: 'e.g., 25 cm' },
-    // Left Sock Measurements
-    { id: 'left_above_ankle_open_end', label: 'Left Open End', placeholder: 'e.g., 26 cm' },
-    { id: 'left_close_end', label: 'Left Close End', placeholder: 'e.g., 20 cm' },
-    { id: 'left_len_heel_to_close_end', label: 'Left Heel to End', placeholder: 'e.g., 18 cm' },
-    { id: 'left_ankle', label: 'Left Ankle', placeholder: 'e.g., 22 cm' },
-    { id: 'left_feet', label: 'Left Feet', placeholder: 'e.g., 24 cm' },
-    { id: 'left_feet_length', label: 'Left Feet Length', placeholder: 'e.g., 25 cm' }
-  ],
-  'Body Shaper': [
-    { id: 'neck_around', label: 'Neck around', placeholder: 'e.g., 36 cm' },
-    { id: 'neck_length', label: 'Neck length', placeholder: 'e.g., 8 cm' },
-    { id: 'shoulder', label: 'Shoulder', placeholder: 'e.g., 44 cm' },
-    { id: 'arm_pit', label: 'Arm pit', placeholder: 'e.g., 32 cm' },
-    { id: 'arm_open_end', label: 'Arm open end', placeholder: 'e.g., 20 cm' },
-    { id: 'elbow', label: 'Elbow', placeholder: 'e.g., 26 cm' },
-    { id: 'arm_close_end', label: 'Arm close end', placeholder: 'e.g., 16 cm' },
-    { id: 'arm_total_length', label: 'Arm total length', placeholder: 'e.g., 62 cm' },
-    { id: 'chest', label: 'Chest', placeholder: 'e.g., 98 cm' },
-    { id: 'diapharm', label: 'Diapharm', placeholder: 'e.g., 85 cm' },
-    { id: 'belly', label: 'Belly', placeholder: 'e.g., 90 cm' },
-    { id: 'waist', label: 'Waist', placeholder: 'e.g., 88 cm' },
-    { id: 'hips', label: 'Hips', placeholder: 'e.g., 104 cm' },
-    { id: 'open_end_thigh', label: 'Open end thigh', placeholder: 'e.g., 56 cm' },
-    { id: 'close_end_thigh', label: 'Close end thigh', placeholder: 'e.g., 46 cm' },
-    { id: 'knee', label: 'Knee', placeholder: 'e.g., 42 cm' },
-    { id: 'ankle', label: 'Ankle', placeholder: 'e.g., 25 cm' },
-    { id: 'length_diaphragm_to_waist', label: 'length diaphragm to waist', placeholder: 'e.g., 20 cm' },
-    { id: 'length_waist_to_ankle', label: 'Length waist to ankle', placeholder: 'e.g., 86 cm' },
-    { id: 'total_length', label: 'Total Length', placeholder: 'e.g., 91 cm' }
-  ]
-};
 
 interface PatientInfo {
   id?: string;
@@ -711,7 +521,6 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
   };
 
   const renderMeasurementDrawingSvg = () => {
-    const fields = GARMENT_FIELDS[garment.type] || [];
     const strokeProps = { stroke: "#2563eb", strokeWidth: "2", fill: "none" };
 
     const formatVal = (label: string) => {
@@ -872,8 +681,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
       case 'Right Connecting Sleeve':
       case 'Connecting Sleeves':
       case 'Connecting Sleeves/Arm Sleeve': {
-        const showLeft = garment.type !== 'Right Connecting Sleeve';
-        const showRight = garment.type !== 'Left Connecting Sleeve';
+        const { showLeft, showRight } = resolveConnectingSleeveSides(garment.type, garment.subOptions);
         return (
           <svg viewBox="0 0 300 300" className="w-full h-full max-h-[600px]" style={{ minHeight: '400px' }}>
             {/* Torso Back View Background */}
@@ -995,10 +803,20 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
         );
       }
 
+      case 'Arm Sleeve':
       case 'Arm sleeve Right Hand':
-      case 'Arm sleeve Left Hand':
+      case 'Arm sleeve Left Hand': {
+        const armSideLabel = resolveArmSleeveSideLabel(garment.type, garment.subOptions);
         return (
           <svg viewBox="0 0 300 300" className="w-full h-full max-h-[600px]" style={{ minHeight: '400px' }}>
+            {/* Top Side Indicator Badge */}
+            <g transform="translate(150, 22)">
+              <rect x="-105" y="-11" width="210" height="22" rx="6" fill="#f8fafc" stroke="#1e293b" strokeWidth="1.5" />
+              <text y="3.5" textAnchor="middle" className="fill-slate-900 font-extrabold" fontSize="9.5" letterSpacing="0.5">
+                {armSideLabel.toUpperCase()}
+              </text>
+            </g>
+
             {/* Cylinder sleeve body */}
             <polygon points="190,85 78,175 102,205 230,135" fill="#eff6ff" stroke="#2563eb" strokeWidth="2" />
 
@@ -1039,6 +857,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
             </g>
           </svg>
         );
+      }
 
       case 'Sports Bra':
         return (
@@ -1916,142 +1735,126 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
         );
 
       case 'Left Socks':
-        return (
-          <svg viewBox="0 0 540 440" className="w-full h-full max-h-[600px]" style={{ minHeight: '400px' }}>
-            {/* Header */}
-            <g transform="translate(270, 22)">
-              <rect x="-95" y="-12" width="190" height="24" rx="6" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
-              <text y="4" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="10.5" letterSpacing="0.5">
-                LEFT SOCK / بایاں جراب
-              </text>
-            </g>
-
-            {/* Left Sock Contour (Profile facing Left) */}
-            <path 
-              d="M 330,70 L 230,70 L 230,245 L 130,320 L 160,360 L 345,245 Z" 
-              fill="#f0f7ff" 
-              stroke="#60a5fa" 
-              strokeWidth="2.5" 
-              strokeLinejoin="round" 
-            />
-
-            {/* Solid Amber line for Heel to End along the back edge */}
-            <line x1="330" y1="70" x2="345" y2="245" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" />
-
-            {/* Dashed Blue line across Ankle */}
-            <line x1="345" y1="245" x2="230" y2="245" stroke="#2563eb" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
-
-            {/* Dashed Emerald line across Feet / Instep */}
-            <line x1="345" y1="245" x2="195" y2="330" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
-
-            {/* Measurement Badges matching clinical standard */}
-            {/* 1. Open End Badge */}
-            <g transform="translate(280, 52)">
-              <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#c084fc" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="11">Open End: {formatVal('Open End')}</text>
-            </g>
-
-            {/* 2. Close End Badge */}
-            <g transform="translate(280, 118)">
-              <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#fb923c" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="11">Close End: {formatVal('Close End')}</text>
-            </g>
-
-            {/* 3. Heel to End Badge */}
-            <g transform="translate(425, 170)">
-              <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#f59e0b" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="11">Heel to End: {formatVal('Heel to End')}</text>
-            </g>
-
-            {/* 4. Ankle Badge */}
-            <g transform="translate(288, 228)">
-              <rect x="-62" y="-12" width="124" height="24" rx="6" fill="white" stroke="#3b82f6" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="11">Ankle: {formatVal('Ankle')}</text>
-            </g>
-
-            {/* 5. Feet Badge */}
-            <g transform="translate(245, 312)">
-              <rect x="-60" y="-12" width="120" height="24" rx="6" fill="white" stroke="#10b981" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="11">Feet: {formatVal('Feet')}</text>
-            </g>
-
-            {/* 6. Feet Length Badge */}
-            <g transform="translate(175, 390)">
-              <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#ec4899" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="11">Feet Length: {formatVal('Feet Length')}</text>
-            </g>
-          </svg>
-        );
-
       case 'Right Socks':
-        return (
-          <svg viewBox="0 0 540 440" className="w-full h-full max-h-[600px]" style={{ minHeight: '400px' }}>
-            {/* Header */}
-            <g transform="translate(270, 22)">
-              <rect x="-95" y="-12" width="190" height="24" rx="6" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
-              <text y="4" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="10.5" letterSpacing="0.5">
-                RIGHT SOCK / دایاں جراب
-              </text>
-            </g>
+      case 'All Socks': {
+        const sockMode = resolveSockSideMode(garment.type, garment.subOptions);
 
-            {/* Right Sock Contour (Profile facing Right) */}
-            <path 
-              d="M 210,70 L 310,70 L 310,245 L 410,320 L 380,360 L 195,245 Z" 
-              fill="#f0f7ff" 
-              stroke="#60a5fa" 
-              strokeWidth="2.5" 
-              strokeLinejoin="round" 
-            />
+        if (sockMode === 'Left') {
+          return (
+            <svg viewBox="0 0 540 440" className="w-full h-full max-h-[600px]" style={{ minHeight: '400px' }}>
+              {/* Header */}
+              <g transform="translate(270, 22)">
+                <rect x="-95" y="-12" width="190" height="24" rx="6" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
+                <text y="4" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="10.5" letterSpacing="0.5">
+                  LEFT SOCK / بایاں جراب
+                </text>
+              </g>
 
-            {/* Solid Amber line for Heel to End along the back edge */}
-            <line x1="210" y1="70" x2="195" y2="245" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" />
+              {/* Left Sock Contour (Profile facing Left) */}
+              <path 
+                d="M 330,70 L 230,70 L 230,245 L 130,320 L 160,360 L 345,245 Z" 
+                fill="#f0f7ff" 
+                stroke="#60a5fa" 
+                strokeWidth="2.5" 
+                strokeLinejoin="round" 
+              />
 
-            {/* Dashed Blue line across Ankle */}
-            <line x1="195" y1="245" x2="310" y2="245" stroke="#2563eb" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
+              {/* Solid Amber line for Heel to End along the back edge */}
+              <line x1="330" y1="70" x2="345" y2="245" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" />
 
-            {/* Dashed Emerald line across Feet / Instep */}
-            <line x1="195" y1="245" x2="345" y2="330" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
+              {/* Dashed Blue line across Ankle */}
+              <line x1="345" y1="245" x2="230" y2="245" stroke="#2563eb" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
 
-            {/* Measurement Badges matching clinical standard */}
-            {/* 1. Open End Badge */}
-            <g transform="translate(260, 52)">
-              <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#c084fc" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="11">Open End: {formatVal('Open End')}</text>
-            </g>
+              {/* Dashed Emerald line across Feet / Instep */}
+              <line x1="345" y1="245" x2="195" y2="330" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
 
-            {/* 2. Close End Badge */}
-            <g transform="translate(260, 118)">
-              <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#fb923c" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="11">Close End: {formatVal('Close End')}</text>
-            </g>
+              {/* Measurement Badges matching clinical standard */}
+              <g transform="translate(280, 52)">
+                <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#c084fc" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="11">Open End: {formatVal('Open End')}</text>
+              </g>
+              <g transform="translate(280, 118)">
+                <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#fb923c" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="11">Close End: {formatVal('Close End')}</text>
+              </g>
+              <g transform="translate(425, 170)">
+                <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#f59e0b" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="11">Heel to End: {formatVal('Heel to End')}</text>
+              </g>
+              <g transform="translate(288, 228)">
+                <rect x="-62" y="-12" width="124" height="24" rx="6" fill="white" stroke="#3b82f6" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="11">Ankle: {formatVal('Ankle')}</text>
+              </g>
+              <g transform="translate(245, 312)">
+                <rect x="-60" y="-12" width="120" height="24" rx="6" fill="white" stroke="#10b981" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="11">Feet: {formatVal('Feet')}</text>
+              </g>
+              <g transform="translate(175, 390)">
+                <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#ec4899" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="11">Feet Length: {formatVal('Feet Length')}</text>
+              </g>
+            </svg>
+          );
+        }
 
-            {/* 3. Heel to End Badge */}
-            <g transform="translate(115, 170)">
-              <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#f59e0b" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="11">Heel to End: {formatVal('Heel to End')}</text>
-            </g>
+        if (sockMode === 'Right') {
+          return (
+            <svg viewBox="0 0 540 440" className="w-full h-full max-h-[600px]" style={{ minHeight: '400px' }}>
+              {/* Header */}
+              <g transform="translate(270, 22)">
+                <rect x="-95" y="-12" width="190" height="24" rx="6" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
+                <text y="4" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="10.5" letterSpacing="0.5">
+                  RIGHT SOCK / دایاں جراب
+                </text>
+              </g>
 
-            {/* 4. Ankle Badge */}
-            <g transform="translate(252, 228)">
-              <rect x="-62" y="-12" width="124" height="24" rx="6" fill="white" stroke="#3b82f6" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="11">Ankle: {formatVal('Ankle')}</text>
-            </g>
+              {/* Right Sock Contour (Profile facing Right) */}
+              <path 
+                d="M 210,70 L 310,70 L 310,245 L 410,320 L 380,360 L 195,245 Z" 
+                fill="#f0f7ff" 
+                stroke="#60a5fa" 
+                strokeWidth="2.5" 
+                strokeLinejoin="round" 
+              />
 
-            {/* 5. Feet Badge */}
-            <g transform="translate(295, 312)">
-              <rect x="-60" y="-12" width="120" height="24" rx="6" fill="white" stroke="#10b981" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="11">Feet: {formatVal('Feet')}</text>
-            </g>
+              {/* Solid Amber line for Heel to End along the back edge */}
+              <line x1="210" y1="70" x2="195" y2="245" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" />
 
-            {/* 6. Feet Length Badge */}
-            <g transform="translate(365, 390)">
-              <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#ec4899" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="11">Feet Length: {formatVal('Feet Length')}</text>
-            </g>
-          </svg>
-        );
+              {/* Dashed Blue line across Ankle */}
+              <line x1="195" y1="245" x2="310" y2="245" stroke="#2563eb" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
 
-      case 'All Socks':
+              {/* Dashed Emerald line across Feet / Instep */}
+              <line x1="195" y1="245" x2="345" y2="330" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
+
+              {/* Measurement Badges matching clinical standard */}
+              <g transform="translate(260, 52)">
+                <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#c084fc" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="11">Open End: {formatVal('Open End')}</text>
+              </g>
+              <g transform="translate(260, 118)">
+                <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#fb923c" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="11">Close End: {formatVal('Close End')}</text>
+              </g>
+              <g transform="translate(115, 170)">
+                <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#f59e0b" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="11">Heel to End: {formatVal('Heel to End')}</text>
+              </g>
+              <g transform="translate(252, 228)">
+                <rect x="-62" y="-12" width="124" height="24" rx="6" fill="white" stroke="#3b82f6" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="11">Ankle: {formatVal('Ankle')}</text>
+              </g>
+              <g transform="translate(295, 312)">
+                <rect x="-60" y="-12" width="120" height="24" rx="6" fill="white" stroke="#10b981" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="11">Feet: {formatVal('Feet')}</text>
+              </g>
+              <g transform="translate(365, 390)">
+                <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#ec4899" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="11">Feet Length: {formatVal('Feet Length')}</text>
+              </g>
+            </svg>
+          );
+        }
+
         return (
           <svg viewBox="0 0 520 320" className="w-full h-full max-h-[600px]" style={{ minHeight: '400px' }}>
             {/* Center divider between Left and Right Socks */}
@@ -2132,6 +1935,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
             </g>
           </svg>
         );
+      }
 
       case 'Body Shaper':
         return (
@@ -4021,24 +3825,33 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                         value={garment.type}
                         onChange={(e) => {
                           const newType = e.target.value;
-                          setGarment(prev => ({ 
-                            ...prev, 
+                          const defaultSubOptions: Record<string, any> =
+                            (newType === 'All Gloves/Glove With Sleeve' || newType === 'Glove With Sleeve')
+                              ? { 'Hand Selection': 'Right Hand Glove' }
+                              : newType === 'Connecting Sleeves'
+                                ? { 'Side Selection': 'Right Connecting Sleeve' }
+                                : newType === 'Arm Sleeve'
+                                  ? { 'Side Selection': 'Right Hand Arm Sleeve' }
+                                  : newType === 'All Socks'
+                                    ? { 'Side Selection': 'Right Sock' }
+                                    : {};
+                          setGarment(prev => ({
+                            ...prev,
                             type: newType,
-                            subOptions: (newType === 'All Gloves/Glove With Sleeve' || newType === 'Glove With Sleeve')
-                              ? { 'Hand Selection': 'Right Hand Glove' } 
-                              : {} // Reset sub-options on change so they are clean
+                            subOptions: defaultSubOptions
                           }));
                         }}
                         className="w-full px-5 py-4 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all shadow-sm"
                       >
                         <option value="Face Mask & Chin Binder">Face Mask & Chin Binder</option>
-                        <option value="Left Connecting Sleeve">Left Connecting Sleeve</option>
-                        <option value="Right Connecting Sleeve">Right Connecting Sleeve</option>
-                        {(garment.type === 'Connecting Sleeves' || garment.type === 'Connecting Sleeves/Arm Sleeve') && (
+                        <option value="Connecting Sleeves">Connecting Sleeves</option>
+                        {(garment.type === 'Left Connecting Sleeve' || garment.type === 'Right Connecting Sleeve' || garment.type === 'Connecting Sleeves/Arm Sleeve') && (
                           <option value={garment.type}>{garment.type} (Legacy)</option>
                         )}
-                        <option value="Arm sleeve Right Hand">Arm sleeve Right Hand</option>
-                        <option value="Arm sleeve Left Hand">Arm sleeve Left Hand</option>
+                        <option value="Arm Sleeve">Arm Sleeve</option>
+                        {(garment.type === 'Arm sleeve Right Hand' || garment.type === 'Arm sleeve Left Hand') && (
+                          <option value={garment.type}>{garment.type} (Legacy)</option>
+                        )}
                         <option value="All Jacket">All Jacket</option>
                         <option value="Sports Bra">Sports Bra</option>
                         <option value="All Gloves/Glove With Sleeve">Gloves</option>
@@ -4047,9 +3860,10 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                         <option value="Belly Belt">Belly Belt</option>
                         <option value="All Trouser">All Trouser</option>
                         <option value="All Leg Sleeves">All Leg Sleeves</option>
-                        <option value="Left Socks">Left Socks</option>
-                        <option value="Right Socks">Right Socks</option>
-                        {garment.type === 'All Socks' && <option value="All Socks">All Socks (Legacy)</option>}
+                        <option value="All Socks">Socks</option>
+                        {(garment.type === 'Left Socks' || garment.type === 'Right Socks') && (
+                          <option value={garment.type}>{garment.type} (Legacy)</option>
+                        )}
                         <option value="Body Shaper">Body Shaper</option>
                       </select>
                     </div>
@@ -4098,60 +3912,147 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                       </div>
                     )}
 
+                    {/* Connecting Sleeves Side Selection */}
+                    {(garment.type === 'Connecting Sleeves' || garment.type === 'Connecting Sleeves/Arm Sleeve') && (
+                      <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <label className="text-[12px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                          <Scissors className="w-4 h-4 text-blue-600" />
+                          Connecting Sleeve Side Option (جڑواں بازو کا انتخاب)
+                        </label>
+                        <div className="grid grid-cols-3 gap-4">
+                          {[
+                            { value: 'Right Connecting Sleeve', label: 'Right Connecting Sleeve', native: 'Right Sleeve (سیدھا بازو)' },
+                            { value: 'Left Connecting Sleeve', label: 'Left Connecting Sleeve', native: 'Left Sleeve (الٹا بازو)' },
+                            { value: 'Both Connecting Sleeves', label: 'Both Connecting Sleeves', native: 'Both Sleeves (دونوں بازو)' }
+                          ].map(opt => {
+                            const isSelected = (garment.subOptions?.['Side Selection'] || 'Both Connecting Sleeves') === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => setGarment(prev => ({
+                                  ...prev,
+                                  subOptions: {
+                                    ...(prev.subOptions || {}),
+                                    'Side Selection': opt.value
+                                  }
+                                }))}
+                                className={cn(
+                                  "flex flex-col items-center justify-center p-5 rounded-3xl border-2 transition-all text-center cursor-pointer",
+                                  isSelected
+                                    ? "bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-100 scale-102"
+                                    : "bg-white border-slate-100 text-slate-600 hover:bg-slate-50"
+                                )}
+                              >
+                                <span className="text-sm font-black">{opt.label}</span>
+                                <span className={cn(
+                                  "text-[10px] font-medium opacity-80 mt-1",
+                                  isSelected ? "text-blue-100" : "text-slate-400"
+                                )}>{opt.native}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Arm Sleeve Side Selection */}
+                    {garment.type === 'Arm Sleeve' && (
+                      <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <label className="text-[12px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                          <Scissors className="w-4 h-4 text-blue-600" />
+                          Arm Sleeve Side Option (بازو آستین کا انتخاب)
+                        </label>
+                        <div className="grid grid-cols-2 gap-4">
+                          {[
+                            { value: 'Right Hand Arm Sleeve', label: 'Right Hand Arm Sleeve', native: 'Right Arm (سیدھا بازو)' },
+                            { value: 'Left Hand Arm Sleeve', label: 'Left Hand Arm Sleeve', native: 'Left Arm (الٹا بازو)' }
+                          ].map(opt => {
+                            const isSelected = (garment.subOptions?.['Side Selection'] || 'Right Hand Arm Sleeve') === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => setGarment(prev => ({
+                                  ...prev,
+                                  subOptions: {
+                                    ...(prev.subOptions || {}),
+                                    'Side Selection': opt.value
+                                  }
+                                }))}
+                                className={cn(
+                                  "flex flex-col items-center justify-center p-5 rounded-3xl border-2 transition-all text-center cursor-pointer",
+                                  isSelected
+                                    ? "bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-100 scale-102"
+                                    : "bg-white border-slate-100 text-slate-600 hover:bg-slate-50"
+                                )}
+                              >
+                                <span className="text-sm font-black">{opt.label}</span>
+                                <span className={cn(
+                                  "text-[10px] font-medium opacity-80 mt-1",
+                                  isSelected ? "text-blue-100" : "text-slate-400"
+                                )}>{opt.native}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Socks Side Selection */}
+                    {garment.type === 'All Socks' && (
+                      <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <label className="text-[12px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                          <Scissors className="w-4 h-4 text-blue-600" />
+                          Socks Side Option (جراب کا انتخاب)
+                        </label>
+                        <div className="grid grid-cols-3 gap-4">
+                          {[
+                            { value: 'Right Sock', label: 'Right Sock', native: 'Right Foot (دایاں جراب)' },
+                            { value: 'Left Sock', label: 'Left Sock', native: 'Left Foot (بایاں جراب)' },
+                            { value: 'Both Socks', label: 'Both Socks', native: 'Both Feet (دونوں جرابیں)' }
+                          ].map(opt => {
+                            const isSelected = (garment.subOptions?.['Side Selection'] || 'Both Socks') === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => setGarment(prev => ({
+                                  ...prev,
+                                  subOptions: {
+                                    ...(prev.subOptions || {}),
+                                    'Side Selection': opt.value
+                                  }
+                                }))}
+                                className={cn(
+                                  "flex flex-col items-center justify-center p-5 rounded-3xl border-2 transition-all text-center cursor-pointer",
+                                  isSelected
+                                    ? "bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-100 scale-102"
+                                    : "bg-white border-slate-100 text-slate-600 hover:bg-slate-50"
+                                )}
+                              >
+                                <span className="text-sm font-black">{opt.label}</span>
+                                <span className={cn(
+                                  "text-[10px] font-medium opacity-80 mt-1",
+                                  isSelected ? "text-blue-100" : "text-slate-400"
+                                )}>{opt.native}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Dynamic sub-options based on garment type selection in high-contrast grid */}
-                    {(GARMENT_FIELDS[garment.type] || ((garment.type === 'All Gloves/Glove With Sleeve' || garment.type === 'Glove With Sleeve') && garment.subOptions?.['Hand Selection'] === 'Both Hand Glove')) && (() => {
-                      const isBothHandGlove = (garment.type === 'All Gloves/Glove With Sleeve' || garment.type === 'Glove With Sleeve') && garment.subOptions?.['Hand Selection'] === 'Both Hand Glove';
-                      const activeGarmentFields = isBothHandGlove
-                        ? (garment.type === 'Glove With Sleeve'
-                            ? [
-                                { id: 'rh_palm', label: 'Right Hand Palm', placeholder: 'e.g., 20 cm' },
-                                { id: 'lh_palm', label: 'Left Hand Palm', placeholder: 'e.g., 20 cm' },
-                                { id: 'rh_wrist', label: 'Right Hand Wrist', placeholder: 'e.g., 16 cm' },
-                                { id: 'lh_wrist', label: 'Left Hand Wrist', placeholder: 'e.g., 16 cm' },
-                                { id: 'rh_thumb', label: 'Right Hand Thumb', placeholder: 'e.g., 5.5 cm' },
-                                { id: 'lh_thumb', label: 'Left Hand Thumb', placeholder: 'e.g., 5.5 cm' },
-                                { id: 'rh_index_finger', label: 'Right Hand Index finger', placeholder: 'e.g., 7.5 cm' },
-                                { id: 'lh_index_finger', label: 'Left Hand Index finger', placeholder: 'e.g., 7.5 cm' },
-                                { id: 'rh_middle_finger', label: 'Right Hand Middle finger', placeholder: 'e.g., 8 cm' },
-                                { id: 'lh_middle_finger', label: 'Left Hand Middle finger', placeholder: 'e.g., 8 cm' },
-                                { id: 'rh_ring_finger', label: 'Right Hand Ring finger', placeholder: 'e.g., 7.5 cm' },
-                                { id: 'lh_ring_finger', label: 'Left Hand Ring finger', placeholder: 'e.g., 7.5 cm' },
-                                { id: 'rh_little_finger', label: 'Right Hand Little finger', placeholder: 'e.g., 6 cm' },
-                                { id: 'lh_little_finger', label: 'Left Hand Little finger', placeholder: 'e.g., 6 cm' },
-                                { id: 'rh_elbow', label: 'Right Hand Elbow', placeholder: 'e.g., 24 cm' },
-                                { id: 'lh_elbow', label: 'Left Hand Elbow', placeholder: 'e.g., 24 cm' },
-                                { id: 'rh_close_end', label: 'Right Hand Close end', placeholder: 'e.g., 18 cm' },
-                                { id: 'lh_close_end', label: 'Left Hand Close end', placeholder: 'e.g., 18 cm' },
-                                { id: 'rh_len_middle_finger_to_wrist', label: 'Right Hand Length middle finger to wrist', placeholder: 'e.g., 18 cm' },
-                                { id: 'lh_len_middle_finger_to_wrist', label: 'Left Hand Length middle finger to wrist', placeholder: 'e.g., 18 cm' },
-                                { id: 'rh_len_wrist_to_end_of_scar', label: 'Right Hand Length wrist to end of scar', placeholder: 'e.g., 35 cm' },
-                                { id: 'lh_len_wrist_to_end_of_scar', label: 'Left Hand Length wrist to end of scar', placeholder: 'e.g., 35 cm' }
-                              ]
-                            : [
-                                { id: 'rh_palm', label: 'Right Hand Palm', placeholder: 'e.g., 20 cm' },
-                                { id: 'lh_palm', label: 'Left Hand Palm', placeholder: 'e.g., 20 cm' },
-                                { id: 'rh_wrist', label: 'Right Hand Wrist', placeholder: 'e.g., 16 cm' },
-                                { id: 'lh_wrist', label: 'Left Hand Wrist', placeholder: 'e.g., 16 cm' },
-                                { id: 'rh_thumb', label: 'Right Hand Thumb', placeholder: 'e.g., 5.5 cm' },
-                                { id: 'lh_thumb', label: 'Left Hand Thumb', placeholder: 'e.g., 5.5 cm' },
-                                { id: 'rh_index_finger', label: 'Right Hand Index finger', placeholder: 'e.g., 7.5 cm' },
-                                { id: 'lh_index_finger', label: 'Left Hand Index finger', placeholder: 'e.g., 7.5 cm' },
-                                { id: 'rh_middle_finger', label: 'Right Hand Middle finger', placeholder: 'e.g., 8 cm' },
-                                { id: 'lh_middle_finger', label: 'Left Hand Middle finger', placeholder: 'e.g., 8 cm' },
-                                { id: 'rh_ring_finger', label: 'Right Hand Ring finger', placeholder: 'e.g., 7.5 cm' },
-                                { id: 'lh_ring_finger', label: 'Left Hand Ring finger', placeholder: 'e.g., 7.5 cm' },
-                                { id: 'rh_little_finger', label: 'Right Hand Little finger', placeholder: 'e.g., 6 cm' },
-                                { id: 'lh_little_finger', label: 'Left Hand Little finger', placeholder: 'e.g., 6 cm' },
-                                { id: 'rh_total_len_medal_to_scar', label: 'Right Hand Total length middle finger to end of scar', placeholder: 'e.g., 35 cm' },
-                                { id: 'lh_total_len_medal_to_scar', label: 'Left Hand Total length middle finger to end of scar', placeholder: 'e.g., 35 cm' }
-                              ])
-                        : (GARMENT_FIELDS[garment.type] || []);
+                    {(() => {
+                      const activeGarmentFields = getActiveGarmentFields(garment.type, garment.subOptions);
+                      if (activeGarmentFields.length === 0) return null;
 
                       return (
                         <div className="mt-8 space-y-6 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
                           <div>
                             <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 text-blue-600">
-                              {garment.type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : garment.type} Specifications
+                              {getGarmentDisplayLabel(garment.type)} Specifications
                             </h4>
                             <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mt-1">
                               Provide precise custom measurements/details for the following parameters
@@ -4287,7 +4188,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
 
                       <div className="mt-4 sm:mt-6 text-center flex flex-col items-center">
                         <p className="text-sm sm:text-base font-black text-slate-950 uppercase tracking-wider">
-                          Reactive Calibration Graph ({garment.type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : garment.type})
+                          Reactive Calibration Graph ({getGarmentDisplayLabel(garment.type)})
                         </p>
                         <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase mt-1">
                           Calculated relative measurements mapping for production line
@@ -4604,7 +4505,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                         <div className="space-y-4">
                           <div>
                             <p className="text-[8px] font-black text-purple-300 uppercase">Garment Type</p>
-                            <p className="text-sm font-black text-slate-900 mt-0.5">{garment.type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : garment.type}</p>
+                            <p className="text-sm font-black text-slate-900 mt-0.5">{getGarmentDisplayLabel(garment.type)}</p>
                           </div>
                           <div>
                             <p className="text-[8px] font-black text-purple-300 uppercase">Silicone Option</p>
@@ -4639,9 +4540,11 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                             <p className="text-[8px] font-black text-emerald-300 uppercase">Anatomical Parameters</p>
                             <p className="text-sm font-black text-slate-900 mt-0.5 font-mono">
                               {(() => {
-                                const isBothHandGlove = (garment.type === 'All Gloves/Glove With Sleeve' || garment.type === 'Glove With Sleeve') && garment.subOptions?.['Hand Selection'] === 'Both Hand Glove';
-                                const totalExpected = isBothHandGlove ? (garment.type === 'Glove With Sleeve' ? 22 : 16) : (GARMENT_FIELDS[garment.type] || []).length;
-                                return `${Object.values(garment.subOptions || {}).filter(Boolean).length} / ${totalExpected}`;
+                                const activeFields = getActiveGarmentFields(garment.type, garment.subOptions);
+                                const filledCount = activeFields.filter(
+                                  f => garment.subOptions?.[f.label] !== undefined && String(garment.subOptions[f.label]).trim() !== ''
+                                ).length;
+                                return `${filledCount} / ${activeFields.length}`;
                               })()} Specified
                             </p>
                           </div>
@@ -4761,9 +4664,12 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                                   {extractedData.handSelection && (
                                     <p className="font-bold text-slate-800 text-xs">• Hand Selection: *<span className="font-black text-slate-900">{extractedData.handSelection}</span>*</p>
                                   )}
+                                  {extractedData.sideSelection && (
+                                    <p className="font-bold text-slate-800 text-xs">• Side Selection: *<span className="font-black text-slate-900">{extractedData.sideSelection}</span>*</p>
+                                  )}
                                   <p className="font-bold text-slate-800 text-xs">• Color: *<span className="font-black text-slate-900">{extractedData.color}</span>*</p>
                                   {extractedData.customDesignOptions.map(([key, val]) => {
-                                    if (key === 'Hand Selection') return null;
+                                    if (key === 'Hand Selection' || key === 'Side Selection') return null;
                                     return (
                                       <p key={key} className="font-bold text-slate-800 text-xs">• {key}: *<span className="font-black text-slate-900">{val}</span>*</p>
                                     );
@@ -4976,7 +4882,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
               <div className="grid grid-cols-4 gap-4">
                 <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
                   <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Garment Unit</span>
-                  <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{garment.type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : (garment.type || 'N/A')}</span>
+                  <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{getGarmentDisplayLabel(garment.type)}</span>
                 </div>
                 <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
                   <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Compression</span>
@@ -5024,7 +4930,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block pl-1">Sizing Matrix</span>
                     <div className="border border-slate-100 rounded-3xl p-4 space-y-1.5" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9', minHeight: '180px' }}>
                       {Object.entries(garment.subOptions || {})
-                        .filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection')
+                        .filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection' && key.toLowerCase() !== 'side selection')
                         .map(([key, val]) => (
                           <div key={key} className="flex justify-between items-center text-xs pb-1 border-b border-dashed border-slate-200 last:border-none last:pb-0">
                             <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-wider">{key}</span>
@@ -5033,7 +4939,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                             </span>
                           </div>
                         ))}
-                      {Object.entries(garment.subOptions || {}).filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection').length === 0 && (
+                      {Object.entries(garment.subOptions || {}).filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection' && key.toLowerCase() !== 'side selection').length === 0 && (
                         <p className="text-xs text-slate-400 italic">No custom points registered.</p>
                       )}
                     </div>
@@ -5079,7 +4985,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block pl-1">Matrix Calibration Parameters</span>
                     <div className="border border-slate-100 rounded-3xl p-4 space-y-2" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
                       {Object.entries(garment.subOptions || {})
-                        .filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection')
+                        .filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection' && key.toLowerCase() !== 'side selection')
                         .map(([key, val]) => (
                           <div key={key} className="flex justify-between items-center text-xs pb-1.5 border-b border-dashed border-slate-200 last:border-none last:pb-0">
                             <span className="text-slate-400 font-extrabold uppercase tracking-wider text-[9px]">{key}</span>
@@ -5088,7 +4994,7 @@ const ClinicalAssessment: React.FC<ClinicalAssessmentProps> = ({ patientData, on
                             </span>
                           </div>
                         ))}
-                      {Object.entries(garment.subOptions || {}).filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection').length === 0 && (
+                      {Object.entries(garment.subOptions || {}).filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection' && key.toLowerCase() !== 'side selection').length === 0 && (
                         <p className="text-xs text-slate-400 italic">No custom points registered.</p>
                       )}
                     </div>

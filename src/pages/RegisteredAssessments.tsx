@@ -25,7 +25,15 @@ import html2canvas from 'html2canvas';
 import { cn } from '../lib/utils';
 import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.png';
 import { useAuthStore } from '../services/authStore';
-import { GARMENT_FIELDS, extractAssessmentMeasurements, buildAssessmentWhatsAppText } from '../utils/measurementUtils';
+import {
+  getActiveGarmentFields,
+  getGarmentDisplayLabel,
+  resolveConnectingSleeveSides,
+  resolveSockSideMode,
+  resolveArmSleeveSideLabel,
+  extractAssessmentMeasurements,
+  buildAssessmentWhatsAppText
+} from '../utils/measurementUtils';
 
 interface RegisteredAssessment {
   id: string;
@@ -105,7 +113,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
     setAssessmentToEdit(asm);
 
     // Extract initial measurement dictionary from measurements (array/object) & sub_options using canonical keys
-    const predefinedFields = GARMENT_FIELDS[asm.garment_type] || [];
+    const predefinedFields = getActiveGarmentFields(asm.garment_type, asm.sub_options);
     const getCanonicalKey = (k: string) => {
       const match = predefinedFields.find(f => f.id === k || f.label === k);
       return match ? match.id : k;
@@ -134,7 +142,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
 
     if (asm.sub_options && typeof asm.sub_options === 'object') {
       Object.entries(asm.sub_options).forEach(([k, v]) => {
-        if (k !== 'Custom Design Notes' && k !== 'doctorNotes' && k !== 'Hand Selection' && v !== undefined && v !== null && String(v).trim() !== '') {
+        if (k !== 'Custom Design Notes' && k !== 'doctorNotes' && k !== 'Hand Selection' && k !== 'Side Selection' && v !== undefined && v !== null && String(v).trim() !== '') {
           const canonicalKey = getCanonicalKey(k);
           if (initialMeas[canonicalKey] === undefined) {
             initialMeas[canonicalKey] = String(v);
@@ -176,7 +184,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
     if (!assessmentToEdit) return;
     setIsSavingEdit(true);
     try {
-      const fields = GARMENT_FIELDS[editFormData.garment_type] || [];
+      const fields = getActiveGarmentFields(editFormData.garment_type, editFormData.sub_options);
       const getCanonicalKey = (k: string) => {
         const match = fields.find(f => f.id === k || f.label === k);
         return match ? match.id : k;
@@ -274,7 +282,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
       const nextSub = { ...prev.sub_options };
       delete nextSub[key];
 
-      const fields = GARMENT_FIELDS[prev.garment_type] || [];
+      const fields = getActiveGarmentFields(prev.garment_type, prev.sub_options);
       const matched = fields.find(f => f.id === key || f.label === key);
       if (matched) {
         delete nextMeas[matched.id];
@@ -433,6 +441,17 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
       
       // Fallback mappings for backwards compatibility
       if (!val) {
+        const sub = assessment.sub_options || {};
+        const findSubVal = (candidates: string[]) => {
+          for (const c of candidates) {
+            const matchedKey = Object.keys(sub).find(k => k.toLowerCase() === c.toLowerCase());
+            if (matchedKey && sub[matchedKey] !== undefined && String(sub[matchedKey]).trim() !== '') {
+              return sub[matchedKey];
+            }
+          }
+          return undefined;
+        };
+
         let fallbackKey = '';
         if (label === 'Left Arm pit' || label === 'L. Arm pit') fallbackKey = 'Left Arm pit';
         else if (label === 'Right Arm pit' || label === 'R. Arm pit') fallbackKey = 'Right Arm pit';
@@ -457,8 +476,12 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         else if (label === 'Left Feet' || label === 'L-Feet') fallbackKey = 'Feet';
         else if (label === 'Right Feet Length' || label === 'R-Feet Len' || label === 'Right Feet length') fallbackKey = 'Feet length';
         else if (label === 'Left Feet Length' || label === 'L-Feet Len' || label === 'Left Feet length') fallbackKey = 'Feet length';
-        else if (label === 'Open End') fallbackKey = 'Arm pit';
-        else if (label === 'Close End') fallbackKey = 'Wrist';
+        else if (label === 'Open End' || label === 'Open end') val = findSubVal(['Open End', 'Open end', 'open_end', 'Right Open End', 'Left Open End', 'Above ankle open end', 'above_ankle_open_end', 'Open end thigh', 'Arm pit', 'arm_pit']);
+        else if (label === 'Close End' || label === 'Close end') val = findSubVal(['Close End', 'Close end', 'close_end', 'Right Close End', 'Left Close End', 'Wrist', 'wrist']);
+        else if (label === 'Heel to End' || label === 'Length heel to close end') val = findSubVal(['Heel to End', 'Length heel to close end', 'len_heel_to_close_end', 'Right Heel to End', 'Left Heel to End']);
+        else if (label === 'Ankle') val = findSubVal(['Ankle', 'ankle', 'Right Ankle', 'Left Ankle']);
+        else if (label === 'Feet') val = findSubVal(['Feet', 'feet', 'Right Feet', 'Left Feet']);
+        else if (label === 'Feet Length' || label === 'Feet length') val = findSubVal(['Feet Length', 'Feet length', 'feet_length', 'Right Feet Length', 'Left Feet Length']);
         else if (label === 'Arm pit') fallbackKey = 'Open End';
         else if (label === 'Wrist') fallbackKey = 'Close End';
         else if (label === 'Middle finger') fallbackKey = 'Medal finger';
@@ -470,7 +493,6 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         // Belly Binder / Belly Belt mappings
         else if (label === 'Diaphrom' || label === 'Diaphrarm') fallbackKey = 'Diaphrarm';
         else if (label === 'West (Waist)' || label === 'West' || label === 'Waist') fallbackKey = 'Waist';
-        else if (label === 'Open End') fallbackKey = 'Open end thigh';
         else if (label === 'Close End (Leg end)') fallbackKey = 'Close end thigh';
         else if (label === 'Width diapharm to waist' || label === 'Width diaphrom to waist' || label === 'Length Diaphrom to West' || label === 'Length Diaphrom to Waist') fallbackKey = 'length diaphragm to waist';
         else if (label === 'Short Length' || label === 'Waist to Close End') fallbackKey = 'Waist to Close End';
@@ -487,11 +509,11 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         else if (label === 'Inseam (Inside Length)' || label === 'Inseam') fallbackKey = 'Inseam';
         else if (label === 'Total Length') fallbackKey = 'Length waist to ankle';
         
-        if (fallbackKey) {
-          key = Object.keys(assessment.sub_options || {}).find(
+        if (!val && fallbackKey) {
+          key = Object.keys(sub).find(
             k => k.toLowerCase() === fallbackKey.toLowerCase()
           ) || fallbackKey;
-          val = assessment.sub_options?.[key];
+          val = sub?.[key];
         }
       }
 
@@ -534,8 +556,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
     }
     
     if (garment === 'Left Connecting Sleeve' || garment === 'Right Connecting Sleeve' || garment === 'Connecting Sleeves/Arm Sleeve' || garment === 'Connecting Sleeves') {
-      const showLeft = garment !== 'Right Connecting Sleeve';
-      const showRight = garment !== 'Left Connecting Sleeve';
+      const { showLeft, showRight } = resolveConnectingSleeveSides(garment, assessment.sub_options);
       return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
         <!-- Torso Back View Background -->
         <ellipse cx="150" cy="45" rx="16" ry="20" fill="#f4f4f5" stroke="#e4e4e7" stroke-width="1" />
@@ -627,8 +648,15 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
       </svg>`;
     }
 
-    if (garment === 'Arm sleeve Right Hand' || garment === 'Arm sleeve Left Hand') {
+    if (garment === 'Arm Sleeve' || garment === 'Arm sleeve Right Hand' || garment === 'Arm sleeve Left Hand') {
+      const armSideLabel = resolveArmSleeveSideLabel(garment, assessment.sub_options).toUpperCase();
       return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+        <!-- Top Side Indicator Badge -->
+        <g transform="translate(150, 22)">
+          <rect x="-105" y="-11" width="210" height="22" rx="6" fill="#f8fafc" stroke="#1e293b" stroke-width="1.5" />
+          <text y="3.5" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="9.5" font-weight="bold" letter-spacing="0.5">${armSideLabel}</text>
+        </g>
+
         <!-- Cylinder sleeve body -->
         <polygon points="190,85 78,175 102,205 230,135" fill="#eff6ff" stroke="#2563eb" stroke-width="2" />
 
@@ -986,7 +1014,11 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
       </svg>`;
     }
 
-    if (garment === 'Left Socks') {
+    const sockMode = (garment === 'Left Socks' || garment === 'Right Socks' || garment === 'All Socks')
+      ? resolveSockSideMode(garment, assessment.sub_options)
+      : null;
+
+    if (sockMode === 'Left') {
       return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 440" width="540" height="440">
         <!-- Header -->
         <g transform="translate(270, 22)">
@@ -1028,7 +1060,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
       </svg>`;
     }
 
-    if (garment === 'Right Socks') {
+    if (sockMode === 'Right') {
       return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 440" width="540" height="440">
         <!-- Header -->
         <g transform="translate(270, 22)">
@@ -1070,7 +1102,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
       </svg>`;
     }
 
-    if (garment === 'All Socks') {
+    if (sockMode === 'Both') {
       return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 320" width="520" height="320">
         <!-- Center divider between Left and Right Socks -->
         <line x1="260" y1="20" x2="260" y2="300" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4,4" />
@@ -1744,6 +1776,17 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
       
       // Fallback mappings for backwards compatibility
       if (!val) {
+        const sub = assessment.sub_options || {};
+        const findSubVal = (candidates: string[]) => {
+          for (const c of candidates) {
+            const matchedKey = Object.keys(sub).find(k => k.toLowerCase() === c.toLowerCase());
+            if (matchedKey && sub[matchedKey] !== undefined && String(sub[matchedKey]).trim() !== '') {
+              return sub[matchedKey];
+            }
+          }
+          return undefined;
+        };
+
         let fallbackKey = '';
         if (label === 'Left Arm pit' || label === 'L. Arm pit') fallbackKey = 'Left Arm pit';
         else if (label === 'Right Arm pit' || label === 'R. Arm pit') fallbackKey = 'Right Arm pit';
@@ -1768,8 +1811,12 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         else if (label === 'Left Feet' || label === 'L-Feet') fallbackKey = 'Feet';
         else if (label === 'Right Feet Length' || label === 'R-Feet Len' || label === 'Right Feet length') fallbackKey = 'Feet length';
         else if (label === 'Left Feet Length' || label === 'L-Feet Len' || label === 'Left Feet length') fallbackKey = 'Feet length';
-        else if (label === 'Open End') fallbackKey = 'Arm pit';
-        else if (label === 'Close End') fallbackKey = 'Wrist';
+        else if (label === 'Open End' || label === 'Open end') val = findSubVal(['Open End', 'Open end', 'open_end', 'Right Open End', 'Left Open End', 'Above ankle open end', 'above_ankle_open_end', 'Open end thigh', 'Arm pit', 'arm_pit']);
+        else if (label === 'Close End' || label === 'Close end') val = findSubVal(['Close End', 'Close end', 'close_end', 'Right Close End', 'Left Close End', 'Wrist', 'wrist']);
+        else if (label === 'Heel to End' || label === 'Length heel to close end') val = findSubVal(['Heel to End', 'Length heel to close end', 'len_heel_to_close_end', 'Right Heel to End', 'Left Heel to End']);
+        else if (label === 'Ankle') val = findSubVal(['Ankle', 'ankle', 'Right Ankle', 'Left Ankle']);
+        else if (label === 'Feet') val = findSubVal(['Feet', 'feet', 'Right Feet', 'Left Feet']);
+        else if (label === 'Feet Length' || label === 'Feet length') val = findSubVal(['Feet Length', 'Feet length', 'feet_length', 'Right Feet Length', 'Left Feet Length']);
         else if (label === 'Arm pit') fallbackKey = 'Open End';
         else if (label === 'Wrist') fallbackKey = 'Close End';
         else if (label === 'Middle finger') fallbackKey = 'Medal finger';
@@ -1781,7 +1828,6 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         // Belly Binder / Belly Belt mappings
         else if (label === 'Diaphrom' || label === 'Diaphrarm') fallbackKey = 'Diaphrarm';
         else if (label === 'West (Waist)' || label === 'West' || label === 'Waist') fallbackKey = 'Waist';
-        else if (label === 'Open End') fallbackKey = 'Open end thigh';
         else if (label === 'Close End (Leg end)') fallbackKey = 'Close end thigh';
         else if (label === 'Width diapharm to waist' || label === 'Width diaphrom to waist' || label === 'Length Diaphrom to West' || label === 'Length Diaphrom to Waist') fallbackKey = 'length diaphragm to waist';
         else if (label === 'Short Length' || label === 'Waist to Close End') fallbackKey = 'Waist to Close End';
@@ -1798,11 +1844,11 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         else if (label === 'Inseam (Inside Length)' || label === 'Inseam') fallbackKey = 'Inseam';
         else if (label === 'Total Length') fallbackKey = 'Length waist to ankle';
         
-        if (fallbackKey) {
-          key = Object.keys(assessment.sub_options || {}).find(
+        if (!val && fallbackKey) {
+          key = Object.keys(sub).find(
             k => k.toLowerCase() === fallbackKey.toLowerCase()
           ) || fallbackKey;
-          val = assessment.sub_options?.[key];
+          val = sub?.[key];
         }
       }
 
@@ -1887,8 +1933,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
       case 'Right Connecting Sleeve':
       case 'Connecting Sleeves':
       case 'Connecting Sleeves/Arm Sleeve': {
-        const showLeft = assessment.garment_type !== 'Right Connecting Sleeve';
-        const showRight = assessment.garment_type !== 'Left Connecting Sleeve';
+        const { showLeft, showRight } = resolveConnectingSleeveSides(assessment.garment_type, assessment.sub_options);
         return (
           <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
             {/* Torso Back View Background */}
@@ -2002,10 +2047,20 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         );
       }
 
+      case 'Arm Sleeve':
       case 'Arm sleeve Right Hand':
-      case 'Arm sleeve Left Hand':
+      case 'Arm sleeve Left Hand': {
+        const armSideLabel = resolveArmSleeveSideLabel(assessment.garment_type, assessment.sub_options);
         return (
           <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
+            {/* Top Side Indicator Badge */}
+            <g transform="translate(150, 22)">
+              <rect x="-105" y="-11" width="210" height="22" rx="6" fill="#f8fafc" stroke="#1e293b" strokeWidth="1.5" />
+              <text y="3.5" textAnchor="middle" className="fill-slate-900 font-extrabold" fontSize="9.5" letterSpacing="0.5">
+                {armSideLabel.toUpperCase()}
+              </text>
+            </g>
+
             {/* Cylinder sleeve body */}
             <polygon points="190,85 78,175 102,205 230,135" fill="#eff6ff" stroke="#2563eb" strokeWidth="2" />
 
@@ -2046,6 +2101,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
             </g>
           </svg>
         );
+      }
 
       case 'Sports Bra':
         return (
@@ -2911,130 +2967,126 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
         );
 
       case 'Left Socks':
-        return (
-          <svg viewBox="0 0 540 440" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
-            {/* Header */}
-            <g transform="translate(270, 22)">
-              <rect x="-95" y="-12" width="190" height="24" rx="6" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
-              <text y="4" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="10.5" letterSpacing="0.5">
-                LEFT SOCK / بایاں جراب
-              </text>
-            </g>
-
-            {/* Left Sock Contour */}
-            <path 
-              d="M 330,70 L 230,70 L 230,245 L 130,320 L 160,360 L 345,245 Z" 
-              fill="#f0f7ff" 
-              stroke="#60a5fa" 
-              strokeWidth="2.5" 
-              strokeLinejoin="round" 
-            />
-
-            {/* Solid Amber line for Heel to End along the back edge */}
-            <line x1="330" y1="70" x2="345" y2="245" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" />
-
-            {/* Dashed Blue line across Ankle */}
-            <line x1="345" y1="245" x2="230" y2="245" stroke="#2563eb" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
-
-            {/* Dashed Emerald line across Feet / Instep */}
-            <line x1="345" y1="245" x2="195" y2="330" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
-
-            {/* Measurement Badges */}
-            <g transform="translate(280, 52)">
-              <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#c084fc" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="11">Open End: {formatVal('Open End')}</text>
-            </g>
-
-            <g transform="translate(280, 118)">
-              <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#fb923c" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="11">Close End: {formatVal('Close End')}</text>
-            </g>
-
-            <g transform="translate(425, 170)">
-              <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#f59e0b" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="11">Heel to End: {formatVal('Heel to End')}</text>
-            </g>
-
-            <g transform="translate(288, 228)">
-              <rect x="-62" y="-12" width="124" height="24" rx="6" fill="white" stroke="#3b82f6" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="11">Ankle: {formatVal('Ankle')}</text>
-            </g>
-
-            <g transform="translate(245, 312)">
-              <rect x="-60" y="-12" width="120" height="24" rx="6" fill="white" stroke="#10b981" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="11">Feet: {formatVal('Feet')}</text>
-            </g>
-
-            <g transform="translate(175, 390)">
-              <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#ec4899" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="11">Feet Length: {formatVal('Feet Length')}</text>
-            </g>
-          </svg>
-        );
-
       case 'Right Socks':
-        return (
-          <svg viewBox="0 0 540 440" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
-            {/* Header */}
-            <g transform="translate(270, 22)">
-              <rect x="-95" y="-12" width="190" height="24" rx="6" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
-              <text y="4" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="10.5" letterSpacing="0.5">
-                RIGHT SOCK / دایاں جراب
-              </text>
-            </g>
+      case 'All Socks': {
+        const sockMode = resolveSockSideMode(assessment.garment_type, assessment.sub_options);
 
-            {/* Right Sock Contour */}
-            <path 
-              d="M 210,70 L 310,70 L 310,245 L 410,320 L 380,360 L 195,245 Z" 
-              fill="#f0f7ff" 
-              stroke="#60a5fa" 
-              strokeWidth="2.5" 
-              strokeLinejoin="round" 
-            />
+        if (sockMode === 'Left') {
+          return (
+            <svg viewBox="0 0 540 440" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
+              {/* Header */}
+              <g transform="translate(270, 22)">
+                <rect x="-95" y="-12" width="190" height="24" rx="6" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
+                <text y="4" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="10.5" letterSpacing="0.5">
+                  LEFT SOCK / بایاں جراب
+                </text>
+              </g>
 
-            {/* Solid Amber line for Heel to End along the back edge */}
-            <line x1="210" y1="70" x2="195" y2="245" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" />
+              {/* Left Sock Contour */}
+              <path 
+                d="M 330,70 L 230,70 L 230,245 L 130,320 L 160,360 L 345,245 Z" 
+                fill="#f0f7ff" 
+                stroke="#60a5fa" 
+                strokeWidth="2.5" 
+                strokeLinejoin="round" 
+              />
 
-            {/* Dashed Blue line across Ankle */}
-            <line x1="195" y1="245" x2="310" y2="245" stroke="#2563eb" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
+              {/* Solid Amber line for Heel to End along the back edge */}
+              <line x1="330" y1="70" x2="345" y2="245" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" />
 
-            {/* Dashed Emerald line across Feet / Instep */}
-            <line x1="195" y1="245" x2="345" y2="330" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
+              {/* Dashed Blue line across Ankle */}
+              <line x1="345" y1="245" x2="230" y2="245" stroke="#2563eb" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
 
-            {/* Measurement Badges */}
-            <g transform="translate(260, 52)">
-              <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#c084fc" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="11">Open End: {formatVal('Open End')}</text>
-            </g>
+              {/* Dashed Emerald line across Feet / Instep */}
+              <line x1="345" y1="245" x2="195" y2="330" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
 
-            <g transform="translate(260, 118)">
-              <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#fb923c" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="11">Close End: {formatVal('Close End')}</text>
-            </g>
+              {/* Measurement Badges */}
+              <g transform="translate(280, 52)">
+                <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#c084fc" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="11">Open End: {formatVal('Open End')}</text>
+              </g>
+              <g transform="translate(280, 118)">
+                <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#fb923c" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="11">Close End: {formatVal('Close End')}</text>
+              </g>
+              <g transform="translate(425, 170)">
+                <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#f59e0b" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="11">Heel to End: {formatVal('Heel to End')}</text>
+              </g>
+              <g transform="translate(288, 228)">
+                <rect x="-62" y="-12" width="124" height="24" rx="6" fill="white" stroke="#3b82f6" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="11">Ankle: {formatVal('Ankle')}</text>
+              </g>
+              <g transform="translate(245, 312)">
+                <rect x="-60" y="-12" width="120" height="24" rx="6" fill="white" stroke="#10b981" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="11">Feet: {formatVal('Feet')}</text>
+              </g>
+              <g transform="translate(175, 390)">
+                <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#ec4899" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="11">Feet Length: {formatVal('Feet Length')}</text>
+              </g>
+            </svg>
+          );
+        }
 
-            <g transform="translate(115, 170)">
-              <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#f59e0b" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="11">Heel to End: {formatVal('Heel to End')}</text>
-            </g>
+        if (sockMode === 'Right') {
+          return (
+            <svg viewBox="0 0 540 440" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
+              {/* Header */}
+              <g transform="translate(270, 22)">
+                <rect x="-95" y="-12" width="190" height="24" rx="6" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
+                <text y="4" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="10.5" letterSpacing="0.5">
+                  RIGHT SOCK / دایاں جراب
+                </text>
+              </g>
 
-            <g transform="translate(252, 228)">
-              <rect x="-62" y="-12" width="124" height="24" rx="6" fill="white" stroke="#3b82f6" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="11">Ankle: {formatVal('Ankle')}</text>
-            </g>
+              {/* Right Sock Contour */}
+              <path 
+                d="M 210,70 L 310,70 L 310,245 L 410,320 L 380,360 L 195,245 Z" 
+                fill="#f0f7ff" 
+                stroke="#60a5fa" 
+                strokeWidth="2.5" 
+                strokeLinejoin="round" 
+              />
 
-            <g transform="translate(295, 312)">
-              <rect x="-60" y="-12" width="120" height="24" rx="6" fill="white" stroke="#10b981" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="11">Feet: {formatVal('Feet')}</text>
-            </g>
+              {/* Solid Amber line for Heel to End along the back edge */}
+              <line x1="210" y1="70" x2="195" y2="245" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" />
 
-            <g transform="translate(365, 390)">
-              <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#ec4899" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="11">Feet Length: {formatVal('Feet Length')}</text>
-            </g>
-          </svg>
-        );
+              {/* Dashed Blue line across Ankle */}
+              <line x1="195" y1="245" x2="310" y2="245" stroke="#2563eb" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
 
-      case 'All Socks':
+              {/* Dashed Emerald line across Feet / Instep */}
+              <line x1="195" y1="245" x2="345" y2="330" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
+
+              {/* Measurement Badges */}
+              <g transform="translate(260, 52)">
+                <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#c084fc" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="11">Open End: {formatVal('Open End')}</text>
+              </g>
+              <g transform="translate(260, 118)">
+                <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#fb923c" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="11">Close End: {formatVal('Close End')}</text>
+              </g>
+              <g transform="translate(115, 170)">
+                <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#f59e0b" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="11">Heel to End: {formatVal('Heel to End')}</text>
+              </g>
+              <g transform="translate(252, 228)">
+                <rect x="-62" y="-12" width="124" height="24" rx="6" fill="white" stroke="#3b82f6" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="11">Ankle: {formatVal('Ankle')}</text>
+              </g>
+              <g transform="translate(295, 312)">
+                <rect x="-60" y="-12" width="120" height="24" rx="6" fill="white" stroke="#10b981" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="11">Feet: {formatVal('Feet')}</text>
+              </g>
+              <g transform="translate(365, 390)">
+                <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#ec4899" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="11">Feet Length: {formatVal('Feet Length')}</text>
+              </g>
+            </svg>
+          );
+        }
+
         return (
           <svg viewBox="0 0 520 320" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
             {/* Center divider between Left and Right Socks */}
@@ -3043,11 +3095,11 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
             {/* Headers */}
             <g transform="translate(115, 18)">
               <rect x="-65" y="-10" width="130" height="18" rx="5" fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="1" />
-              <text y="3" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="8.5" letterSpacing="0.5">LEFT SOCK / بایاں جراب</text>
+              <text y="3" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="8.5" letter-spacing="0.5">LEFT SOCK / بایاں جراب</text>
             </g>
             <g transform="translate(405, 18)">
               <rect x="-65" y="-10" width="130" height="18" rx="5" fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="1" />
-              <text y="3" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="8.5" letterSpacing="0.5">RIGHT SOCK / دایاں جراب</text>
+              <text y="3" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="8.5" letter-spacing="0.5">RIGHT SOCK / دایاں جراب</text>
             </g>
 
             {/* LEFT SOCK (Profile facing Left) */}
@@ -3115,6 +3167,7 @@ const RegisteredAssessments: React.FC<RegisteredAssessmentsProps> = ({ initialSe
             </g>
           </svg>
         );
+      }
 
       case 'Body Shaper':
         return (
@@ -3490,7 +3543,7 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                                     : "bg-slate-100 text-slate-600"
                                 }`}
                               >
-                                {asm.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : asm.garment_type}
+                                {getGarmentDisplayLabel(asm.garment_type)}
                               </span>
                             );
                           })}
@@ -3571,7 +3624,7 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                                 )}
                               >
                                 <Activity className={cn("w-3.5 h-3.5", isCurrent ? "text-white" : "text-blue-500")} />
-                                <span className="truncate max-w-[120px]">{asm.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : asm.garment_type}</span>
+                                <span className="truncate max-w-[120px]">{getGarmentDisplayLabel(asm.garment_type)}</span>
                                 <span className={cn("text-[9px] font-medium font-mono px-1 py-0.2 rounded shrink-0", isCurrent ? "bg-blue-500/30 text-white" : "bg-slate-100 text-slate-500")}>
                                   {new Date(asm.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                 </span>
@@ -3603,7 +3656,7 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-slate-50 rounded-2xl">
                       <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Garment Unit</span>
-                      <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{selectedAssessment.garment_type}</span>
+                      <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{getGarmentDisplayLabel(selectedAssessment.garment_type)}</span>
                     </div>
                     <div className="p-4 bg-slate-50 rounded-2xl">
                       <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Compression</span>
@@ -3780,9 +3833,12 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                                 {extractedData.handSelection && (
                                   <p className="font-bold text-slate-800">• Hand Selection: *<span className="font-black text-slate-900">{extractedData.handSelection}</span>*</p>
                                 )}
+                                {extractedData.sideSelection && (
+                                  <p className="font-bold text-slate-800">• Side Selection: *<span className="font-black text-slate-900">{extractedData.sideSelection}</span>*</p>
+                                )}
                                 <p className="font-bold text-slate-800">• Color: *<span className="font-black text-slate-900">{extractedData.color}</span>*</p>
                                 {extractedData.customDesignOptions.map(([key, val]) => {
-                                  if (key === 'Hand Selection') return null;
+                                  if (key === 'Hand Selection' || key === 'Side Selection') return null;
                                   return (
                                     <p key={key} className="font-bold text-slate-800">• {key}: *<span className="font-black text-slate-900">{val}</span>*</p>
                                   );
@@ -3990,48 +4046,53 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                     <label className="block text-[11px] font-bold text-slate-600 mb-1">Garment Type / گارمنٹ کی قسم</label>
                     <select 
                       value={editFormData.garment_type}
-                      onChange={(e) => setEditFormData(prev => ({ ...prev, garment_type: e.target.value }))}
+                      onChange={(e) => {
+                        const newType = e.target.value;
+                        setEditFormData(prev => {
+                          const nextSub = { ...(prev.sub_options || {}) };
+                          if (newType === 'All Gloves/Glove With Sleeve' || newType === 'Glove With Sleeve') {
+                            if (!nextSub['Hand Selection']) nextSub['Hand Selection'] = 'Right Hand Glove';
+                          } else if (newType === 'Connecting Sleeves') {
+                            if (!nextSub['Side Selection']) nextSub['Side Selection'] = 'Right Connecting Sleeve';
+                          } else if (newType === 'Arm Sleeve') {
+                            if (!nextSub['Side Selection']) nextSub['Side Selection'] = 'Right Hand Arm Sleeve';
+                          } else if (newType === 'All Socks') {
+                            if (!nextSub['Side Selection']) nextSub['Side Selection'] = 'Right Sock';
+                          }
+                          return { ...prev, garment_type: newType, sub_options: nextSub };
+                        });
+                      }}
                       className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
                     >
-                      <option value="All Gloves/Glove With Sleeve">All Gloves/Glove With Sleeve</option>
+                      <option value="All Gloves/Glove With Sleeve">Gloves</option>
+                      <option value="Glove With Sleeve">Glove With Sleeve</option>
                       <option value="Face Mask & Chin Binder">Face Mask & Chin Binder</option>
-                      <option value="Left Connecting Sleeve">Left Connecting Sleeve</option>
-                      <option value="Right Connecting Sleeve">Right Connecting Sleeve</option>
-                      <option value="Connecting Sleeves">Connecting Sleeves (Legacy)</option>
-                      <option value="Arm sleeve Right Hand">Arm sleeve Right Hand</option>
-                      <option value="Arm sleeve Left Hand">Arm sleeve Left Hand</option>
-                      <option value="Connecting Sleeves/Arm Sleeve">Connecting Sleeves/Arm Sleeve</option>
+                      <option value="Connecting Sleeves">Connecting Sleeves</option>
+                      <option value="Arm Sleeve">Arm Sleeve</option>
                       <option value="All Jacket">All Jacket</option>
                       <option value="Sports Bra">Sports Bra</option>
                       <option value="Belly Binder">Belly Binder</option>
                       <option value="Belly Belt">Belly Belt</option>
                       <option value="All Trouser">All Trouser</option>
                       <option value="All Leg Sleeves">All Leg Sleeves</option>
-                      <option value="Left Socks">Left Socks</option>
-                      <option value="Right Socks">Right Socks</option>
-                      <option value="All Socks">All Socks (Legacy)</option>
+                      <option value="All Socks">Socks</option>
                       <option value="Body Shaper">Body Shaper</option>
                       {editFormData.garment_type && ![
                         'All Gloves/Glove With Sleeve',
+                        'Glove With Sleeve',
                         'Face Mask & Chin Binder',
-                        'Left Connecting Sleeve',
-                        'Right Connecting Sleeve',
                         'Connecting Sleeves',
-                        'Arm sleeve Right Hand',
-                        'Arm sleeve Left Hand',
-                        'Connecting Sleeves/Arm Sleeve',
+                        'Arm Sleeve',
                         'All Jacket',
                         'Sports Bra',
                         'Belly Binder',
                         'Belly Belt',
                         'All Trouser',
                         'All Leg Sleeves',
-                        'Left Socks',
-                        'Right Socks',
                         'All Socks',
                         'Body Shaper'
                       ].includes(editFormData.garment_type) && (
-                        <option value={editFormData.garment_type}>{editFormData.garment_type}</option>
+                        <option value={editFormData.garment_type}>{editFormData.garment_type} (Legacy)</option>
                       )}
                     </select>
                   </div>
@@ -4059,12 +4120,120 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                     </select>
                   </div>
                 </div>
+
+                {(editFormData.garment_type === 'All Gloves/Glove With Sleeve' || editFormData.garment_type === 'Glove With Sleeve') && (
+                  <div className="pt-2">
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1.5">Hand Selection / ہاتھ کا انتخاب</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['Right Hand Glove', 'Left Hand Glove', 'Both Hand Glove'].map(opt => {
+                        const isSelected = (editFormData.sub_options?.['Hand Selection'] || 'Right Hand Glove') === opt;
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => setEditFormData(prev => ({
+                              ...prev,
+                              sub_options: { ...(prev.sub_options || {}), 'Hand Selection': opt }
+                            }))}
+                            className={cn(
+                              "px-3 py-2 rounded-xl border text-xs font-bold transition-all",
+                              isSelected ? "bg-amber-500 border-amber-500 text-white" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                            )}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {(editFormData.garment_type === 'Connecting Sleeves' || editFormData.garment_type === 'Connecting Sleeves/Arm Sleeve') && (
+                  <div className="pt-2">
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1.5">Side Selection / بازو کا انتخاب</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['Right Connecting Sleeve', 'Left Connecting Sleeve', 'Both Connecting Sleeves'].map(opt => {
+                        const isSelected = (editFormData.sub_options?.['Side Selection'] || 'Both Connecting Sleeves') === opt;
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => setEditFormData(prev => ({
+                              ...prev,
+                              sub_options: { ...(prev.sub_options || {}), 'Side Selection': opt }
+                            }))}
+                            className={cn(
+                              "px-3 py-2 rounded-xl border text-xs font-bold transition-all",
+                              isSelected ? "bg-amber-500 border-amber-500 text-white" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                            )}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {editFormData.garment_type === 'Arm Sleeve' && (
+                  <div className="pt-2">
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1.5">Side Selection / بازو آستین کا انتخاب</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {['Right Hand Arm Sleeve', 'Left Hand Arm Sleeve'].map(opt => {
+                        const isSelected = (editFormData.sub_options?.['Side Selection'] || 'Right Hand Arm Sleeve') === opt;
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => setEditFormData(prev => ({
+                              ...prev,
+                              sub_options: { ...(prev.sub_options || {}), 'Side Selection': opt }
+                            }))}
+                            className={cn(
+                              "px-3 py-2 rounded-xl border text-xs font-bold transition-all",
+                              isSelected ? "bg-amber-500 border-amber-500 text-white" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                            )}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {editFormData.garment_type === 'All Socks' && (
+                  <div className="pt-2">
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1.5">Side Selection / جراب کا انتخاب</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['Right Sock', 'Left Sock', 'Both Socks'].map(opt => {
+                        const isSelected = (editFormData.sub_options?.['Side Selection'] || 'Both Socks') === opt;
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => setEditFormData(prev => ({
+                              ...prev,
+                              sub_options: { ...(prev.sub_options || {}), 'Side Selection': opt }
+                            }))}
+                            className={cn(
+                              "px-3 py-2 rounded-xl border text-xs font-bold transition-all",
+                              isSelected ? "bg-amber-500 border-amber-500 text-white" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                            )}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Measurements Editing Section */}
               <div className="space-y-4 pt-2 border-t border-slate-100">
                 {(() => {
-                  const predefinedFields = GARMENT_FIELDS[editFormData.garment_type] || [];
+                  const predefinedFields = getActiveGarmentFields(editFormData.garment_type, editFormData.sub_options);
                   const getCanonicalKey = (k: string) => {
                     const match = predefinedFields.find(f => f.id === k || f.label === k);
                     return match ? match.id : k;
@@ -4081,7 +4250,7 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                   });
 
                   Object.keys(editFormData.sub_options).forEach(k => {
-                    if (k !== 'Custom Design Notes' && k !== 'doctorNotes' && k !== 'Hand Selection') {
+                    if (k !== 'Custom Design Notes' && k !== 'doctorNotes' && k !== 'Hand Selection' && k !== 'Side Selection') {
                       keysSet.add(getCanonicalKey(k));
                     }
                   });
@@ -4355,7 +4524,7 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                 <div className="grid grid-cols-4 gap-4">
                   <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
                     <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Garment Unit</span>
-                    <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{selectedAssessment.garment_type}</span>
+                    <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{getGarmentDisplayLabel(selectedAssessment.garment_type)}</span>
                   </div>
                   <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
                     <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Compression</span>
@@ -4426,6 +4595,7 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                             val !== '' &&
                             key.toLowerCase() !== 'color' &&
                             key.toLowerCase() !== 'hand selection' &&
+                            key.toLowerCase() !== 'side selection' &&
                             key !== 'Custom Design Notes' &&
                             key !== 'doctorNotes'
                         )
@@ -4443,6 +4613,7 @@ CREATE POLICY "Allow public read/write access" ON assessments FOR ALL USING (tru
                           val !== '' &&
                           key.toLowerCase() !== 'color' &&
                           key.toLowerCase() !== 'hand selection' &&
+                          key.toLowerCase() !== 'side selection' &&
                           key !== 'Custom Design Notes' &&
                           key !== 'doctorNotes'
                       ).length === 0 && (

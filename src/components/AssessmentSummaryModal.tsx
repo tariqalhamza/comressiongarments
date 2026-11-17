@@ -18,6 +18,12 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import logoImg from '../assets/images/overplast_brand_logo_teal_1779021512013.png';
 import { useAuthStore } from '../services/authStore';
+import {
+  getGarmentDisplayLabel,
+  resolveConnectingSleeveSides,
+  resolveSockSideMode,
+  resolveArmSleeveSideLabel,
+} from '../utils/measurementUtils';
 
 interface RegisteredAssessment {
   id: string;
@@ -87,6 +93,17 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
     
     // Fallback mappings for backwards compatibility
     if (!val) {
+      const sub = assessmentPayload.sub_options || {};
+      const findSubVal = (candidates: string[]) => {
+        for (const c of candidates) {
+          const matchedKey = Object.keys(sub).find(k => k.toLowerCase() === c.toLowerCase());
+          if (matchedKey && sub[matchedKey] !== undefined && String(sub[matchedKey]).trim() !== '') {
+            return sub[matchedKey];
+          }
+        }
+        return undefined;
+      };
+
       let fallbackKey = '';
       if (label === 'Left Arm pit' || label === 'L. Arm pit') fallbackKey = 'Left Arm pit';
       else if (label === 'Right Arm pit' || label === 'R. Arm pit') fallbackKey = 'Right Arm pit';
@@ -111,8 +128,12 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
       else if (label === 'Left Feet' || label === 'L-Feet') fallbackKey = 'Feet';
       else if (label === 'Right Feet Length' || label === 'R-Feet Len' || label === 'Right Feet length') fallbackKey = 'Feet length';
       else if (label === 'Left Feet Length' || label === 'L-Feet Len' || label === 'Left Feet length') fallbackKey = 'Feet length';
-      else if (label === 'Open End') fallbackKey = 'Arm pit';
-      else if (label === 'Close End') fallbackKey = 'Wrist';
+      else if (label === 'Open End' || label === 'Open end') val = findSubVal(['Open End', 'Open end', 'open_end', 'Right Open End', 'Left Open End', 'Above ankle open end', 'above_ankle_open_end', 'Open end thigh', 'Arm pit', 'arm_pit']);
+      else if (label === 'Close End' || label === 'Close end') val = findSubVal(['Close End', 'Close end', 'close_end', 'Right Close End', 'Left Close End', 'Wrist', 'wrist']);
+      else if (label === 'Heel to End' || label === 'Length heel to close end') val = findSubVal(['Heel to End', 'Length heel to close end', 'len_heel_to_close_end', 'Right Heel to End', 'Left Heel to End']);
+      else if (label === 'Ankle') val = findSubVal(['Ankle', 'ankle', 'Right Ankle', 'Left Ankle']);
+      else if (label === 'Feet') val = findSubVal(['Feet', 'feet', 'Right Feet', 'Left Feet']);
+      else if (label === 'Feet Length' || label === 'Feet length') val = findSubVal(['Feet Length', 'Feet length', 'feet_length', 'Right Feet Length', 'Left Feet Length']);
       else if (label === 'Arm pit') fallbackKey = 'Open End';
       else if (label === 'Wrist') fallbackKey = 'Close End';
       else if (label === 'Middle finger') fallbackKey = 'Medal finger';
@@ -127,7 +148,6 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
       else if (label === 'Shoulder') fallbackKey = 'Shoulder';
       else if (label === 'Total length' || label === 'Total Length') fallbackKey = 'Total length';
       else if (label === 'West (Waist)' || label === 'West' || label === 'Waist') fallbackKey = 'Waist';
-      else if (label === 'Open End') fallbackKey = 'Open end thigh';
       else if (label === 'Close End (Leg end)') fallbackKey = 'Close end thigh';
       else if (label === 'Width diapharm to waist' || label === 'Width diaphrom to waist' || label === 'Length Diaphrom to West' || label === 'Length Diaphrom to Waist') fallbackKey = 'length diaphragm to waist';
       else if (label === 'Short Length' || label === 'Waist to Close End') fallbackKey = 'Waist to Close End';
@@ -143,7 +163,7 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
       else if (label === 'Inseam (Inside Length)' || label === 'Inseam') fallbackKey = 'Inseam';
       else if (label === 'Total Length') fallbackKey = 'Length waist to ankle';
       
-      if (fallbackKey) {
+      if (!val && fallbackKey) {
         key = Object.keys(assessmentPayload.sub_options || {}).find(
           k => k.toLowerCase() === fallbackKey.toLowerCase()
         ) || fallbackKey;
@@ -219,8 +239,7 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
       case 'Right Connecting Sleeve':
       case 'Connecting Sleeves':
       case 'Connecting Sleeves/Arm Sleeve': {
-        const showLeft = assessment.garment_type !== 'Right Connecting Sleeve';
-        const showRight = assessment.garment_type !== 'Left Connecting Sleeve';
+        const { showLeft, showRight } = resolveConnectingSleeveSides(assessment.garment_type, assessment.sub_options);
         return (
           <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
             {/* Torso Back View Background */}
@@ -334,10 +353,20 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
         );
       }
 
+      case 'Arm Sleeve':
       case 'Arm sleeve Right Hand':
-      case 'Arm sleeve Left Hand':
+      case 'Arm sleeve Left Hand': {
+        const armSideLabel = resolveArmSleeveSideLabel(assessment.garment_type, assessment.sub_options);
         return (
           <svg viewBox="0 0 300 300" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
+            {/* Top Side Indicator Badge */}
+            <g transform="translate(150, 22)">
+              <rect x="-105" y="-11" width="210" height="22" rx="6" fill="#f8fafc" stroke="#1e293b" strokeWidth="1.5" />
+              <text y="3.5" textAnchor="middle" className="fill-slate-900 font-extrabold" fontSize="9.5" letterSpacing="0.5">
+                {armSideLabel.toUpperCase()}
+              </text>
+            </g>
+
             <polygon points="190,85 78,175 102,205 230,135" fill="#eff6ff" stroke="#2563eb" strokeWidth="2" />
             <ellipse cx="210" cy="110" rx="26" ry="12" transform="rotate(56, 210, 110)" fill="#eff6ff" stroke="#10b981" strokeWidth="2" />
             <ellipse cx="149" cy="148" rx="20" ry="10" transform="rotate(56, 149, 148)" fill="none" stroke="#f59e0b" strokeWidth="2" strokeDasharray="3 3" />
@@ -365,6 +394,7 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
             </g>
           </svg>
         );
+      }
 
       case 'Sports Bra':
         return (
@@ -1155,130 +1185,136 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
         );
 
       case 'Left Socks':
-        return (
-          <svg viewBox="0 0 540 440" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
-            {/* Header */}
-            <g transform="translate(270, 22)">
-              <rect x="-95" y="-12" width="190" height="24" rx="6" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
-              <text y="4" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="10.5" letterSpacing="0.5">
-                LEFT SOCK / بایاں جراب
-              </text>
-            </g>
-
-            {/* Left Sock Contour */}
-            <path 
-              d="M 330,70 L 230,70 L 230,245 L 130,320 L 160,360 L 345,245 Z" 
-              fill="#f0f7ff" 
-              stroke="#60a5fa" 
-              strokeWidth="2.5" 
-              strokeLinejoin="round" 
-            />
-
-            {/* Solid Amber line for Heel to End along the back edge */}
-            <line x1="330" y1="70" x2="345" y2="245" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" />
-
-            {/* Dashed Blue line across Ankle */}
-            <line x1="345" y1="245" x2="230" y2="245" stroke="#2563eb" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
-
-            {/* Dashed Emerald line across Feet / Instep */}
-            <line x1="345" y1="245" x2="195" y2="330" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
-
-            {/* Measurement Badges */}
-            <g transform="translate(280, 52)">
-              <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#c084fc" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="11">Open End: {formatVal('Open End')}</text>
-            </g>
-
-            <g transform="translate(280, 118)">
-              <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#fb923c" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="11">Close End: {formatVal('Close End')}</text>
-            </g>
-
-            <g transform="translate(425, 170)">
-              <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#f59e0b" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="11">Heel to End: {formatVal('Heel to End')}</text>
-            </g>
-
-            <g transform="translate(288, 228)">
-              <rect x="-62" y="-12" width="124" height="24" rx="6" fill="white" stroke="#3b82f6" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="11">Ankle: {formatVal('Ankle')}</text>
-            </g>
-
-            <g transform="translate(245, 312)">
-              <rect x="-60" y="-12" width="120" height="24" rx="6" fill="white" stroke="#10b981" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="11">Feet: {formatVal('Feet')}</text>
-            </g>
-
-            <g transform="translate(175, 390)">
-              <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#ec4899" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="11">Feet Length: {formatVal('Feet Length')}</text>
-            </g>
-          </svg>
-        );
-
       case 'Right Socks':
-        return (
-          <svg viewBox="0 0 540 440" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
-            {/* Header */}
-            <g transform="translate(270, 22)">
-              <rect x="-95" y="-12" width="190" height="24" rx="6" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
-              <text y="4" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="10.5" letterSpacing="0.5">
-                RIGHT SOCK / دایاں جراب
-              </text>
-            </g>
+      case 'All Socks': {
+        const sockMode = resolveSockSideMode(assessment.garment_type, assessment.sub_options);
 
-            {/* Right Sock Contour */}
-            <path 
-              d="M 210,70 L 310,70 L 310,245 L 410,320 L 380,360 L 195,245 Z" 
-              fill="#f0f7ff" 
-              stroke="#60a5fa" 
-              strokeWidth="2.5" 
-              strokeLinejoin="round" 
-            />
+        if (sockMode === 'Left') {
+          return (
+            <svg viewBox="0 0 540 440" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
+              {/* Header */}
+              <g transform="translate(270, 22)">
+                <rect x="-95" y="-12" width="190" height="24" rx="6" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
+                <text y="4" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="10.5" letterSpacing="0.5">
+                  LEFT SOCK / بایاں جراب
+                </text>
+              </g>
 
-            {/* Solid Amber line for Heel to End along the back edge */}
-            <line x1="210" y1="70" x2="195" y2="245" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" />
+              {/* Left Sock Contour */}
+              <path 
+                d="M 330,70 L 230,70 L 230,245 L 130,320 L 160,360 L 345,245 Z" 
+                fill="#f0f7ff" 
+                stroke="#60a5fa" 
+                strokeWidth="2.5" 
+                strokeLinejoin="round" 
+              />
 
-            {/* Dashed Blue line across Ankle */}
-            <line x1="195" y1="245" x2="310" y2="245" stroke="#2563eb" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
+              {/* Solid Amber line for Heel to End along the back edge */}
+              <line x1="330" y1="70" x2="345" y2="245" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" />
 
-            {/* Dashed Emerald line across Feet / Instep */}
-            <line x1="195" y1="245" x2="345" y2="330" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
+              {/* Dashed Blue line across Ankle */}
+              <line x1="345" y1="245" x2="230" y2="245" stroke="#2563eb" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
 
-            {/* Measurement Badges */}
-            <g transform="translate(260, 52)">
-              <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#c084fc" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="11">Open End: {formatVal('Open End')}</text>
-            </g>
+              {/* Dashed Emerald line across Feet / Instep */}
+              <line x1="345" y1="245" x2="195" y2="330" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
 
-            <g transform="translate(260, 118)">
-              <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#fb923c" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="11">Close End: {formatVal('Close End')}</text>
-            </g>
+              {/* Measurement Badges */}
+              <g transform="translate(280, 52)">
+                <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#c084fc" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="11">Open End: {formatVal('Open End')}</text>
+              </g>
 
-            <g transform="translate(115, 170)">
-              <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#f59e0b" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="11">Heel to End: {formatVal('Heel to End')}</text>
-            </g>
+              <g transform="translate(280, 118)">
+                <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#fb923c" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="11">Close End: {formatVal('Close End')}</text>
+              </g>
 
-            <g transform="translate(252, 228)">
-              <rect x="-62" y="-12" width="124" height="24" rx="6" fill="white" stroke="#3b82f6" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="11">Ankle: {formatVal('Ankle')}</text>
-            </g>
+              <g transform="translate(425, 170)">
+                <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#f59e0b" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="11">Heel to End: {formatVal('Heel to End')}</text>
+              </g>
 
-            <g transform="translate(295, 312)">
-              <rect x="-60" y="-12" width="120" height="24" rx="6" fill="white" stroke="#10b981" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="11">Feet: {formatVal('Feet')}</text>
-            </g>
+              <g transform="translate(288, 228)">
+                <rect x="-62" y="-12" width="124" height="24" rx="6" fill="white" stroke="#3b82f6" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="11">Ankle: {formatVal('Ankle')}</text>
+              </g>
 
-            <g transform="translate(365, 390)">
-              <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#ec4899" strokeWidth="1.8" />
-              <text y="4" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="11">Feet Length: {formatVal('Feet Length')}</text>
-            </g>
-          </svg>
-        );
+              <g transform="translate(245, 312)">
+                <rect x="-60" y="-12" width="120" height="24" rx="6" fill="white" stroke="#10b981" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="11">Feet: {formatVal('Feet')}</text>
+              </g>
 
-      case 'All Socks':
+              <g transform="translate(175, 390)">
+                <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#ec4899" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="11">Feet Length: {formatVal('Feet Length')}</text>
+              </g>
+            </svg>
+          );
+        }
+
+        if (sockMode === 'Right') {
+          return (
+            <svg viewBox="0 0 540 440" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
+              {/* Header */}
+              <g transform="translate(270, 22)">
+                <rect x="-95" y="-12" width="190" height="24" rx="6" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" />
+                <text y="4" textAnchor="middle" className="fill-slate-800 font-extrabold" fontSize="10.5" letterSpacing="0.5">
+                  RIGHT SOCK / دایاں جراب
+                </text>
+              </g>
+
+              {/* Right Sock Contour */}
+              <path 
+                d="M 210,70 L 310,70 L 310,245 L 410,320 L 380,360 L 195,245 Z" 
+                fill="#f0f7ff" 
+                stroke="#60a5fa" 
+                strokeWidth="2.5" 
+                strokeLinejoin="round" 
+              />
+
+              {/* Solid Amber line for Heel to End along the back edge */}
+              <line x1="210" y1="70" x2="195" y2="245" stroke="#f59e0b" strokeWidth="3.5" strokeLinecap="round" />
+
+              {/* Dashed Blue line across Ankle */}
+              <line x1="195" y1="245" x2="310" y2="245" stroke="#2563eb" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
+
+              {/* Dashed Emerald line across Feet / Instep */}
+              <line x1="195" y1="245" x2="345" y2="330" stroke="#10b981" strokeWidth="2.5" strokeDasharray="5 5" strokeLinecap="round" />
+
+              {/* Measurement Badges */}
+              <g transform="translate(260, 52)">
+                <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#c084fc" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-purple-600 font-extrabold" fontSize="11">Open End: {formatVal('Open End')}</text>
+              </g>
+
+              <g transform="translate(260, 118)">
+                <rect x="-70" y="-12" width="140" height="24" rx="6" fill="white" stroke="#fb923c" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-orange-600 font-extrabold" fontSize="11">Close End: {formatVal('Close End')}</text>
+              </g>
+
+              <g transform="translate(115, 170)">
+                <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#f59e0b" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-amber-600 font-extrabold" fontSize="11">Heel to End: {formatVal('Heel to End')}</text>
+              </g>
+
+              <g transform="translate(252, 228)">
+                <rect x="-62" y="-12" width="124" height="24" rx="6" fill="white" stroke="#3b82f6" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-blue-600 font-extrabold" fontSize="11">Ankle: {formatVal('Ankle')}</text>
+              </g>
+
+              <g transform="translate(295, 312)">
+                <rect x="-60" y="-12" width="120" height="24" rx="6" fill="white" stroke="#10b981" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-emerald-600 font-extrabold" fontSize="11">Feet: {formatVal('Feet')}</text>
+              </g>
+
+              <g transform="translate(365, 390)">
+                <rect x="-78" y="-12" width="156" height="24" rx="6" fill="white" stroke="#ec4899" strokeWidth="1.8" />
+                <text y="4" textAnchor="middle" className="fill-pink-600 font-extrabold" fontSize="11">Feet Length: {formatVal('Feet Length')}</text>
+              </g>
+            </svg>
+          );
+        }
+
         return (
           <svg viewBox="0 0 520 320" className="w-full h-full max-h-[300px]" style={{ minHeight: '260px' }}>
             {/* Center divider between Left and Right Socks */}
@@ -1359,6 +1395,7 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
             </g>
           </svg>
         );
+      }
 
       case 'Body Shaper':
         return (
@@ -1907,7 +1944,7 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
                       {patient.full_name}
                     </h4>
                     <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 text-blue-800 text-[9px] font-black uppercase rounded-lg">
-                      {assessmentPayload.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : assessmentPayload.garment_type}
+                      {getGarmentDisplayLabel(assessmentPayload.garment_type)}
                     </span>
 
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pt-3 text-[11px] text-slate-500 font-bold border-t border-slate-200/60">
@@ -1956,7 +1993,7 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
                   <div className="space-y-1">
                     <span className="text-[8px] font-black text-slate-450 uppercase block tracking-wider">Garment Config / لباس کی قسم</span>
                     <div className="text-slate-900 text-xs font-black uppercase">
-                      {assessmentPayload.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : assessmentPayload.garment_type}
+                      {getGarmentDisplayLabel(assessmentPayload.garment_type)}
                     </div>
                   </div>
                   <div className="space-y-1">
@@ -2194,7 +2231,7 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
                 <div className="grid grid-cols-4 gap-4">
                   <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
                     <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Garment Unit</span>
-                    <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{assessmentPayload.garment_type === 'All Gloves/Glove With Sleeve' ? 'Gloves' : assessmentPayload.garment_type}</span>
+                    <span className="font-extrabold text-slate-800 text-xs block mt-1 uppercase">{getGarmentDisplayLabel(assessmentPayload.garment_type)}</span>
                   </div>
                   <div className="p-4 rounded-2xl" style={{ backgroundColor: '#f0f7ff', border: '1px solid #bfdbfe' }}>
                     <span className="text-[9px] font-black text-slate-400 uppercase block tracking-wider">Compression</span>
@@ -2229,7 +2266,7 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block pl-1">Matrix Calibration Parameters</span>
                     <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4 space-y-2" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
                       {Object.entries(assessmentPayload.sub_options || {})
-                        .filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection')
+                        .filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection' && key.toLowerCase() !== 'side selection')
                         .map(([key, val]) => (
                           <div key={key} className="flex justify-between items-center text-xs pb-1.5 border-b border-dashed border-slate-200 last:border-none last:pb-0">
                             <span className="text-slate-400 font-extrabold uppercase tracking-wider text-[9px]">{key}</span>
@@ -2238,7 +2275,7 @@ const AssessmentSummaryModal: React.FC<AssessmentSummaryModalProps> = ({
                             </span>
                           </div>
                         ))}
-                      {Object.entries(assessmentPayload.sub_options || {}).filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection').length === 0 && (
+                      {Object.entries(assessmentPayload.sub_options || {}).filter(([key, val]) => val !== undefined && val !== '' && key.toLowerCase() !== 'color' && key.toLowerCase() !== 'hand selection' && key.toLowerCase() !== 'side selection').length === 0 && (
                         <p className="text-xs text-slate-400 italic">No custom points registered.</p>
                       )}
                     </div>

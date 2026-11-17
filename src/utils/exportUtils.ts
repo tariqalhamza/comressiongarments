@@ -42,7 +42,7 @@ export function exportPatientToExcel(patient: any, matchedAssessment: any | null
     rows.push(["Anatomical Point / پوانٹ", "Value Measured / پیمائش (cm)"]);
     
     Object.entries(subOptions).forEach(([key, val]) => {
-      if (key !== 'Hand Selection' && key !== 'Custom Design Notes' && typeof val !== 'object' && val !== '') {
+      if (key !== 'Hand Selection' && key !== 'Side Selection' && key !== 'Custom Design Notes' && typeof val !== 'object' && val !== '') {
         rows.push([key, `${val} cm`]);
       }
     });
@@ -277,7 +277,7 @@ export function exportPatientToPDF(patient: any, matchedAssessment: any | null) 
     currentY += 14;
 
     const clinicalPoints = Object.entries(subOptions).filter(
-      ([k, v]) => k !== 'Hand Selection' && k !== 'Custom Design Notes' && typeof v !== 'object' && v !== ''
+      ([k, v]) => k !== 'Hand Selection' && k !== 'Side Selection' && k !== 'Custom Design Notes' && typeof v !== 'object' && v !== ''
     );
 
     if (clinicalPoints.length > 0) {
